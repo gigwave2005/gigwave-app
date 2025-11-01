@@ -1664,6 +1664,16 @@ export default function App() {
 
   // Audience Mode
   if(mode === 'aud'){
+    // Auto-check for live gigs when audience mode loads
+    useEffect(() => {
+      if (!liveGig) {
+        const storedLiveGig = storage.get(STORAGE_KEYS.LIVE_GIG);
+        if (storedLiveGig) {
+          setLiveGig(storedLiveGig);
+        }
+      }
+    }, [liveGig]);
+    
     // If there's a live gig, show live gig interface
     if(liveGig){
       const donationOptions = [
@@ -2102,7 +2112,7 @@ export default function App() {
               <h1 className="text-4xl font-bold">{CFG.app}</h1>
               <p className="text-teal-200">{auth.name}</p>
             </div>
-            <button onClick={()=>setMode('sel')} className="px-4 py-2 bg-white/20 text-white rounded-lg">Exit</button>
+            <button onClick={()=>{setAuth(null);setMode('sel');}} className="px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30">Exit</button>
           </header>
           <div className="bg-white/10 rounded-xl p-6">
             <h2 className="text-2xl font-bold text-white mb-4">Audience Mode</h2>
@@ -2140,7 +2150,7 @@ export default function App() {
             <h1 className="text-4xl font-bold">{CFG.app}</h1>
             <p className="text-teal-200">{auth.name}</p>
           </div>
-          <button onClick={()=>setMode('sel')} className="px-4 py-2 bg-white/20 text-white rounded-lg">Exit</button>
+          <button onClick={()=>{setAuth(null);setMode('sel');}} className="px-4 py-2 bg-white/20 text-white rounded-lg hover:bg-white/30">Exit</button>
         </header>
         <div className="bg-white/10 rounded-xl p-6">
           <h2 className="text-2xl font-bold text-white mb-4">Welcome</h2>
