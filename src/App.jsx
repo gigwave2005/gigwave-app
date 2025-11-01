@@ -202,15 +202,6 @@ export default function App() {
       }
       return p;
     }));
-  };
-
-  const addSongToGigPlaylist = (playlistId, songId) => {
-    setGigPlaylists(gigPlaylists.map(p => {
-      if(p.id === playlistId && !p.songs.includes(songId)){
-        return {...p, songs: [...p.songs, songId]};
-      }
-      return p;
-    }));
     
     // Also update editingPlaylist if it's the same playlist being edited
     if(editingPlaylist && editingPlaylist.id === playlistId && !editingPlaylist.songs.includes(songId)){
@@ -219,6 +210,7 @@ export default function App() {
         songs: [...editingPlaylist.songs, songId]
       });
     }
+  };
 
   const removeSongFromGigPlaylist = (playlistId, songId) => {
     setGigPlaylists(gigPlaylists.map(p => {
@@ -1729,7 +1721,7 @@ export default function App() {
                     <Music className="inline mr-2" size={20}/>Request Song
                   </button>
                 )}
-                <button onClick={()=>setMode('sel')} className="px-6 py-3 bg-white/20 hover:bg-white/30 text-white rounded-lg font-bold">
+                <button onClick={()=>{setMode('sel');setAuth(null);}} className="px-6 py-3 bg-white/20 hover:bg-white/30 text-white rounded-lg font-bold">
                   Exit
                 </button>
               </div>
@@ -2114,7 +2106,25 @@ export default function App() {
           </header>
           <div className="bg-white/10 rounded-xl p-6">
             <h2 className="text-2xl font-bold text-white mb-4">Audience Mode</h2>
-            <p className="text-teal-200">No live gig currently. Check back when an artist goes live!</p>
+            <p className="text-teal-200 mb-4">No live gig currently. Check back when an artist goes live!</p>
+            
+            <div className="mt-6 p-4 bg-blue-500/20 border border-blue-400 rounded-lg">
+              <p className="text-blue-200 text-sm mb-3">💡 <strong>For Testing:</strong> First login as Artist, create a gig, and go live. Then login as Audience to see the live gig.</p>
+              <button 
+                onClick={() => {
+                  const storedLiveGig = storage.get(STORAGE_KEYS.LIVE_GIG);
+                  if (storedLiveGig) {
+                    setLiveGig(storedLiveGig);
+                    window.alert('Joined live gig!');
+                  } else {
+                    window.alert('No live gig available. Please have an artist start a gig first.');
+                  }
+                }}
+                className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold"
+              >
+                🔍 Check for Live Gigs
+              </button>
+            </div>
           </div>
         </div>
       </div>
