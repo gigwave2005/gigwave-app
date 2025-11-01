@@ -203,6 +203,14 @@ export default function App() {
       return p;
     }));
   };
+
+  const addSongToGigPlaylist = (playlistId, songId) => {
+    setGigPlaylists(gigPlaylists.map(p => {
+      if(p.id === playlistId && !p.songs.includes(songId)){
+        return {...p, songs: [...p.songs, songId]};
+      }
+      return p;
+    }));
     
     // Also update editingPlaylist if it's the same playlist being edited
     if(editingPlaylist && editingPlaylist.id === playlistId && !editingPlaylist.songs.includes(songId)){
