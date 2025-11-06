@@ -232,16 +232,35 @@ export default function App() {
             </div>
           )}
 
-          {currentUser && (
-            <div className="mt-8 text-center">
-              <button
-                onClick={() => setMode('artist')}
-                className="px-8 py-4 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white rounded-xl font-bold text-xl"
-              >
-                🎤 Artist Mode
-              </button>
-            </div>
-          )}
+          <div className="mt-8 text-center space-y-4">
+  {currentUser ? (
+    <>
+      <p className="text-white mb-4">Signed in as: {currentUser.email}</p>
+      <button
+        onClick={() => setMode('artist')}
+        className="px-8 py-4 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white rounded-xl font-bold text-xl"
+      >
+        🎤 Go to Artist Mode
+      </button>
+      <button
+        onClick={async () => {
+          await signOutUser();
+          setMode('discover');
+        }}
+        className="block mx-auto px-6 py-2 bg-white/20 hover:bg-white/30 text-white rounded-lg font-semibold"
+      >
+        Sign Out
+      </button>
+    </>
+  ) : (
+    <button
+      onClick={() => setShowAuthModal(true)}
+      className="px-8 py-4 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-pink-600 hover:to-purple-600 text-white rounded-xl font-bold text-xl"
+    >
+      🎤 Artist Sign In
+    </button>
+  )}
+</div>
         </div>
       </div>
     );
