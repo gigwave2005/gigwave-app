@@ -465,7 +465,7 @@ if (mode === 'live' && liveGig) {
           <button
             onClick={async () => {
               if (window.confirm('End this gig?')) {
-                await endLiveGig(liveGig.id);
+                await firebaseEndLiveGig(liveGig.id);
                 setMode('artist');
                 setLiveGig(null);
                 alert('✅ Gig ended!');
