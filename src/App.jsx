@@ -497,7 +497,7 @@ export default function App() {
                   type="date"
                   value={editingGig.date}
                   onChange={(e) => setEditingGig({...editingGig, date: e.target.value})}
-                  className="w-full px-4 py-3 rounded-lg bg-white/20 text-white border border-white/30"
+                  className="w-full px-4 py-3 rounded-lg bg-gray-800 text-white border border-white/30"
                 />
               </div>
               <div>
