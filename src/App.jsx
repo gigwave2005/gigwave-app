@@ -521,9 +521,9 @@ export default function App() {
                 })}
                 className="w-full px-4 py-3 rounded-lg bg-white/20 text-white border border-white/30"
               >
-                <option value="">No playlist (use master)</option>
+                <option value="" className="bg-white text-gray-900">No playlist (use master)</option>
                 {gigPlaylists.map(p => (
-                  <option key={p.id} value={p.id}>
+                  <option key={p.id} value={p.id} className="bg-white text-gray-900">
                     {p.name} ({p.songs.length} songs)
                   </option>
                 ))}
