@@ -974,9 +974,22 @@ export default function App() {
                                 <p className="text-red-300 text-sm mt-2 font-semibold">⚠️ This gig has ended</p>
                               )}
                             </div>
-                            <button
-                              onClick={() => handleGoLive(gig)}
-                              disabled={isEnded}
+                            <div className="flex gap-2">
+                              {!isEnded && (
+                                <button
+                                  onClick={() => {
+                                    setEditingGig(gig);
+                                    setShowGigModal(true);
+                                  }}
+                                  className="px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold"
+                                  title="Edit gig details"
+                                >
+                                  <Edit2 className="inline mr-2" size={20}/>Edit
+                                </button>
+                              )}
+                              <button
+                                onClick={() => handleGoLive(gig)}
+                                disabled={isEnded}
                               className={`px-6 py-3 ${isEnded ? 'bg-gray-500 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600'} text-white rounded-lg font-bold`}
                               title={isEnded ? 'Cannot go live - gig has ended' : 'Go live with this gig'}
                             >
