@@ -335,6 +335,13 @@ export default function App() {
     setEditingGig(null);
   };
 
+  const deleteGig = (id) => {
+    if (window.confirm('Are you sure you want to delete this gig? This cannot be undone.')) {
+      setGigs(gigs.filter(g => g.id !== id));
+      alert('✅ Gig deleted successfully!');
+    }
+  };
+  
   const handleGoLive = async (gig) => {
     try {
       let location = gig.location;
@@ -976,15 +983,33 @@ export default function App() {
                             </div>
                             <div className="flex gap-2">
                               {!isEnded && (
+                                <>
+                                  <button
+                                    onClick={() => {
+                                      setEditingGig(gig);
+                                      setShowGigModal(true);
+                                    }}
+                                    className="px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold"
+                                    title="Edit gig details"
+                                  >
+                                    <Edit2 className="inline mr-2" size={20}/>Edit
+                                  </button>
+                                  <button
+                                    onClick={() => deleteGig(gig.id)}
+                                    className="px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-bold"
+                                    title="Delete this gig"
+                                  >
+                                    <Trash2 className="inline mr-2" size={20}/>Delete
+                                  </button>
+                                </>
+                              )}
+                              {isEnded && (
                                 <button
-                                  onClick={() => {
-                                    setEditingGig(gig);
-                                    setShowGigModal(true);
-                                  }}
-                                  className="px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold"
-                                  title="Edit gig details"
+                                  onClick={() => deleteGig(gig.id)}
+                                  className="px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-bold"
+                                  title="Delete this gig"
                                 >
-                                  <Edit2 className="inline mr-2" size={20}/>Edit
+                                  <Trash2 className="inline mr-2" size={20}/>Delete
                                 </button>
                               )}
                               <button
