@@ -427,6 +427,13 @@ export default function App() {
     }
     
     try {
+      // Check if already live with this gig
+      if (liveGig && liveGig.gigId === gig.id) {
+        alert('⚠️ You are already live with this gig!');
+        setMode('live');
+        return;
+      }
+      
       let location = gig.location;
       
       if (!location) {
@@ -448,6 +455,9 @@ export default function App() {
         }
       }
       
+      // Create unique gig ID using venue + date + time
+      const uniqueGigKey = `${gig.venueName}_${gig.date}_${gig.time}`.replace(/\s/g, '_');
+      
       const gigData = {
         artistId: currentUser.uid,
         artistName: currentUser.displayName || 'Artist',
@@ -458,7 +468,8 @@ export default function App() {
         status: 'live',
         gigDate: gig.date,
         gigTime: gig.time,
-        gigId: gig.id
+        gigId: gig.id,
+        uniqueKey: uniqueGigKey
       };
       
       const gigId = await createLiveGig(gigData, currentUser.uid);
@@ -466,38 +477,6 @@ export default function App() {
       setMode('live');
       
       alert(`✅ You're live at ${gig.venueName}!\n\nAudience can find you by searching nearby!`);
-    } catch (error) {
-      alert('Error: ' + error.message);
-    }
-  };
-
-  const handleEndGig = async () => {
-    if (!window.confirm('End this gig?')) return;
-    
-    try {
-      await firebaseEndLiveGig(liveGig.id);
-      
-      // Update gigs with ended status
-      const updatedGigs = gigs.map(g => 
-        g.id === liveGig.gigId || (g.venueName === liveGig.venueName && g.date === liveGig.date)
-          ? {...g, status: 'ended'} 
-          : g
-      );
-      
-      // Update state
-      setGigs(updatedGigs);
-      
-      // Force save to localStorage immediately
-      if (currentUser) {
-        localStorage.setItem(`gigwave_gigs_${currentUser.uid}`, JSON.stringify(updatedGigs));
-        console.log('💾 Gig status updated to ended in localStorage');
-      }
-      
-      // Clear live gig
-      setMode('artist');
-      setLiveGig(null);
-      
-      alert('✅ Gig ended! Status updated to ended.');
     } catch (error) {
       alert('Error: ' + error.message);
     }
