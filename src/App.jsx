@@ -455,7 +455,10 @@ export default function App() {
         venueAddress: gig.address || '',
         location: location,
         queuedSongs: songs.slice(0, 20),
-        status: 'live'
+        status: 'live',
+        gigDate: gig.date,
+        gigTime: gig.time,
+        gigId: gig.id
       };
       
       const gigId = await createLiveGig(gigData, currentUser.uid);
