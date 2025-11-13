@@ -98,6 +98,45 @@ export default function App() {
       .catch(err => console.log('Location not available:', err));
   }, []);
 
+  // Load data from localStorage on mount
+  useEffect(() => {
+    if (currentUser) {
+      const savedSongs = localStorage.getItem(`gigwave_songs_${currentUser.uid}`);
+      const savedPlaylists = localStorage.getItem(`gigwave_playlists_${currentUser.uid}`);
+      const savedGigs = localStorage.getItem(`gigwave_gigs_${currentUser.uid}`);
+      
+      if (savedSongs) setMasterSongs(JSON.parse(savedSongs));
+      if (savedPlaylists) setGigPlaylists(JSON.parse(savedPlaylists));
+      if (savedGigs) setGigs(JSON.parse(savedGigs));
+      
+      console.log('✅ Data loaded from localStorage');
+    }
+  }, [currentUser]);
+
+  // Save master songs to localStorage
+  useEffect(() => {
+    if (currentUser && masterSongs.length >= 0) {
+      localStorage.setItem(`gigwave_songs_${currentUser.uid}`, JSON.stringify(masterSongs));
+      console.log('💾 Master songs saved:', masterSongs.length);
+    }
+  }, [masterSongs, currentUser]);
+
+  // Save gig playlists to localStorage
+  useEffect(() => {
+    if (currentUser && gigPlaylists.length >= 0) {
+      localStorage.setItem(`gigwave_playlists_${currentUser.uid}`, JSON.stringify(gigPlaylists));
+      console.log('💾 Playlists saved:', gigPlaylists.length);
+    }
+  }, [gigPlaylists, currentUser]);
+
+  // Save gigs to localStorage
+  useEffect(() => {
+    if (currentUser && gigs.length >= 0) {
+      localStorage.setItem(`gigwave_gigs_${currentUser.uid}`, JSON.stringify(gigs));
+      console.log('💾 Gigs saved:', gigs.length);
+    }
+  }, [gigs, currentUser]);
+  
   const handleSignIn = async (provider) => {
     try {
       if (provider === 'google') {
