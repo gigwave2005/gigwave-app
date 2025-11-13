@@ -382,6 +382,12 @@ export default function App() {
   };
   
   const handleGoLive = async (gig) => {
+    // Prevent going live with ended gigs
+    if (gig.status === 'ended') {
+      alert('❌ This gig has ended! You cannot go live with an ended gig.');
+      return;
+    }
+    
     try {
       let location = gig.location;
       
