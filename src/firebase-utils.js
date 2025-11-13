@@ -31,7 +31,7 @@ import {
   distanceBetween
 } from 'geofire-common';
 
-// YOUR FIREBASE CONFIG - Replace with your actual config!
+// YOUR FIREBASE CONFIG
 const firebaseConfig = {
   apiKey: "AIzaSyC3kQTbaNNYojEIx1jaU9p0C8K4ue7NFIs",
   authDomain: "gigwave-397a4.firebaseapp.com",
@@ -82,10 +82,16 @@ export const getUserLocation = () => {
   });
 };
 
-export const searchNearbyGigs = async (userLocation, radiusKm = 5) => {
+export const searchNearbyGigs = async (userLocation, radiusKm = 50) => {
   try {
+    console.log('🔍 SEARCH DEBUG: Starting search...');
+    console.log('📍 User Location:', userLocation);
+    console.log('📏 Search Radius:', radiusKm, 'km');
+    
     const center = [userLocation.lat, userLocation.lng];
-    const bounds = geohashQueryBounds(center, radiusKm);
+    const bounds = geohashQueryBounds(center, radiusKm * 1000); // Convert km to meters for geofire
+    
+    console.log('🗺️ Geohash bounds:', bounds);
     
     const promises = [];
     for (const bound of bounds) {
@@ -98,32 +104,47 @@ export const searchNearbyGigs = async (userLocation, radiusKm = 5) => {
       promises.push(getDocs(q));
     }
 
+    console.log('⏳ Querying Firebase...');
     const snapshots = await Promise.all(promises);
+    
+    console.log('📦 Query results:', snapshots.map(s => s.size));
+    
     const gigs = [];
+    let totalDocs = 0;
 
     for (const snap of snapshots) {
+      totalDocs += snap.size;
       snap.forEach((doc) => {
         const gigData = doc.data();
+        console.log('📄 Found gig:', doc.id, gigData);
+        
         const gigLocation = {
           lat: gigData.location.latitude,
           lng: gigData.location.longitude
         };
         
         const distance = calculateDistance(userLocation, gigLocation);
+        console.log('📏 Distance:', distance, 'meters');
         
         if (distance <= radiusKm * 1000) {
+          console.log('✅ Gig within range!');
           gigs.push({
             id: doc.id,
             ...gigData,
             distance: Math.round(distance)
           });
+        } else {
+          console.log('❌ Gig too far:', distance, '>', radiusKm * 1000);
         }
       });
     }
 
+    console.log('🎯 Total docs found:', totalDocs);
+    console.log('✅ Gigs within range:', gigs.length);
+    
     return gigs.sort((a, b) => a.distance - b.distance);
   } catch (error) {
-    console.error('Error searching gigs:', error);
+    console.error('❌ Error searching gigs:', error);
     return [];
   }
 };
@@ -187,10 +208,15 @@ const createOrUpdateUser = async (user) => {
 
 export const createLiveGig = async (gigData, artistId) => {
   try {
+    console.log('🎸 Creating live gig...');
+    console.log('📍 Location:', gigData.location);
+    
     const gigRef = doc(collection(db, 'liveGigs'));
     const geohash = geohashForLocation([gigData.location.lat, gigData.location.lng]);
     
-    await setDoc(gigRef, {
+    console.log('🗺️ Generated geohash:', geohash);
+    
+    const gigDocument = {
       ...gigData,
       artistId,
       geohash,
@@ -201,11 +227,17 @@ export const createLiveGig = async (gigData, artistId) => {
       voteTimestamps: {},
       comments: [],
       donations: []
-    });
+    };
+    
+    console.log('💾 Saving gig to Firebase:', gigDocument);
+    
+    await setDoc(gigRef, gigDocument);
+    
+    console.log('✅ Gig created with ID:', gigRef.id);
     
     return gigRef.id;
   } catch (error) {
-    console.error('Error creating gig:', error);
+    console.error('❌ Error creating gig:', error);
     throw error;
   }
 };
@@ -221,8 +253,14 @@ export const listenToLiveGig = (gigId, callback) => {
 };
 
 export const voteForSong = async (gigId, songId, userId, userLocation, venueLocation) => {
+  console.log('🗳️ Vote attempt - User location:', userLocation);
+  console.log('🗳️ Vote attempt - Venue location:', venueLocation);
+  
+  const distance = calculateDistance(userLocation, venueLocation);
+  console.log('📏 Distance to venue:', distance, 'meters');
+  
   if (!isWithinRange(userLocation, venueLocation, 100)) {
-    throw new Error('You must be within 100m of the venue to vote!');
+    throw new Error(`You must be within 100m of the venue to vote! You are ${Math.round(distance)}m away.`);
   }
   
   const gigRef = doc(db, 'liveGigs', gigId);
@@ -230,11 +268,15 @@ export const voteForSong = async (gigId, songId, userId, userLocation, venueLoca
     [`votes.${songId}`]: increment(1),
     [`voteTimestamps.${songId}`]: serverTimestamp()
   });
+  
+  console.log('✅ Vote recorded for song:', songId);
 };
 
 export const addComment = async (gigId, userId, userName, text, userLocation, venueLocation) => {
+  const distance = calculateDistance(userLocation, venueLocation);
+  
   if (!isWithinRange(userLocation, venueLocation, 100)) {
-    throw new Error('You must be within 100m of the venue to comment!');
+    throw new Error(`You must be within 100m of the venue to comment! You are ${Math.round(distance)}m away.`);
   }
   
   const gigRef = doc(db, 'liveGigs', gigId);
@@ -253,8 +295,10 @@ export const addComment = async (gigId, userId, userName, text, userLocation, ve
 };
 
 export const processDonation = async (gigId, userId, userName, amount, message, userLocation, venueLocation) => {
+  const distance = calculateDistance(userLocation, venueLocation);
+  
   if (!isWithinRange(userLocation, venueLocation, 100)) {
-    throw new Error('You must be within 100m of the venue to donate!');
+    throw new Error(`You must be within 100m of the venue to donate! You are ${Math.round(distance)}m away.`);
   }
   
   const gigRef = doc(db, 'liveGigs', gigId);
@@ -275,11 +319,15 @@ export const processDonation = async (gigId, userId, userName, amount, message, 
 };
 
 export const endLiveGig = async (gigId) => {
+  console.log('⏹️ Ending gig:', gigId);
+  
   const gigRef = doc(db, 'liveGigs', gigId);
   await updateDoc(gigRef, {
     status: 'ended',
     endTime: serverTimestamp()
   });
+  
+  console.log('✅ Gig ended');
 };
 
 export { db, auth, onAuthStateChanged, serverTimestamp, GeoPoint };
