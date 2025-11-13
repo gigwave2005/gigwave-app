@@ -228,6 +228,23 @@ export const createLiveGig = async (gigData, artistId) => {
     console.log('🎸 Creating live gig...');
     console.log('📍 Location:', gigData.location);
     
+    // Check if gig with this uniqueKey already exists
+    if (gigData.uniqueKey) {
+      const existingQuery = query(
+        collection(db, 'liveGigs'),
+        where('uniqueKey', '==', gigData.uniqueKey),
+        where('status', '==', 'live')
+      );
+      
+      const existingGigs = await getDocs(existingQuery);
+      
+      if (!existingGigs.empty) {
+        console.log('⚠️ Gig already exists!');
+        const existingGig = existingGigs.docs[0];
+        return existingGig.id; // Return existing gig ID
+      }
+    }
+    
     const gigRef = doc(collection(db, 'liveGigs'));
     const geohash = geohashForLocation([gigData.location.lat, gigData.location.lng]);
     
