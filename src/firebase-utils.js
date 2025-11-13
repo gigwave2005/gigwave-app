@@ -82,25 +82,36 @@ export const getUserLocation = () => {
   });
 };
 
-export const searchNearbyGigs = async (userLocation, radiusKm = 50) => {
+export const searchNearbyGigs = async (userLocation, radiusKm = 50, statusFilter = null) => {
   try {
     console.log('🔍 SEARCH DEBUG: Starting search...');
     console.log('📍 User Location:', userLocation);
     console.log('📏 Search Radius:', radiusKm, 'km');
+    console.log('🎯 Status Filter:', statusFilter || 'all');
     
     const center = [userLocation.lat, userLocation.lng];
-    const bounds = geohashQueryBounds(center, radiusKm * 1000); // Convert km to meters for geofire
+    const bounds = geohashQueryBounds(center, radiusKm * 1000);
     
     console.log('🗺️ Geohash bounds:', bounds);
     
     const promises = [];
     for (const bound of bounds) {
-      const q = query(
-        collection(db, 'liveGigs'),
-        where('geohash', '>=', bound[0]),
-        where('geohash', '<=', bound[1]),
-        where('status', '==', 'live')
-      );
+      let q;
+      if (statusFilter) {
+        q = query(
+          collection(db, 'liveGigs'),
+          where('geohash', '>=', bound[0]),
+          where('geohash', '<=', bound[1]),
+          where('status', '==', statusFilter)
+        );
+      } else {
+        // Get all gigs (live + upcoming)
+        q = query(
+          collection(db, 'liveGigs'),
+          where('geohash', '>=', bound[0]),
+          where('geohash', '<=', bound[1])
+        );
+      }
       promises.push(getDocs(q));
     }
 
@@ -126,7 +137,8 @@ export const searchNearbyGigs = async (userLocation, radiusKm = 50) => {
         const distance = calculateDistance(userLocation, gigLocation);
         console.log('📏 Distance:', distance, 'meters');
         
-        if (distance <= radiusKm * 1000) {
+        // Only include live or upcoming gigs (not ended)
+        if (distance <= radiusKm * 1000 && gigData.status !== 'ended') {
           console.log('✅ Gig within range!');
           gigs.push({
             id: doc.id,
@@ -134,7 +146,7 @@ export const searchNearbyGigs = async (userLocation, radiusKm = 50) => {
             distance: Math.round(distance)
           });
         } else {
-          console.log('❌ Gig too far:', distance, '>', radiusKm * 1000);
+          console.log('❌ Gig filtered out');
         }
       });
     }
@@ -142,7 +154,12 @@ export const searchNearbyGigs = async (userLocation, radiusKm = 50) => {
     console.log('🎯 Total docs found:', totalDocs);
     console.log('✅ Gigs within range:', gigs.length);
     
-    return gigs.sort((a, b) => a.distance - b.distance);
+    // Sort by status (live first) then distance
+    return gigs.sort((a, b) => {
+      if (a.status === 'live' && b.status !== 'live') return -1;
+      if (a.status !== 'live' && b.status === 'live') return 1;
+      return a.distance - b.distance;
+    });
   } catch (error) {
     console.error('❌ Error searching gigs:', error);
     return [];
