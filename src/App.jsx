@@ -481,6 +481,38 @@ export default function App() {
       alert('Error: ' + error.message);
     }
   };
+
+  const handleEndGig = async () => {
+    if (!window.confirm('End this gig?')) return;
+    
+    try {
+      await firebaseEndLiveGig(liveGig.id);
+      
+      // Update gigs with ended status
+      const updatedGigs = gigs.map(g => 
+        g.id === liveGig.gigId || (g.venueName === liveGig.venueName && g.date === liveGig.date)
+          ? {...g, status: 'ended'} 
+          : g
+      );
+      
+      // Update state
+      setGigs(updatedGigs);
+      
+      // Force save to localStorage immediately
+      if (currentUser) {
+        localStorage.setItem(`gigwave_gigs_${currentUser.uid}`, JSON.stringify(updatedGigs));
+        console.log('💾 Gig status updated to ended in localStorage');
+      }
+      
+      // Clear live gig
+      setMode('artist');
+      setLiveGig(null);
+      
+      alert('✅ Gig ended! Status updated to ended.');
+    } catch (error) {
+      alert('Error: ' + error.message);
+    }
+  };
      
   if (authLoading) {
     return (
