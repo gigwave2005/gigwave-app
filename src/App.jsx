@@ -39,6 +39,8 @@ export default function App() {
   const [userLocation, setUserLocation] = useState(null);
   const [nearbyGigs, setNearbyGigs] = useState([]);
   const [loadingGigs, setLoadingGigs] = useState(false);
+  const [dateFilter, setDateFilter] = useState('all');
+  const [filteredGigs, setFilteredGigs] = useState([]);
   
   // Artist data
   const [masterSongs, setMasterSongs] = useState([]);
@@ -162,11 +164,12 @@ export default function App() {
       
       const gigs = await searchNearbyGigs(location, 50);
       setNearbyGigs(gigs);
+      setFilteredGigs(gigs);
       
       if (gigs.length === 0) {
-        alert('No live gigs found within 50km. Try again later!');
+        alert('No gigs found within 50km. Try again later!');
       } else {
-        alert(`✅ Found ${gigs.length} live gig${gigs.length > 1 ? 's' : ''} nearby!`);
+        alert(`✅ Found ${gigs.length} gig${gigs.length > 1 ? 's' : ''} nearby!`);
       }
     } catch (error) {
       alert('Error finding gigs: ' + error.message);
@@ -175,6 +178,41 @@ export default function App() {
     }
   };
 
+  const filterGigsByDate = (filter) => {
+    setDateFilter(filter);
+    
+    if (filter === 'all') {
+      setFilteredGigs(nearbyGigs);
+      return;
+    }
+    
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    
+    const filtered = nearbyGigs.filter(gig => {
+      if (!gig.gigDate) return true; // Include if no date
+      
+      const gigDate = new Date(gig.gigDate);
+      const gigDay = new Date(gigDate.getFullYear(), gigDate.getMonth(), gigDate.getDate());
+      
+      if (filter === 'today') {
+        return gigDay.getTime() === today.getTime();
+      } else if (filter === 'tomorrow') {
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        return gigDay.getTime() === tomorrow.getTime();
+      } else if (filter === 'week') {
+        const weekEnd = new Date(today);
+        weekEnd.setDate(weekEnd.getDate() + 7);
+        return gigDay >= today && gigDay <= weekEnd;
+      }
+      
+      return true;
+    });
+    
+    setFilteredGigs(filtered);
+  };
+  
   const handleVote = async (songId) => {
     if (!currentUser) {
       setShowAuthModal(true);
@@ -780,39 +818,110 @@ export default function App() {
           </div>
 
           {nearbyGigs.length > 0 && (
-            <div className="space-y-4">
-              <h2 className="text-3xl font-bold text-white mb-4">🎸 Live Gigs Near You</h2>
-              {nearbyGigs.map(gig => (
-                <div
-                  key={gig.id}
-                  onClick={() => {
-                    setLiveGig(gig);
-                    setMode('audience');
-                  }}
-                  className="bg-white/10 hover:bg-white/20 rounded-xl p-6 cursor-pointer transition"
-                >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <div className="flex items-center gap-3 mb-2">
-                        <span className="text-red-500 text-2xl">🔴</span>
-                        <h3 className="text-2xl font-bold text-white">{gig.artistName}</h3>
-                      </div>
-                      <p className="text-purple-200 text-lg mb-2">📍 {gig.venueName}</p>
-                      {gig.venueAddress && (
-                        <p className="text-purple-300 text-sm mb-1">📌 {gig.venueAddress}</p>
-                      )}
-                      <p className="text-green-300 font-semibold">
-                        {gig.distance < 1000 
-                          ? `${gig.distance}m away` 
-                          : `${(gig.distance/1000).toFixed(1)}km away`}
-                      </p>
-                    </div>
-                    <button className="px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-bold">
-                      Join Gig →
-                    </button>
-                  </div>
+            <div className="space-y-6">
+              {/* Date Filter */}
+              <div className="bg-white/10 rounded-xl p-6">
+                <h3 className="text-xl font-bold text-white mb-4">📅 Filter by Date</h3>
+                <div className="flex gap-3 flex-wrap">
+                  <button
+                    onClick={() => filterGigsByDate('all')}
+                    className={`px-6 py-3 rounded-lg font-bold ${dateFilter === 'all' ? 'bg-purple-500' : 'bg-white/20 hover:bg-white/30'} text-white`}
+                  >
+                    All Dates
+                  </button>
+                  <button
+                    onClick={() => filterGigsByDate('today')}
+                    className={`px-6 py-3 rounded-lg font-bold ${dateFilter === 'today' ? 'bg-purple-500' : 'bg-white/20 hover:bg-white/30'} text-white`}
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={() => filterGigsByDate('tomorrow')}
+                    className={`px-6 py-3 rounded-lg font-bold ${dateFilter === 'tomorrow' ? 'bg-purple-500' : 'bg-white/20 hover:bg-white/30'} text-white`}
+                  >
+                    Tomorrow
+                  </button>
+                  <button
+                    onClick={() => filterGigsByDate('week')}
+                    className={`px-6 py-3 rounded-lg font-bold ${dateFilter === 'week' ? 'bg-purple-500' : 'bg-white/20 hover:bg-white/30'} text-white`}
+                  >
+                    This Week
+                  </button>
                 </div>
-              ))}
+                <p className="text-purple-200 text-sm mt-3">
+                  Showing {filteredGigs.length} of {nearbyGigs.length} gigs
+                </p>
+              </div>
+
+              {/* Gig Results */}
+              <div className="space-y-4">
+                <h2 className="text-3xl font-bold text-white">
+                  {filteredGigs.filter(g => g.status === 'live').length > 0 ? '🔴 Live Now' : '🎸 Nearby Gigs'}
+                </h2>
+                
+                {filteredGigs.length === 0 ? (
+                  <div className="bg-yellow-500/20 border border-yellow-400 rounded-xl p-6 text-center">
+                    <p className="text-yellow-200 text-lg">No gigs found for selected date filter.</p>
+                  </div>
+                ) : (
+                  filteredGigs.map(gig => {
+                    const isLive = gig.status === 'live';
+                    const gigDateTime = gig.gigDate && gig.gigTime 
+                      ? `${new Date(gig.gigDate).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})} at ${gig.gigTime}`
+                      : 'Time TBD';
+                    
+                    return (
+                      <div
+                        key={gig.id}
+                        className={`rounded-xl p-6 cursor-pointer transition ${
+                          isLive 
+                            ? 'bg-gradient-to-r from-red-500/20 to-pink-500/20 border-2 border-red-400 hover:from-red-500/30 hover:to-pink-500/30' 
+                            : 'bg-white/10 hover:bg-white/20 border border-white/30'
+                        }`}
+                        onClick={() => {
+                          if (isLive) {
+                            setLiveGig(gig);
+                            setMode('audience');
+                          }
+                        }}
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              {isLive && <span className="text-red-500 text-3xl animate-pulse">🔴</span>}
+                              {!isLive && <span className="text-blue-500 text-3xl">🔵</span>}
+                              <div>
+                                <h3 className="text-2xl font-bold text-white">{gig.artistName}</h3>
+                                <p className="text-sm text-purple-300 font-semibold">
+                                  {isLive ? 'LIVE NOW' : `Upcoming - ${gigDateTime}`}
+                                </p>
+                              </div>
+                            </div>
+                            <p className="text-purple-200 text-lg mb-1">📍 {gig.venueName}</p>
+                            {gig.venueAddress && (
+                              <p className="text-purple-300 text-sm mb-2">📌 {gig.venueAddress}</p>
+                            )}
+                            <p className="text-green-300 font-semibold">
+                              📏 {gig.distance < 1000 
+                                ? `${gig.distance}m away` 
+                                : `${(gig.distance/1000).toFixed(1)}km away`}
+                            </p>
+                          </div>
+                          <button 
+                            className={`px-6 py-3 ${
+                              isLive 
+                                ? 'bg-red-500 hover:bg-red-600' 
+                                : 'bg-blue-500 hover:bg-blue-600'
+                            } text-white rounded-lg font-bold text-lg`}
+                          >
+                            {isLive ? '🎵 Join Live →' : 'ℹ️ View Details'}
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
             </div>
           )}
 
