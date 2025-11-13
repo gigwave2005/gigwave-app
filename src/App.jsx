@@ -461,13 +461,7 @@ export default function App() {
       alert('Error: ' + error.message);
     }
   };
-      
-      alert('✅ Gig ended! It has been marked as ended and cannot be used again.');
-    } catch (error) {
-      alert('Error: ' + error.message);
-    }
-  };
-
+     
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 flex items-center justify-center">
