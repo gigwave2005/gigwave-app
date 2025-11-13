@@ -436,25 +436,31 @@ export default function App() {
     try {
       await firebaseEndLiveGig(liveGig.id);
       
-      // Mark the gig as ended in local state - find by ID instead
-      setGigs(gigs.map(g => 
+      // Update gigs with ended status
+      const updatedGigs = gigs.map(g => 
         g.id === liveGig.gigId || (g.venueName === liveGig.venueName && g.date === liveGig.date)
           ? {...g, status: 'ended'} 
           : g
-      ));
+      );
+      
+      // Update state
+      setGigs(updatedGigs);
+      
+      // Force save to localStorage immediately
+      if (currentUser) {
+        localStorage.setItem(`gigwave_gigs_${currentUser.uid}`, JSON.stringify(updatedGigs));
+        console.log('💾 Gig status updated to ended in localStorage');
+      }
       
       // Clear live gig
       setMode('artist');
       setLiveGig(null);
       
-      // Force localStorage save
-      localStorage.setItem(`gigwave_gigs_${currentUser.uid}`, JSON.stringify(
-        gigs.map(g => 
-          g.id === liveGig.gigId || (g.venueName === liveGig.venueName && g.date === liveGig.date)
-            ? {...g, status: 'ended'} 
-            : g
-        )
-      ));
+      alert('✅ Gig ended! Status updated to ended.');
+    } catch (error) {
+      alert('Error: ' + error.message);
+    }
+  };
       
       alert('✅ Gig ended! It has been marked as ended and cannot be used again.');
     } catch (error) {
