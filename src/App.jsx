@@ -118,6 +118,32 @@ export default function App() {
     }
   }, [currentUser]);
 
+  // Load live gig from localStorage
+  useEffect(() => {
+    if (currentUser) {
+      const savedLiveGig = localStorage.getItem(`gigwave_live_${currentUser.uid}`);
+      if (savedLiveGig) {
+        const liveGigData = JSON.parse(savedLiveGig);
+        setLiveGig(liveGigData);
+        setMode('live'); // Lock into live mode
+        console.log('🔴 Resumed live gig from localStorage');
+      }
+    }
+  }, [currentUser]);
+
+  // Save live gig to localStorage when it changes
+  useEffect(() => {
+    if (currentUser) {
+      if (liveGig) {
+        localStorage.setItem(`gigwave_live_${currentUser.uid}`, JSON.stringify(liveGig));
+        console.log('💾 Live gig saved to localStorage');
+      } else {
+        localStorage.removeItem(`gigwave_live_${currentUser.uid}`);
+        console.log('🗑️ Live gig removed from localStorage');
+      }
+    }
+  }, [liveGig, currentUser]);
+  
   // Save master songs to localStorage
   useEffect(() => {
     if (currentUser && masterSongs.length >= 0) {
@@ -496,6 +522,13 @@ export default function App() {
   };
   
   const handleGoLive = async (gig) => {
+    // Check if already live (NEW - FIRST CHECK!)
+    if (liveGig) {
+      alert('⚠️ You are already live! End your current gig first.');
+      setMode('live'); // Force back to live mode
+      return;
+    }
+    
     // Prevent going live with ended gigs
     if (gig.status === 'ended') {
       alert('❌ This gig has ended! You cannot go live with an ended gig.');
