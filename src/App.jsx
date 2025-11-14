@@ -1030,6 +1030,9 @@ export default function App() {
                     );
                   })
                 )}
+              </div>
+            </div>
+          )}  
 
           <div className="mt-8 text-center space-y-4">
             {currentUser ? (
