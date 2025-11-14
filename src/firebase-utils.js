@@ -228,23 +228,45 @@ export const createLiveGig = async (gigData, artistId) => {
     console.log('🎸 Creating live gig...');
     console.log('📍 Location:', gigData.location);
     
-    // Check if gig with this uniqueKey already exists
-    if (gigData.uniqueKey) {
-      const existingQuery = query(
-        collection(db, 'liveGigs'),
-        where('uniqueKey', '==', gigData.uniqueKey),
-        where('status', '==', 'live')
-      );
+    // CHECK 1: Does this artist already have a LIVE gig?
+    const liveGigQuery = query(
+      collection(db, 'liveGigs'),
+      where('artistId', '==', artistId),
+      where('status', '==', 'live')
+    );
+    
+    const liveGigs = await getDocs(liveGigQuery);
+    
+    if (!liveGigs.empty) {
+      console.log('⚠️ Artist already has a live gig!');
+      throw new Error('You already have a live gig running! End it before starting a new one.');
+    }
+    
+    // CHECK 2: Has artist created a gig in the last 5 hours?
+    const fiveHoursAgo = new Date(Date.now() - 5 * 60 * 60 * 1000);
+    
+    const recentGigQuery = query(
+      collection(db, 'liveGigs'),
+      where('artistId', '==', artistId),
+      where('startTime', '>=', fiveHoursAgo)
+    );
+    
+    const recentGigs = await getDocs(recentGigQuery);
+    
+    if (!recentGigs.empty) {
+      const lastGig = recentGigs.docs[0].data();
+      const lastGigTime = lastGig.startTime?.toDate();
       
-      const existingGigs = await getDocs(existingQuery);
-      
-      if (!existingGigs.empty) {
-        console.log('⚠️ Gig already exists!');
-        const existingGig = existingGigs.docs[0];
-        return existingGig.id; // Return existing gig ID
+      if (lastGigTime) {
+        const timeSince = Date.now() - lastGigTime.getTime();
+        const hoursRemaining = Math.ceil((5 * 60 * 60 * 1000 - timeSince) / (60 * 60 * 1000));
+        
+        console.log('⚠️ Gig created too recently!');
+        throw new Error(`Please wait ${hoursRemaining} more hour(s) before creating another gig. This prevents spam and gives your audience time to discover your performance!`);
       }
     }
     
+    // All checks passed - create the gig
     const gigRef = doc(collection(db, 'liveGigs'));
     const geohash = geohashForLocation([gigData.location.lat, gigData.location.lng]);
     
