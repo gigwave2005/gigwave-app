@@ -266,36 +266,41 @@ export const listenToLiveGig = (gigId, callback) => {
     if (doc.exists()) {
       const data = doc.data();
       
-      // Convert Firestore Timestamps to safe JavaScript Dates
-      const safeData = {
-        ...data,
-        startTime: data.startTime?.toDate?.() || null,
-        endTime: data.endTime?.toDate?.() || null,
-        // Convert nested timestamp objects in votes, comments, etc
-        voteTimestamps: data.voteTimestamps ? 
-          Object.fromEntries(
-            Object.entries(data.voteTimestamps).map(([key, val]) => [
-              key, 
-              val?.toDate?.() ? val.toDate() : val
-            ])
-          ) : {},
-        comments: (data.comments || []).map(c => ({
-          ...c,
-          timestamp: c.timestamp?.toDate?.() ? c.timestamp.toDate() : c.timestamp
-        })),
-        donations: (data.donations || []).map(d => ({
-          ...d,
-          timestamp: d.timestamp?.toDate?.() ? d.timestamp.toDate() : d.timestamp
-        })),
-        ratings: (data.ratings || []).map(r => ({
-          ...r,
-          timestamp: r.timestamp?.toDate?.() ? r.timestamp.toDate() : r.timestamp
-        }))
+      // Helper function to convert any Timestamp to Date
+      const convertTimestamps = (obj) => {
+        if (!obj) return obj;
+        
+        // If it's a Timestamp, convert it
+        if (obj?.toDate && typeof obj.toDate === 'function') {
+          return obj.toDate();
+        }
+        
+        // If it's an array, convert each item
+        if (Array.isArray(obj)) {
+          return obj.map(item => convertTimestamps(item));
+        }
+        
+        // If it's an object, convert all properties
+        if (typeof obj === 'object') {
+          const converted = {};
+          for (const [key, value] of Object.entries(obj)) {
+            converted[key] = convertTimestamps(value);
+          }
+          return converted;
+        }
+        
+        // Otherwise return as-is
+        return obj;
       };
+      
+      // Convert ALL timestamps in the entire data object
+      const safeData = convertTimestamps(data);
       
       console.log('📡 Live gig data updated safely');
       callback({ id: doc.id, ...safeData });
     }
+  }, (error) => {
+    console.error('❌ Error listening to live gig:', error);
   });
 };
 
