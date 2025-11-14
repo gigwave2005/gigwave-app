@@ -954,22 +954,45 @@ export default function App() {
                     <p className="text-yellow-200 text-lg">No gigs found for selected date filter.</p>
                   </div>
                 ) : (
-                  filteredGigs.map(gig => {
+                  {filteredGigs.map(gig => {
                     const isLive = gig.status === 'live';
+                    const isEnded = gig.status === 'ended';
+                    const isUpcoming = !isLive && !isEnded;
+                    
                     const gigDateTime = gig.gigDate && gig.gigTime 
                       ? `${new Date(gig.gigDate).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})} at ${gig.gigTime}`
                       : 'Time TBD';
                     
+                    // Status colors
+                    let statusColor = 'from-blue-500/20 to-cyan-500/20 border-blue-400';
+                    let statusBadge = '🔵';
+                    let statusText = `Upcoming - ${gigDateTime}`;
+                    let buttonColor = 'bg-blue-500 hover:bg-blue-600';
+                    let buttonText = 'ℹ️ View Details';
+                    let canJoin = false;
+                    
+                    if (isLive) {
+                      statusColor = 'from-green-500/20 to-emerald-500/20 border-2 border-green-400';
+                      statusBadge = '🟢';
+                      statusText = 'LIVE NOW';
+                      buttonColor = 'bg-green-500 hover:bg-green-600';
+                      buttonText = '🎵 Join Live →';
+                      canJoin = true;
+                    } else if (isEnded) {
+                      statusColor = 'from-red-500/20 to-pink-500/20 border-red-400';
+                      statusBadge = '🔴';
+                      statusText = 'Ended';
+                      buttonColor = 'bg-gray-500 cursor-not-allowed';
+                      buttonText = '⚫ Ended';
+                      canJoin = false;
+                    }
+                    
                     return (
                       <div
                         key={gig.id}
-                        className={`rounded-xl p-6 cursor-pointer transition ${
-                          isLive 
-                            ? 'bg-gradient-to-r from-red-500/20 to-pink-500/20 border-2 border-red-400 hover:from-red-500/30 hover:to-pink-500/30' 
-                            : 'bg-white/10 hover:bg-white/20 border border-white/30'
-                        }`}
+                        className={`rounded-xl p-6 transition ${statusColor} ${canJoin ? 'cursor-pointer hover:from-green-500/30 hover:to-emerald-500/30' : ''}`}
                         onClick={() => {
-                          if (isLive) {
+                          if (canJoin) {
                             setLiveGig(gig);
                             setMode('audience');
                           }
@@ -978,12 +1001,11 @@ export default function App() {
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
-                              {isLive && <span className="text-red-500 text-3xl animate-pulse">🔴</span>}
-                              {!isLive && <span className="text-blue-500 text-3xl">🔵</span>}
+                              <span className={`text-3xl ${isLive ? 'animate-pulse' : ''}`}>{statusBadge}</span>
                               <div>
                                 <h3 className="text-2xl font-bold text-white">{gig.artistName}</h3>
-                                <p className="text-sm text-purple-300 font-semibold">
-                                  {isLive ? 'LIVE NOW' : `Upcoming - ${gigDateTime}`}
+                                <p className={`text-sm font-semibold ${isLive ? 'text-green-300' : isEnded ? 'text-red-300' : 'text-blue-300'}`}>
+                                  {statusText}
                                 </p>
                               </div>
                             </div>
@@ -998,22 +1020,16 @@ export default function App() {
                             </p>
                           </div>
                           <button 
-                            className={`px-6 py-3 ${
-                              isLive 
-                                ? 'bg-red-500 hover:bg-red-600' 
-                                : 'bg-blue-500 hover:bg-blue-600'
-                            } text-white rounded-lg font-bold text-lg`}
+                            disabled={!canJoin && isEnded}
+                            className={`px-6 py-3 ${buttonColor} text-white rounded-lg font-bold text-lg`}
                           >
-                            {isLive ? '🎵 Join Live →' : 'ℹ️ View Details'}
+                            {buttonText}
                           </button>
                         </div>
                       </div>
                     );
                   })
                 )}
-              </div>
-            </div>
-          )}
 
           <div className="mt-8 text-center space-y-4">
             {currentUser ? (
