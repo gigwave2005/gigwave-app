@@ -124,9 +124,27 @@ export default function App() {
       const savedLiveGig = localStorage.getItem(`gigwave_live_${currentUser.uid}`);
       if (savedLiveGig) {
         const liveGigData = JSON.parse(savedLiveGig);
-        setLiveGig(liveGigData);
+        
+        // Convert any timestamp strings back to Date objects or remove them
+        const cleanGigData = {
+          ...liveGigData,
+          startTime: liveGigData.startTime ? new Date(liveGigData.startTime) : null,
+          endTime: liveGigData.endTime ? new Date(liveGigData.endTime) : null,
+          // Remove any problematic nested timestamp objects
+          voteTimestamps: undefined,
+          comments: (liveGigData.comments || []).map(c => ({
+            ...c,
+            timestamp: c.timestamp ? new Date(c.timestamp) : null
+          })),
+          donations: (liveGigData.donations || []).map(d => ({
+            ...d,
+            timestamp: d.timestamp ? new Date(d.timestamp) : null
+          }))
+        };
+        
+        setLiveGig(cleanGigData);
         setMode('live'); // Lock into live mode
-        console.log('🔴 Resumed live gig from localStorage');
+        console.log('🔴 Resumed live gig from localStorage (cleaned)');
       }
     }
   }, [currentUser]);
