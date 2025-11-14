@@ -323,8 +323,8 @@ export const voteForSong = async (gigId, songId, userId, userLocation, venueLoca
   const distance = calculateDistance(userLocation, venueLocation);
   console.log('📏 Distance to venue:', distance, 'meters');
   
-  if (!isWithinRange(userLocation, venueLocation, 100)) {
-    throw new Error(`You must be within 100m of the venue to vote! You are ${Math.round(distance)}m away.`);
+  if (!isWithinRange(userLocation, venueLocation, 1000)) {
+    throw new Error(`You must be within 1km of the venue to vote! You are ${Math.round(distance)}m away.`);
   }
   
   const gigRef = doc(db, 'liveGigs', gigId);
@@ -339,7 +339,7 @@ export const voteForSong = async (gigId, songId, userId, userLocation, venueLoca
 export const addComment = async (gigId, userId, userName, text, userLocation, venueLocation) => {
   const distance = calculateDistance(userLocation, venueLocation);
   
-  if (!isWithinRange(userLocation, venueLocation, 100)) {
+  if (!isWithinRange(userLocation, venueLocation, 1000)) {
     throw new Error(`You must be within 100m of the venue to comment! You are ${Math.round(distance)}m away.`);
   }
   
@@ -361,7 +361,7 @@ export const addComment = async (gigId, userId, userName, text, userLocation, ve
 export const processDonation = async (gigId, userId, userName, amount, message, userLocation, venueLocation) => {
   const distance = calculateDistance(userLocation, venueLocation);
   
-  if (!isWithinRange(userLocation, venueLocation, 100)) {
+  if (!isWithinRange(userLocation, venueLocation, 1000)) {
     throw new Error(`You must be within 100m of the venue to donate! You are ${Math.round(distance)}m away.`);
   }
   
