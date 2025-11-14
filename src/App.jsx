@@ -1093,30 +1093,6 @@ export default function App() {
           {tab === 'master' && (
             <div className="space-y-6">
               <div className="bg-white/10 rounded-xl p-6">
-                <h2 className="text-2xl font-bold text-white mb-4">🎵 Master Playlist</h2>
-                <button onClick={addToMaster} className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold mb-4">
-                  <Plus className="inline mr-2" size={20}/>Add Song
-                </button>
-                
-                {masterSongs.length === 0 ? (
-                  <p className="text-purple-200">No songs yet. Click "Add Song" to start!</p>
-                ) : (
-                  <div className="space-y-2">
-                    {masterSongs.map(song => (
-                      <div key={song.id} className="bg-white/5 p-4 rounded-lg flex justify-between items-center">
-                        <div>
-                          <div className="text-white font-semibold text-lg">{song.title}</div>
-                          <div className="text-purple-200 text-sm">{song.artist}</div>
-                        </div>
-                        <button onClick={() => removeFromMaster(song.id)} className="text-red-400 hover:text-red-300">
-                          <Trash2 size={20}/>
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="bg-white/10 rounded-xl p-6">
                 <h3 className="text-xl font-bold text-white mb-4">🎵 Search iTunes Music</h3>
                 <div className="flex gap-2 mb-4">
                   <input 
@@ -1181,6 +1157,30 @@ export default function App() {
                   </div>
                 )}
               </div>
+              <div className="bg-white/10 rounded-xl p-6">
+                <h2 className="text-2xl font-bold text-white mb-4">🎵 Master Playlist</h2>
+                <button onClick={addToMaster} className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold mb-4">
+                  <Plus className="inline mr-2" size={20}/>Add Song
+                </button>
+                
+                {masterSongs.length === 0 ? (
+                  <p className="text-purple-200">No songs yet. Click "Add Song" to start!</p>
+                ) : (
+                  <div className="space-y-2">
+                    {masterSongs.map(song => (
+                      <div key={song.id} className="bg-white/5 p-4 rounded-lg flex justify-between items-center">
+                        <div>
+                          <div className="text-white font-semibold text-lg">{song.title}</div>
+                          <div className="text-purple-200 text-sm">{song.artist}</div>
+                        </div>
+                        <button onClick={() => removeFromMaster(song.id)} className="text-red-400 hover:text-red-300">
+                          <Trash2 size={20}/>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>              
             </div>
           )}
 
