@@ -281,7 +281,37 @@ export const listenToLiveGig = (gigId, callback) => {
   
   return onSnapshot(gigRef, (doc) => {
     if (doc.exists()) {
-      callback({ id: doc.id, ...doc.data() });
+      const data = doc.data();
+      
+      // Convert Firestore Timestamps to safe formats
+      const safeData = {
+        ...data,
+        startTime: data.startTime?.toDate?.() || null,
+        endTime: data.endTime?.toDate?.() || null,
+        // Convert nested timestamp objects in votes, comments, etc
+        voteTimestamps: data.voteTimestamps ? 
+          Object.fromEntries(
+            Object.entries(data.voteTimestamps).map(([key, val]) => [
+              key, 
+              val?.toDate?.() || val
+            ])
+          ) : {},
+        comments: (data.comments || []).map(c => ({
+          ...c,
+          timestamp: c.timestamp?.toDate?.() || c.timestamp
+        })),
+        donations: (data.donations || []).map(d => ({
+          ...d,
+          timestamp: d.timestamp?.toDate?.() || d.timestamp
+        })),
+        ratings: (data.ratings || []).map(r => ({
+          ...r,
+          timestamp: r.timestamp?.toDate?.() || r.timestamp
+        }))
+      };
+      
+      console.log('📡 Live gig data updated safely');
+      callback({ id: doc.id, ...safeData });
     }
   });
 };
