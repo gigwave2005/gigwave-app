@@ -266,7 +266,7 @@ export const listenToLiveGig = (gigId, callback) => {
     if (doc.exists()) {
       const data = doc.data();
       
-      // Convert Firestore Timestamps to safe formats
+      // Convert Firestore Timestamps to safe JavaScript Dates
       const safeData = {
         ...data,
         startTime: data.startTime?.toDate?.() || null,
@@ -276,20 +276,20 @@ export const listenToLiveGig = (gigId, callback) => {
           Object.fromEntries(
             Object.entries(data.voteTimestamps).map(([key, val]) => [
               key, 
-              val?.toDate?.() || val
+              val?.toDate?.() ? val.toDate() : val
             ])
           ) : {},
         comments: (data.comments || []).map(c => ({
           ...c,
-          timestamp: c.timestamp?.toDate?.() || c.timestamp
+          timestamp: c.timestamp?.toDate?.() ? c.timestamp.toDate() : c.timestamp
         })),
         donations: (data.donations || []).map(d => ({
           ...d,
-          timestamp: d.timestamp?.toDate?.() || d.timestamp
+          timestamp: d.timestamp?.toDate?.() ? d.timestamp.toDate() : d.timestamp
         })),
         ratings: (data.ratings || []).map(r => ({
           ...r,
-          timestamp: r.timestamp?.toDate?.() || r.timestamp
+          timestamp: r.timestamp?.toDate?.() ? r.timestamp.toDate() : r.timestamp
         }))
       };
       
