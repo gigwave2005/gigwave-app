@@ -50,6 +50,9 @@ export default function App() {
   const [editingGig, setEditingGig] = useState(null);
   const [showPlaylistModal, setShowPlaylistModal] = useState(false);
   const [editingPlaylist, setEditingPlaylist] = useState(null);
+  const [itunesSearch, setItunesSearch] = useState('');
+  const [itunesResults, setItunesResults] = useState([]);
+  const [searchingItunes, setSearchingItunes] = useState(false);
   
   // Venue location state
   const [searchingAddress, setSearchingAddress] = useState(false);
@@ -249,6 +252,79 @@ export default function App() {
     setMasterSongs([...masterSongs, newSong]);
   };
 
+  const searchItunesAPI = async () => {
+    if (!itunesSearch.trim()) {
+      alert('Please enter a song or artist name!');
+      return;
+    }
+    
+    try {
+      setSearchingItunes(true);
+      console.log('🔍 Searching iTunes for:', itunesSearch);
+      
+      const response = await fetch(
+        `https://itunes.apple.com/search?term=${encodeURIComponent(itunesSearch)}&entity=song&limit=20`
+      );
+      
+      if (!response.ok) {
+        throw new Error('iTunes search failed');
+      }
+      
+      const data = await response.json();
+      console.log('📦 iTunes results:', data.resultCount);
+      
+      if (data.resultCount === 0) {
+        alert('No songs found. Try a different search term!');
+        setItunesResults([]);
+        return;
+      }
+      
+      // Convert iTunes format to our format
+      const songs = data.results.map(track => ({
+        id: Date.now() + Math.random(),
+        title: track.trackName,
+        artist: track.artistName,
+        album: track.collectionName,
+        duration: track.trackTimeMillis 
+          ? `${Math.floor(track.trackTimeMillis / 60000)}:${String(Math.floor((track.trackTimeMillis % 60000) / 1000)).padStart(2, '0')}`
+          : '',
+        artwork: track.artworkUrl100,
+        previewUrl: track.previewUrl,
+        itunesId: track.trackId
+      }));
+      
+      setItunesResults(songs);
+      console.log('✅ Processed songs:', songs.length);
+      
+    } catch (error) {
+      console.error('❌ iTunes search error:', error);
+      alert('Error searching iTunes: ' + error.message);
+    } finally {
+      setSearchingItunes(false);
+    }
+  };
+
+  const addItunesSongToMaster = (song) => {
+    if (masterSongs.find(s => s.title === song.title && s.artist === song.artist)) {
+      alert('⚠️ This song is already in your master playlist!');
+      return;
+    }
+    
+    const cleanSong = {
+      id: song.id,
+      title: song.title,
+      artist: song.artist,
+      duration: song.duration,
+      album: song.album || '',
+      key: ''
+    };
+    
+    setMasterSongs([...masterSongs, cleanSong]);
+    alert(`✅ Added "${song.title}" to master playlist!`);
+    
+    setItunesResults(itunesResults.filter(s => s.id !== song.id));
+  };
+  
   const removeFromMaster = (id) => {
     if (window.confirm('Remove this song?')) {
       setMasterSongs(masterSongs.filter(s => s.id !== id));
@@ -1037,6 +1113,71 @@ export default function App() {
                         </button>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+              <div className="bg-white/10 rounded-xl p-6">
+                <h3 className="text-xl font-bold text-white mb-4">🎵 Search iTunes Music</h3>
+                <div className="flex gap-2 mb-4">
+                  <input 
+                    type="text" 
+                    value={itunesSearch} 
+                    onChange={e => setItunesSearch(e.target.value)} 
+                    onKeyPress={e => e.key === 'Enter' && searchItunesAPI()}
+                    placeholder="Search for songs, artists, albums..."
+                    className="flex-1 px-4 py-3 rounded-lg bg-white/20 text-white placeholder-white/60 border border-white/30"
+                    disabled={searchingItunes}
+                  />
+                  <button 
+                    onClick={searchItunesAPI} 
+                    disabled={searchingItunes}
+                    className="px-6 py-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white rounded-lg font-bold"
+                  >
+                    {searchingItunes ? '⏳' : '🔍'} Search
+                  </button>
+                </div>
+                
+                {itunesResults.length > 0 && (
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    <p className="text-purple-200 font-semibold mb-3">
+                      Found {itunesResults.length} songs:
+                    </p>
+                    {itunesResults.map(song => (
+                      <div 
+                        key={song.id} 
+                        className="bg-white/5 p-3 rounded-lg flex items-center gap-4 hover:bg-white/10 transition"
+                      >
+                        {song.artwork && (
+                          <img 
+                            src={song.artwork} 
+                            alt={song.title}
+                            className="w-16 h-16 rounded object-cover"
+                          />
+                        )}
+                        <div className="flex-1">
+                          <div className="text-white font-semibold text-lg">{song.title}</div>
+                          <div className="text-purple-200 text-sm">{song.artist}</div>
+                          {song.album && (
+                            <div className="text-purple-300 text-xs">{song.album}</div>
+                          )}
+                          {song.duration && (
+                            <div className="text-green-300 text-xs">⏱️ {song.duration}</div>
+                          )}
+                        </div>
+                        <button 
+                          onClick={() => addItunesSongToMaster(song)}
+                          className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold whitespace-nowrap"
+                        >
+                          <Plus size={18} className="inline mr-1"/>Add to Master
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {searchingItunes && (
+                  <div className="text-center py-8">
+                    <div className="text-purple-200 text-lg">🔍 Searching iTunes...</div>
                   </div>
                 )}
               </div>
