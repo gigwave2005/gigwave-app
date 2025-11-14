@@ -954,7 +954,7 @@ export default function App() {
                     <p className="text-yellow-200 text-lg">No gigs found for selected date filter.</p>
                   </div>
                 ) : (
-                  {filteredGigs.map(gig => {
+                  filteredGigs.map(gig => {
                     const isLive = gig.status === 'live';
                     const isEnded = gig.status === 'ended';
                     const isUpcoming = !isLive && !isEnded;
