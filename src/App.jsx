@@ -595,6 +595,7 @@ export default function App() {
         venueAddress: gig.address || '',
         location: location,
         queuedSongs: songs.slice(0, 20),
+        masterPlaylist: masterSongs,
         status: 'live',
         gigDate: gig.date,
         gigTime: gig.time,
@@ -1652,6 +1653,83 @@ export default function App() {
                       })}
                   </>
                 )}
+              </div>
+            )}
+          </div>
+
+          {/* MASTER PLAYLIST - All Available Songs */}
+          <div className="bg-gradient-to-r from-blue-500/20 to-teal-500/20 border-2 border-blue-400 rounded-xl p-6 mb-6">
+            <h3 className="text-2xl font-bold text-white mb-4">📚 All Available Songs</h3>
+            <p className="text-blue-200 text-sm mb-4">
+              Vote for songs not in tonight's setlist! Highly voted songs may get added to the gig.
+            </p>
+            
+            {!liveGig.masterPlaylist || liveGig.masterPlaylist.length === 0 ? (
+              <p className="text-blue-200">No additional songs available</p>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {(() => {
+                  // Get IDs of songs already in gig queue
+                  const gigSongIds = (liveGigData.queuedSongs || []).map(s => s.id);
+                  
+                  // Filter master playlist to exclude gig songs
+                  const availableSongs = liveGig.masterPlaylist
+                    .filter(song => !gigSongIds.includes(song.id))
+                    .sort((a, b) => {
+                      // Sort by votes (highest first)
+                      const votesA = liveGigData.votes[Math.floor(a.id)] || 0;
+                      const votesB = liveGigData.votes[Math.floor(b.id)] || 0;
+                      return votesB - votesA;
+                    });
+                  
+                  if (availableSongs.length === 0) {
+                    return <p className="text-blue-200">All songs are in the gig playlist!</p>;
+                  }
+                  
+                  return availableSongs.map((song) => {
+                    const voteCount = liveGigData.votes[Math.floor(song.id)] || 0;
+                    const isPlayed = liveGigData.playedSongs?.includes(song.id);
+                    
+                    return (
+                      <div 
+                        key={song.id} 
+                        className={`p-3 rounded-lg flex justify-between items-center transition ${
+                          isPlayed 
+                            ? 'bg-gray-500/20 opacity-50' 
+                            : 'bg-white/5 hover:bg-white/10'
+                        }`}
+                      >
+                        <div className="flex-1">
+                          <div className={`font-semibold ${isPlayed ? 'text-gray-400 line-through' : 'text-white'}`}>
+                            {song.title}
+                          </div>
+                          <div className={`text-sm ${isPlayed ? 'text-gray-500' : 'text-blue-200'}`}>
+                            {song.artist}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {voteCount > 0 && (
+                            <span className={isPlayed ? 'text-gray-400' : 'text-pink-300 font-bold'}>
+                              ❤️ {voteCount}
+                            </span>
+                          )}
+                          {isPlayed ? (
+                            <span className="px-3 py-1 bg-gray-600 text-gray-300 rounded-lg text-sm cursor-not-allowed">
+                              ✅ Played
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => handleVote(song.id)}
+                              className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold text-sm"
+                            >
+                              ❤️ Vote
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             )}
           </div>
