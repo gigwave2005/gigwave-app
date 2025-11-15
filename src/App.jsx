@@ -1607,27 +1607,80 @@ export default function App() {
 
           <div className="bg-white/10 rounded-xl p-6 mb-6">
             <h3 className="text-2xl font-bold text-white mb-4">📋 Song Queue</h3>
+            
             {liveGigData.queuedSongs.length === 0 ? (
               <p className="text-purple-200">No songs in queue</p>
             ) : (
               <div className="space-y-3">
-                {liveGigData.queuedSongs.slice(0, 10).map((song, index) => (
-                  <div key={song.id} className="bg-white/5 p-4 rounded-lg flex justify-between items-center">
-                    <div className="flex items-center gap-4">
-                      <span className="text-purple-300 font-bold text-xl">{index + 1}</span>
-                      <div>
-                        <div className="text-white font-semibold">{song.title}</div>
-                        <div className="text-purple-200 text-sm">{song.artist}</div>
+                {/* Unplayed Songs - Sorted by Votes */}
+                {liveGigData.queuedSongs
+                  .filter(song => !liveGigData.playedSongs?.includes(song.id))
+                  .sort((a, b) => {
+                    const votesA = liveGigData.votes[Math.floor(a.id)] || 0;
+                    const votesB = liveGigData.votes[Math.floor(b.id)] || 0;
+                    return votesB - votesA;
+                  })
+                  .slice(0, 10)
+                  .map((song, index) => {
+                    const voteCount = liveGigData.votes[Math.floor(song.id)] || 0;
+                    return (
+                      <div key={song.id} className="bg-white/5 p-4 rounded-lg flex justify-between items-center">
+                        <div className="flex items-center gap-4 flex-1">
+                          <span className="text-purple-300 font-bold text-xl min-w-[40px]">{index + 1}</span>
+                          <div>
+                            <div className="text-white font-semibold">{song.title}</div>
+                            <div className="text-purple-200 text-sm">{song.artist}</div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {voteCount > 0 && (
+                            <span className="text-pink-300 font-bold">❤️ {voteCount}</span>
+                          )}
+                          <button
+                            onClick={() => handleVote(song.id)}
+                            className="px-4 py-2 bg-pink-500 hover:bg-pink-600 text-white rounded-lg font-bold"
+                          >
+                            ❤️ Vote
+                          </button>
+                        </div>
                       </div>
+                    );
+                  })}
+                
+                {/* Played Songs */}
+                {liveGigData.playedSongs && liveGigData.playedSongs.length > 0 && (
+                  <>
+                    <div className="border-t border-white/20 my-4 pt-4">
+                      <h4 className="text-lg font-semibold text-gray-400 mb-3">✅ Already Played</h4>
                     </div>
-                    <button
-                      onClick={() => handleVote(song.id)}
-                      className="px-4 py-2 bg-pink-500 hover:bg-pink-600 text-white rounded-lg font-bold"
-                    >
-                      ❤️ Vote
-                    </button>
-                  </div>
-                ))}
+                    {liveGigData.queuedSongs
+                      .filter(song => liveGigData.playedSongs.includes(song.id))
+                      .map((song) => {
+                        const voteCount = liveGigData.votes[Math.floor(song.id)] || 0;
+                        return (
+                          <div key={song.id} className="bg-gray-500/20 border border-gray-600 p-4 rounded-lg opacity-60">
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center gap-4">
+                                <span className="text-green-400 text-2xl">✅</span>
+                                <div>
+                                  <div className="text-gray-300 font-semibold line-through">{song.title}</div>
+                                  <div className="text-gray-400 text-sm">{song.artist}</div>
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-3">
+                                {voteCount > 0 && (
+                                  <span className="text-gray-400">❤️ {voteCount}</span>
+                                )}
+                                <span className="px-4 py-2 bg-gray-600 text-gray-300 rounded-lg font-bold cursor-not-allowed">
+                                  ✅ Played
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </>
+                )}
               </div>
             )}
           </div>
