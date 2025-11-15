@@ -384,6 +384,78 @@ export const endLiveGig = async (gigId) => {
   console.log('✅ Gig ended');
 };
 
+// Auto-swap songs based on votes
+export const checkAndSwapSongs = async (gigId, gigData) => {
+  try {
+    console.log('🔄 Checking for song swaps...');
+    
+    const queuedSongs = gigData.queuedSongs || [];
+    const masterPlaylist = gigData.masterPlaylist || [];
+    const votes = gigData.votes || {};
+    const playedSongs = gigData.playedSongs || [];
+    
+    const unplayedGigSongs = queuedSongs.filter(song => !playedSongs.includes(song.id));
+    
+    if (unplayedGigSongs.length === 0) {
+      console.log('⚠️ No unplayed gig songs to swap');
+      return;
+    }
+    
+    const gigSongIds = queuedSongs.map(s => s.id);
+    const availableMasterSongs = masterPlaylist.filter(song => !gigSongIds.includes(song.id));
+    
+    if (availableMasterSongs.length === 0) {
+      console.log('⚠️ No master songs available for swap');
+      return;
+    }
+    
+    const lowestGigSong = unplayedGigSongs.reduce((lowest, song) => {
+      const lowestVotes = votes[Math.floor(lowest.id)] || 0;
+      const currentVotes = votes[Math.floor(song.id)] || 0;
+      return currentVotes < lowestVotes ? song : lowest;
+    });
+    
+    const lowestGigVotes = votes[Math.floor(lowestGigSong.id)] || 0;
+    console.log(`📊 Lowest gig song: ${lowestGigSong.title} with ${lowestGigVotes} votes`);
+    
+    const highestMasterSong = availableMasterSongs.reduce((highest, song) => {
+      const highestVotes = votes[Math.floor(highest?.id)] || 0;
+      const currentVotes = votes[Math.floor(song.id)] || 0;
+      return currentVotes > highestVotes ? song : highest;
+    }, availableMasterSongs[0]);
+    
+    const highestMasterVotes = votes[Math.floor(highestMasterSong.id)] || 0;
+    console.log(`📊 Highest master song: ${highestMasterSong.title} with ${highestMasterVotes} votes`);
+    
+    if (highestMasterVotes > lowestGigVotes) {
+      console.log(`🔄 SWAPPING: ${highestMasterSong.title} (${highestMasterVotes}) replaces ${lowestGigSong.title} (${lowestGigVotes})`);
+      
+      const newQueue = queuedSongs
+        .filter(song => song.id !== lowestGigSong.id)
+        .concat([highestMasterSong])
+        .sort((a, b) => {
+          const votesA = votes[Math.floor(a.id)] || 0;
+          const votesB = votes[Math.floor(b.id)] || 0;
+          return votesB - votesA;
+        });
+      
+      const gigRef = doc(db, 'liveGigs', gigId);
+      await updateDoc(gigRef, {
+        queuedSongs: newQueue
+      });
+      
+      console.log('✅ Swap completed!');
+      return true;
+    } else {
+      console.log('✅ No swap needed');
+      return false;
+    }
+  } catch (error) {
+    console.error('❌ Error in checkAndSwapSongs:', error);
+    return false;
+  }
+};
+
 // Export everything needed
 export {
   auth,
