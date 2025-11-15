@@ -184,7 +184,7 @@ export const searchNearbyGigs = async (userLocation, radiusKm = 50, statusFilter
   }
 };
 
-export const signInWithFacebook = async () => {
+  const signInWithFacebook = async () => {
   const provider = new FacebookAuthProvider();
   try {
     const result = await signInWithPopup(auth, provider);
