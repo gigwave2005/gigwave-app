@@ -755,33 +755,7 @@ export default function App() {
               </div>
             )}
           </div>
-
-          <div className="bg-white/10 rounded-xl p-6 mb-6">
-            <h3 className="text-xl font-bold text-white mb-4">Add from Master Playlist</h3>
-            {masterSongs.length === 0 ? (
-              <p className="text-purple-200">No songs in master playlist. Add songs first!</p>
-            ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {masterSongs
-                  .filter(s => !editingPlaylist.songs.includes(s.id))
-                  .map(song => (
-                    <div key={song.id} className="bg-white/5 p-3 rounded-lg flex justify-between items-center">
-                      <div>
-                        <div className="text-white font-semibold">{song.title}</div>
-                        <div className="text-purple-200 text-sm">{song.artist}</div>
-                      </div>
-                      <button
-                        onClick={() => addSongToGigPlaylist(song.id)}
-                        className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold"
-                      >
-                        <Plus size={18}/> Add
-                      </button>
-                    </div>
-                  ))}
-              </div>
-            )}
-          </div>
-
+          
           <div className="flex gap-3">
             <button
               onClick={saveGigPlaylist}
