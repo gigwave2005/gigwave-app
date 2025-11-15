@@ -25,7 +25,7 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
-  onAuthStateChanged
+  onAuthStateChanged as firebaseOnAuthStateChanged
 } from 'firebase/auth';
 import { 
   geohashForLocation,
@@ -47,6 +47,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
+
+// Re-export onAuthStateChanged
+export const onAuthStateChanged = firebaseOnAuthStateChanged;
 
 // ============================================
 // GEOLOCATION UTILITIES
@@ -107,7 +110,6 @@ export const searchNearbyGigs = async (userLocation, radiusKm = 50, statusFilter
           where('status', '==', statusFilter)
         );
       } else {
-        // Get all gigs (live + upcoming)
         q = query(
           collection(db, 'liveGigs'),
           where('geohash', '>=', bound[0]),
@@ -127,9 +129,9 @@ export const searchNearbyGigs = async (userLocation, radiusKm = 50, statusFilter
 
     for (const snap of snapshots) {
       totalDocs += snap.size;
-      snap.forEach((doc) => {
-        const gigData = doc.data();
-        console.log('📄 Found gig:', doc.id, gigData);
+      snap.forEach((snapDoc) => {
+        const gigData = snapDoc.data();
+        console.log('📄 Found gig:', snapDoc.id, gigData);
         
         const gigLocation = {
           lat: gigData.location.latitude,
@@ -139,11 +141,10 @@ export const searchNearbyGigs = async (userLocation, radiusKm = 50, statusFilter
         const distance = calculateDistance(userLocation, gigLocation);
         console.log('📏 Distance:', distance, 'meters');
         
-        // Only include live or upcoming gigs (not ended)
         if (distance <= radiusKm * 1000 && gigData.status !== 'ended') {
           console.log('✅ Gig within range!');
           gigs.push({
-            id: doc.id,
+            id: snapDoc.id,
             ...gigData,
             distance: Math.round(distance)
           });
@@ -156,7 +157,6 @@ export const searchNearbyGigs = async (userLocation, radiusKm = 50, statusFilter
     console.log('🎯 Total docs found:', totalDocs);
     console.log('✅ Gigs within range:', gigs.length);
     
-    // Sort by status (live first) then distance
     return gigs.sort((a, b) => {
       if (a.status === 'live' && b.status !== 'live') return -1;
       if (a.status !== 'live' && b.status === 'live') return 1;
@@ -172,7 +172,7 @@ export const searchNearbyGigs = async (userLocation, radiusKm = 50, statusFilter
 // AUTHENTICATION
 // ============================================
 
-  export const signInWithGoogle = async () => {
+export const signInWithGoogle = async () => {
   const provider = new GoogleAuthProvider();
   try {
     const result = await signInWithPopup(auth, provider);
@@ -245,7 +245,8 @@ export const createLiveGig = async (gigData, artistId) => {
       votes: {},
       voteTimestamps: {},
       comments: [],
-      donations: []
+      donations: [],
+      playedSongs: []
     };
     
     console.log('💾 Saving gig to Firebase:', gigDocument);
@@ -264,25 +265,21 @@ export const createLiveGig = async (gigData, artistId) => {
 export const listenToLiveGig = (gigId, callback) => {
   const gigRef = doc(db, 'liveGigs', gigId);
   
-  return onSnapshot(gigRef, (doc) => {
-    if (doc.exists()) {
-      const data = doc.data();
+  return onSnapshot(gigRef, (docSnap) => {
+    if (docSnap.exists()) {
+      const data = docSnap.data();
       
-      // Helper function to convert any Timestamp to Date
       const convertTimestamps = (obj) => {
         if (!obj) return obj;
         
-        // If it's a Timestamp, convert it
         if (obj?.toDate && typeof obj.toDate === 'function') {
           return obj.toDate();
         }
         
-        // If it's an array, convert each item
         if (Array.isArray(obj)) {
           return obj.map(item => convertTimestamps(item));
         }
         
-        // If it's an object, convert all properties
         if (typeof obj === 'object') {
           const converted = {};
           for (const [key, value] of Object.entries(obj)) {
@@ -291,15 +288,13 @@ export const listenToLiveGig = (gigId, callback) => {
           return converted;
         }
         
-        // Otherwise return as-is
         return obj;
       };
       
-      // Convert ALL timestamps in the entire data object
       const safeData = convertTimestamps(data);
       
       console.log('📡 Live gig data updated safely');
-      callback({ id: doc.id, ...safeData });
+      callback({ id: docSnap.id, ...safeData });
     }
   }, (error) => {
     console.error('❌ Error listening to live gig:', error);
@@ -319,7 +314,6 @@ export const voteForSong = async (gigId, songId, userId, userLocation, venueLoca
   
   const gigRef = doc(db, 'liveGigs', gigId);
   
-  // Convert songId to string and remove decimals to avoid nested object issues
   const cleanSongId = String(Math.floor(songId));
   const voteKey = `votes.${cleanSongId}`;
   const timestampKey = `voteTimestamps.${cleanSongId}.${userId}`;
@@ -336,7 +330,7 @@ export const addComment = async (gigId, userId, userName, text, userLocation, ve
   const distance = calculateDistance(userLocation, venueLocation);
   
   if (!isWithinRange(userLocation, venueLocation, 1000)) {
-    throw new Error(`You must be within 100m of the venue to comment! You are ${Math.round(distance)}m away.`);
+    throw new Error(`You must be within 1km of the venue to comment! You are ${Math.round(distance)}m away.`);
   }
   
   const gigRef = doc(db, 'liveGigs', gigId);
@@ -358,7 +352,7 @@ export const processDonation = async (gigId, userId, userName, amount, message, 
   const distance = calculateDistance(userLocation, venueLocation);
   
   if (!isWithinRange(userLocation, venueLocation, 1000)) {
-    throw new Error(`You must be within 100m of the venue to donate! You are ${Math.round(distance)}m away.`);
+    throw new Error(`You must be within 1km of the venue to donate! You are ${Math.round(distance)}m away.`);
   }
   
   const gigRef = doc(db, 'liveGigs', gigId);
@@ -390,23 +384,13 @@ export const endLiveGig = async (gigId) => {
   console.log('✅ Gig ended');
 };
 
+// Export everything needed
 export {
   auth,
   db,
   doc,
   updateDoc,
   arrayUnion,
-  onAuthStateChanged,
-  getUserLocation,
-  calculateDistance,
-  isWithinRange,
-  searchNearbyGigs,
-  createLiveGig,
-  listenToLiveGig,
-  voteForSong,
-  addComment,
-  processDonation,
-  endLiveGig,
   serverTimestamp,
   GeoPoint
 };
