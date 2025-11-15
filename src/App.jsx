@@ -22,6 +22,7 @@ import {
   addComment as firebaseAddComment,
   processDonation as firebaseProcessDonation,
   endLiveGig as firebaseEndLiveGig,
+  checkAndSwapSongs,
   serverTimestamp,
   GeoPoint
 } from './firebase-utils';
