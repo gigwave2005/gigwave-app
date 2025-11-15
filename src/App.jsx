@@ -5,6 +5,9 @@ import { Music, Plus, Trash2, Play, Users, Calendar, Heart, Star, Zap, X, Search
 import {
   auth,
   db,
+  doc,
+  updateDoc,
+  arrayUnion,
   onAuthStateChanged,
   signInWithGoogle,
   signInWithFacebook,
@@ -1496,20 +1499,84 @@ export default function App() {
             )}
           </div>
 
-          <div className="bg-white/10 rounded-xl p-6 mb-6">
-            <h3 className="text-2xl font-bold text-white mb-4">🎵 Song Votes</h3>
-            {Object.keys(liveGigData.votes).length === 0 ? (
-              <p className="text-gray-300">No votes yet. Audience will vote when they're within 100m!</p>
-            ) : (
-              <div className="space-y-2">
-                {Object.entries(liveGigData.votes)
-                  .sort(([,a], [,b]) => b - a)
-                  .map(([songId, count]) => {
-                    const song = liveGigData.queuedSongs.find(s => s.id == songId) || {};
+         <div className="bg-white/10 rounded-xl p-6 mb-6">
+            <h3 className="text-2xl font-bold text-white mb-4">🎵 Song Queue with Votes</h3>
+            
+            {/* Unplayed Songs - Sorted by Votes */}
+            <div className="mb-6">
+              <h4 className="text-lg font-semibold text-green-300 mb-3">▶️ Ready to Play ({liveGigData.queuedSongs.filter(s => !liveGigData.playedSongs?.includes(s.id)).length})</h4>
+              
+              {liveGigData.queuedSongs
+                .filter(song => !liveGigData.playedSongs?.includes(song.id))
+                .sort((a, b) => {
+                  const votesA = liveGigData.votes[Math.floor(a.id)] || 0;
+                  const votesB = liveGigData.votes[Math.floor(b.id)] || 0;
+                  return votesB - votesA;
+                })
+                .map((song, index) => {
+                  const voteCount = liveGigData.votes[Math.floor(song.id)] || 0;
+                  return (
+                    <div key={song.id} className="bg-green-500/20 border border-green-400 p-4 rounded-lg mb-3 flex justify-between items-center">
+                      <div className="flex items-center gap-4 flex-1">
+                        <span className="text-green-300 font-bold text-2xl min-w-[50px]">#{index + 1}</span>
+                        <div>
+                          <div className="text-white font-semibold text-lg">{song.title}</div>
+                          <div className="text-green-200 text-sm">{song.artist}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-center">
+                          <div className="text-pink-300 font-bold text-2xl">❤️ {voteCount}</div>
+                          <div className="text-pink-200 text-xs">votes</div>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            if (window.confirm(`Mark "${song.title}" as played?`)) {
+                              try {
+                                const gigRef = doc(db, 'liveGigs', liveGig.id);
+                                await updateDoc(gigRef, {
+                                  playedSongs: arrayUnion(song.id)
+                                });
+                                alert('✅ Song marked as played!');
+                              } catch (error) {
+                                alert('Error: ' + error.message);
+                              }
+                            }
+                          }}
+                          className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold whitespace-nowrap"
+                        >
+                          ✅ Mark Played
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              
+              {liveGigData.queuedSongs.filter(s => !liveGigData.playedSongs?.includes(s.id)).length === 0 && (
+                <p className="text-gray-300 text-center py-4">All songs have been played!</p>
+              )}
+            </div>
+            
+            {/* Played Songs */}
+            {liveGigData.playedSongs && liveGigData.playedSongs.length > 0 && (
+              <div>
+                <h4 className="text-lg font-semibold text-gray-400 mb-3">✅ Already Played ({liveGigData.playedSongs.length})</h4>
+                {liveGigData.queuedSongs
+                  .filter(song => liveGigData.playedSongs.includes(song.id))
+                  .map((song) => {
+                    const voteCount = liveGigData.votes[Math.floor(song.id)] || 0;
                     return (
-                      <div key={songId} className="bg-white/5 p-3 rounded-lg flex justify-between items-center">
-                        <span className="text-white">{song.title || `Song ${songId}`} - {song.artist || 'Unknown'}</span>
-                        <span className="text-pink-300 font-bold">❤️ {count} votes</span>
+                      <div key={song.id} className="bg-gray-500/20 border border-gray-600 p-4 rounded-lg mb-2 opacity-60">
+                        <div className="flex justify-between items-center">
+                          <div className="flex items-center gap-4">
+                            <span className="text-gray-400">✅</span>
+                            <div>
+                              <div className="text-gray-300 font-semibold line-through">{song.title}</div>
+                              <div className="text-gray-400 text-sm">{song.artist}</div>
+                            </div>
+                          </div>
+                          <div className="text-gray-400 text-sm">❤️ {voteCount} votes</div>
+                        </div>
                       </div>
                     );
                   })}
