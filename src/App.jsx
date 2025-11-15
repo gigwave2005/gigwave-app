@@ -1443,36 +1443,7 @@ export default function App() {
               <div className="text-purple-200 font-semibold">Donations</div>
             </div>
           </div>
-
-          <div className="bg-white/10 rounded-xl p-6 mb-6">
-            <h3 className="text-2xl font-bold text-white mb-4">📋 Song Queue ({liveGigData.queuedSongs.length} songs)</h3>
-            {liveGigData.queuedSongs.length === 0 ? (
-              <div className="bg-yellow-500/20 border border-yellow-400 rounded-lg p-6 text-center">
-                <p className="text-yellow-200 text-lg">⚠️ No songs in queue!</p>
-                <p className="text-yellow-300 text-sm mt-2">Add songs to your master playlist or gig playlist before going live.</p>
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {liveGigData.queuedSongs.map((song, index) => (
-                  <div key={song.id} className="bg-white/5 p-4 rounded-lg flex items-center justify-between hover:bg-white/10 transition">
-                    <div className="flex items-center gap-4">
-                      <span className="text-teal-300 font-bold text-xl min-w-[40px]">{index + 1}</span>
-                      <div>
-                        <div className="text-white font-semibold text-lg">{song.title}</div>
-                        <div className="text-teal-200 text-sm">{song.artist}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {liveGigData.votes[song.id] && (
-                        <span className="text-pink-300 font-bold">❤️ {liveGigData.votes[song.id]}</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-
+          
          <div className="bg-white/10 rounded-xl p-6 mb-6">
             <h3 className="text-2xl font-bold text-white mb-4">🎵 Song Queue with Votes</h3>
             
