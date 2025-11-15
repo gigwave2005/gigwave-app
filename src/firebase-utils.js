@@ -9,7 +9,6 @@ import {
   arrayUnion,
   setDoc, 
   getDoc, 
-  updateDoc, 
   query,
   where,
   getDocs,
