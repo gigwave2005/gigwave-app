@@ -3,7 +3,10 @@ import { initializeApp } from 'firebase/app';
 import { 
   getFirestore, 
   collection, 
-  doc, 
+  addDoc,
+  doc,
+  updateDoc,
+  arrayUnion,
   setDoc, 
   getDoc, 
   updateDoc, 
@@ -388,4 +391,26 @@ export const endLiveGig = async (gigId) => {
   console.log('✅ Gig ended');
 };
 
-export { db, auth, onAuthStateChanged, serverTimestamp, GeoPoint };
+export {
+  auth,
+  db,
+  doc,
+  updateDoc,
+  arrayUnion,
+  onAuthStateChanged,
+  signInWithGoogle,
+  signInWithFacebook,
+  signOutUser,
+  getUserLocation,
+  calculateDistance,
+  isWithinRange,
+  searchNearbyGigs,
+  createLiveGig,
+  listenToLiveGig,
+  voteForSong,
+  addComment,
+  processDonation,
+  endLiveGig,
+  serverTimestamp,
+  GeoPoint
+};
