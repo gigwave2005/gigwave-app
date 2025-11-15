@@ -316,12 +316,18 @@ export const voteForSong = async (gigId, songId, userId, userLocation, venueLoca
   }
   
   const gigRef = doc(db, 'liveGigs', gigId);
+  
+  // Convert songId to string and remove decimals to avoid nested object issues
+  const cleanSongId = String(Math.floor(songId));
+  const voteKey = `votes.${cleanSongId}`;
+  const timestampKey = `voteTimestamps.${cleanSongId}.${userId}`;
+  
   await updateDoc(gigRef, {
-    [`votes.${songId}`]: increment(1),
-    [`voteTimestamps.${songId}`]: serverTimestamp()
+    [voteKey]: increment(1),
+    [timestampKey]: serverTimestamp()
   });
   
-  console.log('✅ Vote recorded for song:', songId);
+  console.log('✅ Vote recorded for song:', cleanSongId);
 };
 
 export const addComment = async (gigId, userId, userName, text, userLocation, venueLocation) => {
