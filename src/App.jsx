@@ -269,6 +269,15 @@ export default function App() {
       return;
     }
     
+    // Check if user already voted for this song in this gig
+    const voteKey = `vote_${liveGig.id}_${songId}`;
+    const hasVoted = localStorage.getItem(voteKey);
+    
+    if (hasVoted) {
+      alert('⚠️ You already voted for this song in this gig!');
+      return;
+    }
+    
     try {
       const location = await getUserLocation();
       const venueLocation = {
@@ -277,6 +286,10 @@ export default function App() {
       };
       
       await firebaseVoteForSong(liveGig.id, songId, currentUser.uid, location, venueLocation);
+      
+      // Mark as voted in localStorage
+      localStorage.setItem(voteKey, 'true');
+      
       alert('✅ Vote recorded!');
     } catch (error) {
       alert(error.message);
