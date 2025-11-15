@@ -324,8 +324,8 @@ export default function App() {
       }
       
       // Convert iTunes format to our format
-      const songs = data.results.map(track => ({
-        id: Date.now() + Math.random(),
+      const songs = data.results.map((track, index) => ({
+        id: Date.now() + index, // Integer increment instead of random
         title: track.trackName,
         artist: track.artistName,
         album: track.collectionName,
@@ -349,25 +349,25 @@ export default function App() {
   };
 
   const addItunesSongToMaster = (song) => {
-    if (masterSongs.find(s => s.title === song.title && s.artist === song.artist)) {
-      alert('⚠️ This song is already in your master playlist!');
-      return;
-    }
-    
-    const cleanSong = {
-      id: song.id,
-      title: song.title,
-      artist: song.artist,
-      duration: song.duration,
-      album: song.album || '',
-      key: ''
-    };
-    
-    setMasterSongs([...masterSongs, cleanSong]);
-    alert(`✅ Added "${song.title}" to master playlist!`);
-    
-    setItunesResults(itunesResults.filter(s => s.id !== song.id));
+  if (masterSongs.find(s => s.title === song.title && s.artist === song.artist)) {
+    alert('⚠️ This song is already in your master playlist!');
+    return;
+  }
+  
+  const cleanSong = {
+    id: Math.floor(song.id), // Convert to integer HERE
+    title: song.title,
+    artist: song.artist,
+    duration: song.duration,
+    album: song.album || '',
+    key: ''
   };
+  
+  setMasterSongs([...masterSongs, cleanSong]);
+  alert(`✅ Added "${song.title}" to master playlist!`);
+  
+  setItunesResults(itunesResults.filter(s => s.id !== song.id));
+};
   
   const removeFromMaster = (id) => {
     if (window.confirm('Remove this song?')) {
