@@ -172,7 +172,7 @@ export const searchNearbyGigs = async (userLocation, radiusKm = 50, statusFilter
 // AUTHENTICATION
 // ============================================
 
-  const signInWithGoogle = async () => {
+  export const signInWithGoogle = async () => {
   const provider = new GoogleAuthProvider();
   try {
     const result = await signInWithPopup(auth, provider);
@@ -184,7 +184,7 @@ export const searchNearbyGigs = async (userLocation, radiusKm = 50, statusFilter
   }
 };
 
-  const signInWithFacebook = async () => {
+export const signInWithFacebook = async () => {
   const provider = new FacebookAuthProvider();
   try {
     const result = await signInWithPopup(auth, provider);
