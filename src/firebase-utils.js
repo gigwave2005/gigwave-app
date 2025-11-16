@@ -394,6 +394,7 @@ export const updateGigToLive = async (gigId, queuedSongs, masterPlaylist) => {
     await updateDoc(gigRef, {
       status: 'live',
       startTime: serverTimestamp(),
+      scheduledEndTime: new Date(Date.now() + (5 * 60 * 60 * 1000)),
       queuedSongs: queuedSongs,
       masterPlaylist: masterPlaylist,
       votes: {},
@@ -402,8 +403,16 @@ export const updateGigToLive = async (gigId, queuedSongs, masterPlaylist) => {
       donations: [],
       playedSongs: []
     });
+    
+    console.log('✅ Gig updated to live');
+    return gigId;
+  } catch (error) {
+    console.error('❌ Error updating gig:', error);
+    throw error;
+  }
+};
 
-    // Extend gig time by specified hours
+// Extend gig time by specified hours
 export const extendGigTime = async (gigId, hoursToAdd = 1) => {
   try {
     console.log(`⏱️ Extending gig time by ${hoursToAdd} hour(s)`);
