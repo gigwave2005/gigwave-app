@@ -74,6 +74,8 @@ export default function App() {
     currentSong: null,
     playedSongs: []
   });
+  const [timeRemaining, setTimeRemaining] = useState(null);
+  const [showTimeWarning, setShowTimeWarning] = useState(false);
 
   // Listen to auth changes
   useEffect(() => {
@@ -113,6 +115,45 @@ export default function App() {
     
     return () => unsubscribe();
   }, [liveGig?.id, currentUser]);
+
+  // Auto-end timer check
+useEffect(() => {
+  if (!liveGig?.id || mode !== 'live') return;
+  
+  const checkTimer = () => {
+    if (!liveGigData.scheduledEndTime) return;
+    
+    const endTime = liveGigData.scheduledEndTime instanceof Date 
+      ? liveGigData.scheduledEndTime 
+      : liveGigData.scheduledEndTime?.toDate?.();
+    
+    if (!endTime) return;
+    
+    const now = new Date();
+    const remaining = endTime - now;
+    const remainingMinutes = Math.floor(remaining / 60000);
+    
+    setTimeRemaining(remainingMinutes);
+    
+    // Show warning at 10 minutes
+    if (remainingMinutes <= 10 && remainingMinutes > 0 && !showTimeWarning) {
+      setShowTimeWarning(true);
+      alert(`⚠️ Your gig will auto-end in ${remainingMinutes} minutes!\n\nClick "Add 1 Hour" to extend.`);
+    }
+    
+    // Auto-end at 0
+    if (remainingMinutes <= 0) {
+      alert('⏰ Time limit reached! Your gig has been automatically ended.');
+      handleEndGig();
+    }
+  };
+  
+  // Check immediately and then every minute
+  checkTimer();
+  const interval = setInterval(checkTimer, 60000);
+  
+  return () => clearInterval(interval);
+}, [liveGig, liveGigData.scheduledEndTime, mode, showTimeWarning]);
 
   // Get user location on mount
   useEffect(() => {
@@ -726,6 +767,16 @@ export default function App() {
       alert('Error: ' + error.message);
     }
   };
+
+  const handleExtendTime = async () => {
+  try {
+    await extendGigTime(liveGig.id, 1);
+    setShowTimeWarning(false);
+    alert('✅ Added 1 hour to your gig!');
+  } catch (error) {
+    alert('Error extending time: ' + error.message);
+  }
+};
 
   const handleEndGig = async () => {
     if (!window.confirm('End this gig?')) return;
@@ -1541,13 +1592,28 @@ export default function App() {
             <div>
               <h1 className="text-5xl font-bold text-white">🔴 LIVE: {liveGig.venueName}</h1>
               <p className="text-teal-200 text-lg">Artist: {liveGig.artistName}</p>
+              {timeRemaining !== null && (
+                <div className="mt-2">
+                  <p className={`text-lg font-bold ${timeRemaining <= 10 ? 'text-red-300 animate-pulse' : 'text-green-300'}`}>
+                    ⏰ Time Remaining: {Math.floor(timeRemaining / 60)}h {timeRemaining % 60}m
+                  </p>
+                </div>
+              )}
             </div>
-            <button
-              onClick={handleEndGig}
-              className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-bold"
-            >
-              ⏹️ End Gig
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={handleExtendTime}
+                className="px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-white rounded-lg font-bold"
+              >
+                ⏱️ Add 1 Hour
+              </button>
+              <button
+                onClick={handleEndGig}
+                className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-bold"
+              >
+                ⏹️ End Gig
+              </button>
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-4 mb-8">
