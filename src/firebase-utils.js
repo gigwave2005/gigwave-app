@@ -491,6 +491,5 @@ export {
   arrayUnion,
   serverTimestamp,
   GeoPoint,
-  checkAndSwapSongs,
   updateGigToLive,
 };
