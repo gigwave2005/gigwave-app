@@ -240,7 +240,7 @@ export const createLiveGig = async (gigData, artistId) => {
       artistId,
       geohash,
       location: new GeoPoint(gigData.location.lat, gigData.location.lng),
-      status: 'live',
+      status: gigData.status || 'live',
       startTime: serverTimestamp(),
       votes: {},
       voteTimestamps: {},
