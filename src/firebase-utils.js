@@ -384,6 +384,32 @@ export const endLiveGig = async (gigId) => {
   console.log('✅ Gig ended');
 };
 
+// Update existing gig to live status
+export const updateGigToLive = async (gigId, queuedSongs, masterPlaylist) => {
+  try {
+    console.log('🔄 Updating gig to live:', gigId);
+    
+    const gigRef = doc(db, 'liveGigs', gigId);
+    await updateDoc(gigRef, {
+      status: 'live',
+      startTime: serverTimestamp(),
+      queuedSongs: queuedSongs,
+      masterPlaylist: masterPlaylist,
+      votes: {},
+      voteTimestamps: {},
+      comments: [],
+      donations: [],
+      playedSongs: []
+    });
+    
+    console.log('✅ Gig updated to live');
+    return gigId;
+  } catch (error) {
+    console.error('❌ Error updating gig:', error);
+    throw error;
+  }
+};
+
 // Auto-swap songs based on votes
 export const checkAndSwapSongs = async (gigId, gigData) => {
   try {
@@ -465,4 +491,5 @@ export {
   arrayUnion,
   serverTimestamp,
   GeoPoint
+  updateGigToLive
 };
