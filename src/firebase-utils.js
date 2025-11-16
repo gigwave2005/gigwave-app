@@ -438,14 +438,6 @@ export const extendGigTime = async (gigId, hoursToAdd = 1) => {
     throw error;
   }
 };
-    
-    console.log('✅ Gig updated to live');
-    return gigId;
-  } catch (error) {
-    console.error('❌ Error updating gig:', error);
-    throw error;
-  }
-};
 
 // Auto-swap songs based on votes
 export const checkAndSwapSongs = async (gigId, gigData) => {
