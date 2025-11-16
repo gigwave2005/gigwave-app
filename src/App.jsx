@@ -545,20 +545,59 @@ export default function App() {
     setShowGigModal(true);
   };
 
-  const saveGig = () => {
+  const saveGig = async () => {
     if (!editingGig.venueName || !editingGig.date || !editingGig.time) {
       alert('Please fill in venue name, date, and time!');
       return;
     }
     
-    if (gigs.find(g => g.id === editingGig.id)) {
-      setGigs(gigs.map(g => g.id === editingGig.id ? editingGig : g));
-    } else {
-      setGigs([...gigs, editingGig]);
+    try {
+      let location = editingGig.location;
+      
+      // If no location, ask for it
+      if (!location) {
+        const useCurrentLocation = window.confirm('No venue location set. Use your current location?');
+        if (useCurrentLocation) {
+          location = await getUserLocation();
+        } else {
+          alert('Please set a venue location to save the gig!');
+          return;
+        }
+      }
+      
+      // Prepare gig data for Firebase
+      const gigData = {
+        artistId: currentUser.uid,
+        artistName: currentUser.displayName || 'Artist',
+        venueName: editingGig.venueName,
+        venueAddress: editingGig.address || '',
+        location: location,
+        status: 'upcoming',
+        gigDate: editingGig.date,
+        gigTime: editingGig.time,
+        playlistId: editingGig.playlistId || null,
+        notes: editingGig.notes || ''
+      };
+      
+      // Save to Firebase
+      const gigId = await createLiveGig(gigData, currentUser.uid);
+      
+      // Update local state
+      const savedGig = { ...editingGig, id: gigId, location, status: 'upcoming' };
+      
+      if (gigs.find(g => g.id === editingGig.id)) {
+        setGigs(gigs.map(g => g.id === editingGig.id ? savedGig : g));
+      } else {
+        setGigs([...gigs, savedGig]);
+      }
+      
+      setShowGigModal(false);
+      setEditingGig(null);
+      
+      alert('✅ Gig saved! Audience can now find this upcoming gig.');
+    } catch (error) {
+      alert('Error saving gig: ' + error.message);
     }
-    
-    setShowGigModal(false);
-    setEditingGig(null);
   };
 
   const deleteGig = (id) => {
