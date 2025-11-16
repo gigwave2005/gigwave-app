@@ -242,6 +242,7 @@ export const createLiveGig = async (gigData, artistId) => {
       location: new GeoPoint(gigData.location.lat, gigData.location.lng),
       status: gigData.status || 'live',
       startTime: serverTimestamp(),
+      scheduledEndTime: new Date(Date.now() + (5 * 60 * 60 * 1000)),
       votes: {},
       voteTimestamps: {},
       comments: [],
@@ -401,6 +402,33 @@ export const updateGigToLive = async (gigId, queuedSongs, masterPlaylist) => {
       donations: [],
       playedSongs: []
     });
+
+    // Extend gig time by specified hours
+export const extendGigTime = async (gigId, hoursToAdd = 1) => {
+  try {
+    console.log(`⏱️ Extending gig time by ${hoursToAdd} hour(s)`);
+    
+    const gigRef = doc(db, 'liveGigs', gigId);
+    const gigDoc = await getDoc(gigRef);
+    
+    if (!gigDoc.exists()) {
+      throw new Error('Gig not found');
+    }
+    
+    const currentEndTime = gigDoc.data().scheduledEndTime?.toDate() || new Date(Date.now() + (5 * 60 * 60 * 1000));
+    const newEndTime = new Date(currentEndTime.getTime() + (hoursToAdd * 60 * 60 * 1000));
+    
+    await updateDoc(gigRef, {
+      scheduledEndTime: newEndTime
+    });
+    
+    console.log('✅ Gig time extended to:', newEndTime);
+    return newEndTime;
+  } catch (error) {
+    console.error('❌ Error extending gig time:', error);
+    throw error;
+  }
+};
     
     console.log('✅ Gig updated to live');
     return gigId;
