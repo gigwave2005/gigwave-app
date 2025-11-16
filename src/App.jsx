@@ -86,7 +86,11 @@ export default function App() {
   useEffect(() => {
     if (!liveGig?.id) return;
     
-    const unsubscribe = listenToLiveGig(liveGig.id, (gigData) => {
+    const unsubscribe = listenToLiveGig(liveGig.id, async (gigData) => {
+      console.log('🎵 Live gig update received');
+      console.log('👤 Current User:', currentUser?.uid);
+      console.log('🎸 Artist ID:', gigData.artistId);
+      
       setLiveGigData({
         votes: gigData.votes || {},
         comments: gigData.comments || [],
@@ -95,10 +99,18 @@ export default function App() {
         currentSong: gigData.currentSong || null,
         playedSongs: gigData.playedSongs || []
       });
+      
+      // Auto-swap songs if artist is viewing
+      if (currentUser?.uid === gigData.artistId) {
+        console.log('✅ Artist viewing - triggering swap check');
+        await checkAndSwapSongs(liveGig.id, gigData);
+      } else {
+        console.log('❌ Not artist - skipping swap');
+      }
     });
     
     return () => unsubscribe();
-  }, [liveGig?.id]);
+  }, [liveGig?.id, currentUser]);
 
   // Get user location on mount
   useEffect(() => {
