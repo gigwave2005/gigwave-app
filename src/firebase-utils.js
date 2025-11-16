@@ -490,6 +490,7 @@ export {
   updateDoc,
   arrayUnion,
   serverTimestamp,
-  GeoPoint
-  updateGigToLive
+  GeoPoint,
+  checkAndSwapSongs,
+  updateGigToLive,
 };
