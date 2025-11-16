@@ -242,6 +242,41 @@ export default function App() {
     }
   };
 
+  const handleJoinGig = async (gig) => {
+  try {
+    // Get current location
+    let location = userLocation;
+    
+    if (!location) {
+      alert('Getting your location...');
+      location = await getUserLocation();
+      setUserLocation(location);
+    }
+    
+    // Get venue location
+    const venueLocation = {
+      lat: gig.location.latitude,
+      lng: gig.location.longitude
+    };
+    
+    // Check if within range (1km = 1000m)
+    const distance = calculateDistance(location, venueLocation);
+    const maxDistance = 1000; // 1km in meters
+    
+    if (distance > maxDistance) {
+      const distanceKm = (distance / 1000).toFixed(1);
+      alert(`⚠️ You're too far away!\n\nYou must be within 1km of the venue to join.\n\nYou are currently ${distanceKm}km away from ${gig.venueName}.`);
+      return;
+    }
+    
+    // Within range - allow join
+    setLiveGig(gig);
+    setMode('audience');
+  } catch (error) {
+    alert('Error getting your location: ' + error.message);
+  }
+};
+
   const filterGigsByDate = (filter) => {
     setDateFilter(filter);
     
