@@ -17,6 +17,7 @@ import {
   isWithinRange,
   searchNearbyGigs,
   createLiveGig,
+  updateGigToLive,
   listenToLiveGig,
   voteForSong as firebaseVoteForSong,
   addComment as firebaseAddComment,
@@ -668,7 +669,19 @@ export default function App() {
         uniqueKey: uniqueGigKey
       };
       
-      const gigId = await createLiveGig(gigData, currentUser.uid);
+      // Check if gig already exists in Firebase (has an ID from saving)
+      let gigId;
+      
+      if (gig.id && typeof gig.id === 'string' && gig.id.length > 10) {
+        // Gig exists - update to live
+        console.log('📝 Updating existing gig to live:', gig.id);
+        gigId = await updateGigToLive(gig.id, songs.slice(0, 20), masterSongs);
+      } else {
+        // New gig - create in Firebase
+        console.log('🆕 Creating new live gig');
+        gigId = await createLiveGig(gigData, currentUser.uid);
+      }
+      
       setLiveGig({...gigData, id: gigId});
       setMode('live');
       
