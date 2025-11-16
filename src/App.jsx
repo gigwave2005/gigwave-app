@@ -1039,92 +1039,103 @@ export default function App() {
 
               {/* Gig Results */}
               <div className="space-y-4">
-                <h2 className="text-3xl font-bold text-white">
-                  {filteredGigs.filter(g => g.status === 'live').length > 0 ? '🔴 Live Now' : '🎸 Nearby Gigs'}
-                </h2>
-                
-                {filteredGigs.length === 0 ? (
-                  <div className="bg-yellow-500/20 border border-yellow-400 rounded-xl p-6 text-center">
-                    <p className="text-yellow-200 text-lg">No gigs found for selected date filter.</p>
-                  </div>
-                ) : (
-                  filteredGigs.map(gig => {
-                    const isLive = gig.status === 'live';
-                    const isEnded = gig.status === 'ended';
-                    const isUpcoming = !isLive && !isEnded;
-                    
+                {/* Live Gigs Section */}
+              {filteredGigs.filter(g => g.status === 'live').length > 0 && (
+                <div className="space-y-4 mb-8">
+                  <h2 className="text-3xl font-bold text-white">🔴 Live Now</h2>
+                  
+                  {filteredGigs.filter(g => g.status === 'live').map(gig => {
                     const gigDateTime = gig.gigDate && gig.gigTime 
                       ? `${new Date(gig.gigDate).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})} at ${gig.gigTime}`
                       : 'Time TBD';
                     
-                    // Status colors
-                    let statusColor = 'from-blue-500/20 to-cyan-500/20 border-blue-400';
-                    let statusBadge = '🔵';
-                    let statusText = `Upcoming - ${gigDateTime}`;
-                    let buttonColor = 'bg-blue-500 hover:bg-blue-600';
-                    let buttonText = 'ℹ️ View Details';
-                    let canJoin = false;
-                    
-                    if (isLive) {
-                      statusColor = 'from-green-500/20 to-emerald-500/20 border-2 border-green-400';
-                      statusBadge = '🟢';
-                      statusText = 'LIVE NOW';
-                      buttonColor = 'bg-green-500 hover:bg-green-600';
-                      buttonText = '🎵 Join Live →';
-                      canJoin = true;
-                    } else if (isEnded) {
-                      statusColor = 'from-red-500/20 to-pink-500/20 border-red-400';
-                      statusBadge = '🔴';
-                      statusText = 'Ended';
-                      buttonColor = 'bg-gray-500 cursor-not-allowed';
-                      buttonText = '⚫ Ended';
-                      canJoin = false;
-                    }
-                    
                     return (
-                      <div
-                        key={gig.id}
-                        className={`rounded-xl p-6 transition ${statusColor} ${canJoin ? 'cursor-pointer hover:from-green-500/30 hover:to-emerald-500/30' : ''}`}
-                        onClick={() => {
-                          if (canJoin) {
-                            setLiveGig(gig);
-                            setMode('audience');
-                          }
-                        }}
-                      >
+                      <div key={gig.id} className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-2 border-green-400 rounded-xl p-6 hover:shadow-2xl transition">
                         <div className="flex justify-between items-start">
                           <div className="flex-1">
                             <div className="flex items-center gap-3 mb-2">
-                              <span className={`text-3xl ${isLive ? 'animate-pulse' : ''}`}>{statusBadge}</span>
-                              <div>
-                                <h3 className="text-2xl font-bold text-white">{gig.artistName}</h3>
-                                <p className={`text-sm font-semibold ${isLive ? 'text-green-300' : isEnded ? 'text-red-300' : 'text-blue-300'}`}>
-                                  {statusText}
-                                </p>
-                              </div>
+                              <div className="w-4 h-4 bg-green-500 rounded-full animate-pulse"></div>
+                              <h3 className="text-2xl font-bold text-white">{gig.artistName}</h3>
                             </div>
-                            <p className="text-purple-200 text-lg mb-1">📍 {gig.venueName}</p>
-                            {gig.venueAddress && (
-                              <p className="text-purple-300 text-sm mb-2">📌 {gig.venueAddress}</p>
-                            )}
-                            <p className="text-green-300 font-semibold">
-                              📏 {gig.distance < 1000 
-                                ? `${gig.distance}m away` 
-                                : `${(gig.distance/1000).toFixed(1)}km away`}
-                            </p>
+                            <div className="text-green-300 font-bold text-lg mb-3">LIVE NOW</div>
+                            <div className="space-y-1 text-white/90">
+                              <p className="flex items-center gap-2">
+                                <span>📍</span> {gig.venueName}
+                              </p>
+                              {gig.venueAddress && (
+                                <p className="flex items-center gap-2 text-sm">
+                                  <span>🗺️</span> {gig.venueAddress}
+                                </p>
+                              )}
+                              <p className="flex items-center gap-2 text-yellow-300 font-semibold">
+                                <span>📏</span> {gig.distance}m away
+                              </p>
+                            </div>
                           </div>
-                          <button 
-                            disabled={!canJoin && isEnded}
-                            className={`px-6 py-3 ${buttonColor} text-white rounded-lg font-bold text-lg`}
+                          <button
+                            onClick={() => handleJoinGig(gig)}
+                            className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold text-lg shadow-lg"
                           >
-                            {buttonText}
+                            🎵 Join Live →
                           </button>
                         </div>
                       </div>
                     );
-                  })
-                )}
-              </div>
+                  })}
+                </div>
+              )}
+
+              {/* Upcoming Gigs Section */}
+              {filteredGigs.filter(g => g.status === 'upcoming').length > 0 && (
+                <div className="space-y-4">
+                  <h2 className="text-3xl font-bold text-white">📅 Upcoming Gigs</h2>
+                  
+                  {filteredGigs.filter(g => g.status === 'upcoming').map(gig => {
+                    const gigDateTime = gig.gigDate && gig.gigTime 
+                      ? `${new Date(gig.gigDate).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})} at ${gig.gigTime}`
+                      : 'Time TBD';
+                    
+                    return (
+                      <div key={gig.id} className="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border-2 border-blue-400 rounded-xl p-6 hover:shadow-2xl transition">
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
+                              <h3 className="text-2xl font-bold text-white">{gig.artistName}</h3>
+                            </div>
+                            <div className="text-blue-300 font-bold text-lg mb-3">Upcoming - {gigDateTime}</div>
+                            <div className="space-y-1 text-white/90">
+                              <p className="flex items-center gap-2">
+                                <span>📍</span> {gig.venueName}
+                              </p>
+                              {gig.venueAddress && (
+                                <p className="flex items-center gap-2 text-sm">
+                                  <span>🗺️</span> {gig.venueAddress}
+                                </p>
+                              )}
+                              <p className="flex items-center gap-2 text-cyan-300 font-semibold">
+                                <span>📏</span> {gig.distance}m away
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            disabled
+                            className="px-6 py-3 bg-gray-500 text-white rounded-lg font-bold text-lg cursor-not-allowed opacity-60"
+                          >
+                            ℹ️ Not Live Yet
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {filteredGigs.length === 0 && (
+                <div className="bg-yellow-500/20 border border-yellow-400 rounded-xl p-6 text-center">
+                  <p className="text-yellow-200 text-lg">No gigs found for selected date filter.</p>
+                </div>
+              )}
             </div>
           )}  
 
