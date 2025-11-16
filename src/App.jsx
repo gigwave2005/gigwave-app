@@ -1124,7 +1124,9 @@ export default function App() {
                                 </p>
                               </div>
                             </div>
-                            <button className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold text-lg shadow-lg">
+                            <button 
+                              onClick={() => handleJoinGig(gig)}
+                              className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold text-lg shadow-lg">
                               🎵 Join Live →
                             </button>
                           </div>
