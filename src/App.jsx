@@ -18,6 +18,7 @@ import {
   searchNearbyGigs,
   createLiveGig,
   updateGigToLive,
+  extendGigTime,
   listenToLiveGig,
   voteForSong as firebaseVoteForSong,
   addComment as firebaseAddComment,
