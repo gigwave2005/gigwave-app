@@ -100,8 +100,10 @@ export default function App() {
         comments: gigData.comments || [],
         donations: gigData.donations || [],
         queuedSongs: gigData.queuedSongs || [],
+        masterPlaylist: gigData.masterPlaylist || [],
         currentSong: gigData.currentSong || null,
-        playedSongs: gigData.playedSongs || []
+        playedSongs: gigData.playedSongs || [],
+        scheduledEndTime: gigData.scheduledEndTime || null
       });
       
       // Auto-swap songs if artist is viewing
