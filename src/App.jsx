@@ -921,6 +921,35 @@ useEffect(() => {
               </div>
             )}
           </div>
+
+          <div className="bg-white/10 rounded-xl p-6 mb-6">
+            <h3 className="text-xl font-bold text-white mb-4">Add Songs from Master Playlist</h3>
+            {masterSongs.length === 0 ? (
+              <p className="text-purple-200">No songs in master playlist. Add songs in the Master Playlist tab first.</p>
+            ) : (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {masterSongs
+                  .filter(song => !editingPlaylist.songs.includes(song.id))
+                  .map(song => (
+                    <div key={song.id} className="bg-white/5 p-3 rounded-lg flex justify-between items-center hover:bg-white/10 transition">
+                      <div>
+                        <div className="text-white font-semibold">{song.title}</div>
+                        <div className="text-purple-200 text-sm">{song.artist}</div>
+                      </div>
+                      <button
+                        onClick={() => addSongToGigPlaylist(song.id)}
+                        className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold"
+                      >
+                        <Plus size={18}/> Add
+                      </button>
+                    </div>
+                  ))}
+                {masterSongs.filter(song => !editingPlaylist.songs.includes(song.id)).length === 0 && (
+                  <p className="text-purple-200 text-center py-4">All master songs have been added to this playlist!</p>
+                )}
+              </div>
+            )}
+          </div>
           
           <div className="flex gap-3">
             <button
