@@ -1689,6 +1689,69 @@ useEffect(() => {
                     </div>
                   );
                 })}
+
+              {/* Master Playlist Section - ADD SONGS ON THE FLY */}
+          <div className="bg-white/10 rounded-xl p-6 mb-6">
+            <h3 className="text-2xl font-bold text-white mb-4">📚 Master Playlist - Add Songs</h3>
+            <p className="text-purple-200 text-sm mb-4">Add songs from your master playlist to the queue during the performance</p>
+            
+            {liveGigData.masterPlaylist && liveGigData.masterPlaylist.length > 0 ? (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {liveGigData.masterPlaylist
+                  .filter(song => !liveGigData.playedSongs?.includes(song.id))
+                  .map(song => {
+                    const isInQueue = liveGigData.queuedSongs.some(q => q.id === song.id);
+                    const voteCount = liveGigData.votes[Math.floor(song.id)] || 0;
+                    
+                    return (
+                      <div key={song.id} className={`p-4 rounded-lg flex justify-between items-center ${isInQueue ? 'bg-green-500/20 border border-green-400' : 'bg-white/5 border border-white/20'}`}>
+                        <div className="flex-1">
+                          <div className="text-white font-semibold text-lg">{song.title}</div>
+                          <div className="text-purple-200 text-sm">{song.artist}</div>
+                          {voteCount > 0 && (
+                            <div className="text-pink-300 text-sm mt-1">❤️ {voteCount} votes</div>
+                          )}
+                        </div>
+                        
+                        {isInQueue ? (
+                          <div className="px-6 py-3 bg-green-500/50 text-green-200 rounded-lg font-bold">
+                            ✓ In Queue
+                          </div>
+                        ) : (
+                          <button
+                            onClick={async () => {
+                              try {
+                                const gigRef = doc(db, 'liveGigs', liveGig.id);
+                                const updatedQueue = [...liveGigData.queuedSongs, song].sort((a, b) => {
+                                  const votesA = liveGigData.votes[Math.floor(a.id)] || 0;
+                                  const votesB = liveGigData.votes[Math.floor(b.id)] || 0;
+                                  return votesB - votesA;
+                                });
+                                
+                                await updateDoc(gigRef, {
+                                  queuedSongs: updatedQueue
+                                });
+                                
+                                alert(`✅ "${song.title}" added to queue!`);
+                              } catch (error) {
+                                alert('Error adding song: ' + error.message);
+                              }
+                            }}
+                            className="px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-bold whitespace-nowrap"
+                          >
+                            ➕ Add to Queue
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            ) : (
+              <div className="text-center text-purple-300 py-8">
+                No songs in master playlist
+              </div>
+            )}
+          </div>
               
               {liveGigData.queuedSongs.filter(s => !liveGigData.playedSongs?.includes(s.id)).length === 0 && (
                 <p className="text-gray-300 text-center py-4">All songs have been played!</p>
