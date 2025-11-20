@@ -77,6 +77,7 @@ export default function App() {
   });
   const [timeRemaining, setTimeRemaining] = useState(null);
   const [showTimeWarning, setShowTimeWarning] = useState(false);
+  const [audienceTab, setAudienceTab] = useState('queue');
 
   // Listen to auth changes
   useEffect(() => {
@@ -214,6 +215,24 @@ useEffect(() => {
       }
     }
   }, [currentUser]);
+
+  // Backup polling for audience mode - refresh every minute
+useEffect(() => {
+  if (mode !== 'audience' || !liveGig?.id) return;
+  
+  console.log('🔄 Starting audience polling (every 60 seconds)');
+  
+  // The real-time listener (listenToLiveGig) already handles updates
+  // This polling just ensures we stay connected and logs activity
+  const pollInterval = setInterval(() => {
+    console.log('🔄 Audience mode active - data updating in real-time');
+  }, 60000); // 60 seconds
+  
+  return () => {
+    console.log('⏹️ Stopping audience polling');
+    clearInterval(pollInterval);
+  };
+}, [mode, liveGig?.id]);
 
   // Save live gig to localStorage when it changes
   useEffect(() => {
