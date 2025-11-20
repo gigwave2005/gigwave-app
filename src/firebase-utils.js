@@ -6,6 +6,7 @@ import {
   addDoc,
   doc,
   updateDoc,
+  deleteDoc,
   arrayUnion,
   setDoc, 
   getDoc, 
@@ -571,6 +572,19 @@ export const checkAndSwapSongs = async (gigId, gigData) => {
   } catch (error) {
     console.error('❌ Error in checkAndSwapSongs:', error);
     return false;
+  }
+};
+
+// Delete a gig from Firebase
+export const deleteGigFromFirebase = async (gigId) => {
+  try {
+    console.log('🗑️ Deleting gig:', gigId);
+    const gigRef = doc(db, 'liveGigs', gigId);
+    await deleteDoc(gigRef);
+    console.log('✅ Gig deleted from Firebase');
+  } catch (error) {
+    console.error('❌ Error deleting gig:', error);
+    throw error;
   }
 };
 
