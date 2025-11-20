@@ -8,6 +8,7 @@ import {
   doc,
   getDoc,
   updateDoc,
+  deleteGigFromFirebase,
   arrayUnion,
   onAuthStateChanged,
   signInWithGoogle,
@@ -752,12 +753,21 @@ useEffect(() => {
     }
   };
 
-  const deleteGig = (id) => {
-    if (window.confirm('Are you sure you want to delete this gig? This cannot be undone.')) {
+  const deleteGig = async (id) => {
+  if (window.confirm('Are you sure you want to delete this gig? This cannot be undone.')) {
+    try {
+      // Delete from Firebase
+      await deleteGigFromFirebase(id);
+      
+      // Delete from local state
       setGigs(gigs.filter(g => g.id !== id));
+      
       alert('✅ Gig deleted successfully!');
+    } catch (error) {
+      alert('Error deleting gig: ' + error.message);
     }
-  };
+  }
+};
   
   const handleGoLive = async (gig) => {
     // Check if already live (NEW - FIRST CHECK!)
