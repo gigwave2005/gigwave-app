@@ -78,6 +78,9 @@ export default function App() {
   const [timeRemaining, setTimeRemaining] = useState(null);
   const [showTimeWarning, setShowTimeWarning] = useState(false);
   const [audienceTab, setAudienceTab] = useState('queue');
+  const [selectedUpcomingGig, setSelectedUpcomingGig] = useState(null);
+  const [showGigDetailModal, setShowGigDetailModal] = useState(false);
+  const [interestedGigs, setInterestedGigs] = useState([]);
 
   // Listen to auth changes
   useEffect(() => {
@@ -191,6 +194,24 @@ useEffect(() => {
       const savedLiveGig = localStorage.getItem(`gigwave_live_${currentUser.uid}`);
       if (savedLiveGig) {
         const liveGigData = JSON.parse(savedLiveGig);
+
+  // Save interested gigs to localStorage
+useEffect(() => {
+  if (currentUser) {
+    localStorage.setItem(`gigwave_interested_${currentUser.uid}`, JSON.stringify(interestedGigs));
+  }
+}, [interestedGigs, currentUser]);
+
+  // Load interested gigs from localStorage
+useEffect(() => {
+  if (currentUser) {
+    const saved = localStorage.getItem(`gigwave_interested_${currentUser.uid}`);
+    if (saved) {
+      setInterestedGigs(JSON.parse(saved));
+      console.log('✅ Loaded interested gigs from localStorage');
+    }
+  }
+}, [currentUser]);    
         
         // Convert any timestamp strings back to Date objects or remove them
         const cleanGigData = {
@@ -1148,6 +1169,121 @@ useEffect(() => {
     );
   }
 
+  // Gig Detail Modal
+  if (showGigDetailModal && selectedUpcomingGig) {
+    return (
+      <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
+        <div className="bg-gradient-to-br from-blue-900 to-purple-900 rounded-2xl p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-3xl font-bold text-white">🎸 Gig Details</h2>
+            <button 
+              onClick={() => {
+                setShowGigDetailModal(false);
+                setSelectedUpcomingGig(null);
+              }} 
+              className="text-white hover:text-red-300"
+            >
+              <X size={32}/>
+            </button>
+          </div>
+
+          {/* Gig Info */}
+          <div className="bg-white/10 rounded-xl p-6 mb-6">
+            <h3 className="text-2xl font-bold text-white mb-4">{selectedUpcomingGig.artistName}</h3>
+            <div className="space-y-2 text-purple-200">
+              <p className="flex items-center gap-2">
+                <span>📍</span> <strong>Venue:</strong> {selectedUpcomingGig.venueName}
+              </p>
+              {selectedUpcomingGig.venueAddress && (
+                <p className="flex items-center gap-2">
+                  <span>🗺️</span> <strong>Address:</strong> {selectedUpcomingGig.venueAddress}
+                </p>
+              )}
+              {selectedUpcomingGig.gigDate && (
+                <p className="flex items-center gap-2">
+                  <span>📅</span> <strong>Date:</strong> {new Date(selectedUpcomingGig.gigDate).toLocaleDateString('en-US', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'})}
+                </p>
+              )}
+              {selectedUpcomingGig.gigTime && (
+                <p className="flex items-center gap-2">
+                  <span>🕐</span> <strong>Time:</strong> {selectedUpcomingGig.gigTime}
+                </p>
+              )}
+              <p className="flex items-center gap-2">
+                <span>📏</span> <strong>Distance:</strong> {selectedUpcomingGig.distance < 1000 ? `${selectedUpcomingGig.distance}m away` : `${(selectedUpcomingGig.distance/1000).toFixed(1)}km away`}
+              </p>
+            </div>
+          </div>
+
+          {/* Playlist Preview */}
+          <div className="bg-white/10 rounded-xl p-6 mb-6">
+            <h3 className="text-xl font-bold text-white mb-4">🎵 Expected Setlist</h3>
+            {(() => {
+              const songs = selectedUpcomingGig.queuedSongs && selectedUpcomingGig.queuedSongs.length > 0
+                ? selectedUpcomingGig.queuedSongs
+                : selectedUpcomingGig.masterPlaylist || [];
+              
+              const playlistType = selectedUpcomingGig.queuedSongs && selectedUpcomingGig.queuedSongs.length > 0
+                ? 'Curated Queue'
+                : 'Master Playlist';
+              
+              return songs.length > 0 ? (
+                <>
+                  <p className="text-purple-300 text-sm mb-3 italic">Showing: {playlistType}</p>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {songs.map((song, index) => (
+                      <div key={song.id || index} className="bg-white/5 p-3 rounded-lg flex items-center gap-3 hover:bg-white/10 transition">
+                        <span className="text-purple-300 font-bold text-lg min-w-[30px]">{index + 1}</span>
+                        <div className="flex-1">
+                          <div className="text-white font-semibold">{song.title}</div>
+                          <div className="text-purple-200 text-sm">{song.artist}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-purple-300 text-sm mt-3 italic">
+                    {songs.length} song{songs.length !== 1 ? 's' : ''} • Final setlist may vary
+                  </p>
+                </>
+              ) : (
+                <p className="text-purple-200">Setlist not available yet. Check back closer to showtime!</p>
+              );
+            })()}
+          </div>
+
+          {/* Interested Button */}
+          <div className="flex gap-3">
+            <button
+              onClick={() => {
+                if (interestedGigs.includes(selectedUpcomingGig.id)) {
+                  setInterestedGigs(interestedGigs.filter(id => id !== selectedUpcomingGig.id));
+                } else {
+                  setInterestedGigs([...interestedGigs, selectedUpcomingGig.id]);
+                }
+              }}
+              className={`flex-1 px-6 py-4 rounded-lg font-bold text-lg ${
+                interestedGigs.includes(selectedUpcomingGig.id)
+                  ? 'bg-green-500 hover:bg-green-600 text-white'
+                  : 'bg-yellow-500 hover:bg-yellow-600 text-white'
+              }`}
+            >
+              {interestedGigs.includes(selectedUpcomingGig.id) ? '⭐ Interested!' : '⭐ Mark as Interested'}
+            </button>
+            <button
+              onClick={() => {
+                setShowGigDetailModal(false);
+                setSelectedUpcomingGig(null);
+              }}
+              className="px-6 py-4 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-bold"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Discovery Page
   if (mode === 'discover') {
     return (
@@ -1242,6 +1378,11 @@ useEffect(() => {
                                 <p className="flex items-center gap-2 text-yellow-300 font-semibold">
                                   <span>📏</span> {gig.distance < 1000 ? `${gig.distance}m away` : `${(gig.distance/1000).toFixed(1)}km away`}
                                 </p>
+                                {interestedGigs.includes(gig.id) && (
+                                  <p className="flex items-center gap-2 text-green-300 font-semibold mt-2">
+                                  <span>⭐</span> You're interested in this gig!
+                                  </p>
+                              )}
                               </div>
                             </div>
                             <button 
@@ -1289,8 +1430,14 @@ useEffect(() => {
                                 </p>
                               </div>
                             </div>
-                            <button disabled className="px-6 py-3 bg-gray-500 text-white rounded-lg font-bold text-lg cursor-not-allowed opacity-60">
-                              ℹ️ Not Live Yet
+                            <button 
+                              onClick={() => {
+                                setSelectedUpcomingGig(gig);
+                                setShowGigDetailModal(true);
+                              }}
+                              className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold text-lg shadow-lg"
+                            >
+                              👁️ View Details
                             </button>
                           </div>
                         </div>
