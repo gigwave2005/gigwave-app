@@ -447,6 +447,61 @@ export const extendGigTime = async (gigId, hoursToAdd = 1) => {
   }
 };
 
+// Auto-cancel gigs that weren't started 5 hours after scheduled time
+export const checkAndCancelExpiredGigs = async (userId) => {
+  try {
+    console.log('🔍 Checking for expired gigs...');
+    const now = new Date();
+    const cancelledGigs = [];
+    
+    // Query all upcoming/confirmed gigs for this artist
+    const gigsRef = collection(db, 'gigs');
+    const q = query(
+      gigsRef,
+      where('artistId', '==', userId),
+      where('status', 'in', ['upcoming', 'confirmed'])
+    );
+    
+    const snapshot = await getDocs(q);
+    
+    for (const docSnap of snapshot.docs) {
+      const gig = { id: docSnap.id, ...docSnap.data() };
+      
+      // Only check gigs that have a date and time
+      if (gig.date && gig.time) {
+        // Combine date and time into a Date object
+        const gigDateTime = new Date(`${gig.date}T${gig.time}`);
+        const expiryTime = new Date(gigDateTime.getTime() + (5 * 60 * 60 * 1000)); // +5 hours
+        
+        // If current time is past expiry time, cancel the gig
+        if (now > expiryTime) {
+          console.log(`⏰ Auto-cancelling expired gig: ${gig.venueName}`);
+          
+          const gigRef = doc(db, 'gigs', gig.id);
+          await updateDoc(gigRef, {
+            status: 'cancelled',
+            cancelReason: 'Auto-cancelled: Not started within 5 hours of scheduled time',
+            cancelledAt: now
+          });
+          
+          cancelledGigs.push(gig.venueName);
+        }
+      }
+    }
+    
+    if (cancelledGigs.length > 0) {
+      console.log(`✅ Auto-cancelled ${cancelledGigs.length} expired gig(s):`, cancelledGigs);
+      return cancelledGigs;
+    }
+    
+    console.log('✅ No expired gigs found');
+    return [];
+  } catch (error) {
+    console.error('❌ Error checking expired gigs:', error);
+    return [];
+  }
+};
+
 // Auto-swap songs based on votes
 export const checkAndSwapSongs = async (gigId, gigData) => {
   try {
