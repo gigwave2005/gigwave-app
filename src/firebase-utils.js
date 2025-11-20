@@ -235,14 +235,17 @@ export const createLiveGig = async (gigData, artistId) => {
     
     console.log('🗺️ Generated geohash:', geohash);
     
+    const now = new Date();
+    const endTime = new Date(now.getTime() + (5 * 60 * 60 * 1000)); // 5 hours from NOW
+    
     const gigDocument = {
       ...gigData,
       artistId,
       geohash,
       location: new GeoPoint(gigData.location.lat, gigData.location.lng),
       status: gigData.status || 'live',
-      startTime: serverTimestamp(),
-      scheduledEndTime: new Date(Date.now() + (5 * 60 * 60 * 1000)),
+      startTime: now,
+      scheduledEndTime: endTime,
       votes: {},
       voteTimestamps: {},
       comments: [],
@@ -251,6 +254,7 @@ export const createLiveGig = async (gigData, artistId) => {
     };
     
     console.log('💾 Saving gig to Firebase:', gigDocument);
+    console.log('⏰ Scheduled end time:', endTime);
     
     await setDoc(gigRef, gigDocument);
     
@@ -391,10 +395,13 @@ export const updateGigToLive = async (gigId, queuedSongs, masterPlaylist) => {
     console.log('🔄 Updating gig to live:', gigId);
     
     const gigRef = doc(db, 'liveGigs', gigId);
+    const now = new Date();
+    const endTime = new Date(now.getTime() + (5 * 60 * 60 * 1000)); // 5 hours from NOW
+    
     await updateDoc(gigRef, {
       status: 'live',
-      startTime: serverTimestamp(),
-      scheduledEndTime: new Date(Date.now() + (5 * 60 * 60 * 1000)),
+      startTime: now,
+      scheduledEndTime: endTime,
       queuedSongs: queuedSongs,
       masterPlaylist: masterPlaylist,
       votes: {},
@@ -405,6 +412,7 @@ export const updateGigToLive = async (gigId, queuedSongs, masterPlaylist) => {
     });
     
     console.log('✅ Gig updated to live');
+    console.log('⏰ Scheduled end time:', endTime);
     return gigId;
   } catch (error) {
     console.error('❌ Error updating gig:', error);
