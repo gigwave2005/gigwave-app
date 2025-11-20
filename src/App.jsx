@@ -25,6 +25,7 @@ import {
   processDonation as firebaseProcessDonation,
   endLiveGig as firebaseEndLiveGig,
   checkAndSwapSongs,
+  checkAndCancelExpiredGigs,
   serverTimestamp,
   GeoPoint
 } from './firebase-utils';
@@ -250,6 +251,19 @@ useEffect(() => {
       console.log('💾 Gigs saved:', gigs.length);
     }
   }, [gigs, currentUser]);
+
+  // Check and cancel expired gigs when viewing "My Gigs" tab
+useEffect(() => {
+  if (tab === 'gigs' && currentUser) {
+    checkAndCancelExpiredGigs(currentUser.uid)
+      .then(cancelled => {
+        if (cancelled.length > 0) {
+          console.log('✅ Expired gigs cancelled:', cancelled);
+        }
+      })
+      .catch(err => console.error('Error checking expired gigs:', err));
+  }
+}, [tab, currentUser]);
   
   const handleSignIn = async (provider) => {
     try {
