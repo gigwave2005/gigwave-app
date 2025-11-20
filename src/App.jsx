@@ -731,6 +731,27 @@ useEffect(() => {
         notes: editingGig.notes || ''
       };
 
+      // Save to Firebase
+      const gigId = await createLiveGig(gigData, currentUser.uid);
+      
+      // Update local state
+      const savedGig = { ...editingGig, id: gigId, location, status: 'upcoming' };
+      
+      if (gigs.find(g => g.id === editingGig.id)) {
+        setGigs(gigs.map(g => g.id === editingGig.id ? savedGig : g));
+      } else {
+        setGigs([...gigs, savedGig]);
+      }
+      
+      setShowGigModal(false);
+      setEditingGig(null);
+      
+      alert('✅ Gig saved! Audience can now find this upcoming gig.');
+    } catch (error) {
+      alert('Error saving gig: ' + error.message);
+    }
+  };
+
   const handleExtendTime = async () => {
   try {
     await extendGigTime(liveGig.id, 1);
