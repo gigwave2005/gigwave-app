@@ -6,6 +6,7 @@ import {
   auth,
   db,
   doc,
+  getDoc,
   updateDoc,
   arrayUnion,
   onAuthStateChanged,
@@ -1431,9 +1432,25 @@ useEffect(() => {
                               </div>
                             </div>
                             <button 
-                              onClick={() => {
-                                setSelectedUpcomingGig(gig);
-                                setShowGigDetailModal(true);
+                              onClick={async () => {
+                                try {
+                                  // Get full gig data from Firebase
+                                  const gigRef = doc(db, 'liveGigs', gig.id);
+                                  const gigSnap = await getDoc(gigRef);
+                                  
+                                  if (gigSnap.exists()) {
+                                    const fullGigData = { id: gigSnap.id, ...gigSnap.data(), distance: gig.distance };
+                                    setSelectedUpcomingGig(fullGigData);
+                                  } else {
+                                    setSelectedUpcomingGig(gig);
+                                  }
+                                  
+                                  setShowGigDetailModal(true);
+                                } catch (error) {
+                                  console.error('Error fetching gig details:', error);
+                                  setSelectedUpcomingGig(gig);
+                                  setShowGigDetailModal(true);
+                                }
                               }}
                               className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold text-lg shadow-lg"
                             >
