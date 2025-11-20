@@ -579,6 +579,7 @@ export {
   auth,
   db,
   doc,
+  getDoc,
   updateDoc,
   arrayUnion,
   serverTimestamp,
