@@ -122,7 +122,7 @@ export default function App() {
 useEffect(() => {
   if (!liveGig?.id || mode !== 'live') return;
   
-  const checkTimer = () => {
+  const checkTimer = async () => {
     if (!liveGigData.scheduledEndTime) return;
     
     const endTime = liveGigData.scheduledEndTime instanceof Date 
@@ -143,10 +143,14 @@ useEffect(() => {
       alert(`⚠️ Your gig will auto-end in ${remainingMinutes} minutes!\n\nClick "Add 1 Hour" to extend.`);
     }
     
-    // Auto-end at 0
-    if (remainingMinutes <= 0) {
-      alert('⏰ Time limit reached! Your gig has been automatically ended.');
-      handleEndGig();
+    // Auto-end at 0 - ONLY RUN ONCE
+    if (remainingMinutes <= 0 && mode === 'live') {
+      try {
+        await handleEndGig();
+        alert('⏰ Time limit reached! Your gig has been automatically ended.');
+      } catch (error) {
+        console.error('Error auto-ending gig:', error);
+      }
     }
   };
   
@@ -155,7 +159,7 @@ useEffect(() => {
   const interval = setInterval(checkTimer, 60000);
   
   return () => clearInterval(interval);
-}, [liveGig, liveGigData.scheduledEndTime, mode, showTimeWarning]);
+}, [liveGig?.id, liveGigData.scheduledEndTime, mode, showTimeWarning]);
 
   // Get user location on mount
   useEffect(() => {
