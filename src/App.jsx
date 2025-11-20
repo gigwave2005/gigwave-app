@@ -752,6 +752,96 @@ useEffect(() => {
     }
   };
 
+  const deleteGig = (id) => {
+    if (window.confirm('Are you sure you want to delete this gig? This cannot be undone.')) {
+      setGigs(gigs.filter(g => g.id !== id));
+      alert('✅ Gig deleted successfully!');
+    }
+  };
+  
+  const handleGoLive = async (gig) => {
+    // Check if already live (NEW - FIRST CHECK!)
+    if (liveGig) {
+      alert('⚠️ You are already live! End your current gig first.');
+      setMode('live'); // Force back to live mode
+      return;
+    }
+    
+    // Prevent going live with ended gigs
+    if (gig.status === 'ended') {
+      alert('❌ This gig has ended! You cannot go live with an ended gig.');
+      return;
+    }
+    
+    try {
+      // Check if already live with this gig
+      if (liveGig && liveGig.gigId === gig.id) {
+        alert('⚠️ You are already live with this gig!');
+        setMode('live');
+        return;
+      }
+      
+      let location = gig.location;
+      
+      if (!location) {
+        const confirm = window.confirm('No venue location set. Use your current location?');
+        if (confirm) {
+          location = await getUserLocation();
+        } else {
+          alert('Please set a venue location first!');
+          return;
+        }
+      }
+      
+      // Get songs from assigned playlist or master
+      let songs = masterSongs;
+      if (gig.playlistId) {
+        const playlist = gigPlaylists.find(p => p.id === gig.playlistId);
+        if (playlist) {
+          songs = playlist.songs.map(id => masterSongs.find(s => s.id === id)).filter(Boolean);
+        }
+      }
+      
+      // Create unique gig ID using venue + date + time
+      const uniqueGigKey = `${gig.venueName}_${gig.date}_${gig.time}`.replace(/\s/g, '_');
+      
+      const gigData = {
+        artistId: currentUser.uid,
+        artistName: currentUser.displayName || 'Artist',
+        venueName: gig.venueName,
+        venueAddress: gig.address || '',
+        location: location,
+        queuedSongs: songs.slice(0, 20),
+        masterPlaylist: masterSongs,
+        status: 'live',
+        gigDate: gig.date,
+        gigTime: gig.time,
+        gigId: gig.id,
+        uniqueKey: uniqueGigKey
+      };
+      
+      // Check if gig already exists in Firebase (has an ID from saving)
+      let gigId;
+      
+      if (gig.id && typeof gig.id === 'string' && gig.id.length > 10) {
+        // Gig exists - update to live
+        console.log('📝 Updating existing gig to live:', gig.id);
+        gigId = await updateGigToLive(gig.id, songs.slice(0, 20), masterSongs);
+      } else {
+        // New gig - create in Firebase
+        console.log('🆕 Creating new live gig');
+        gigId = await createLiveGig(gigData, currentUser.uid);
+      }
+      
+      setLiveGig({...gigData, id: gigId});
+      setMode('live');
+      
+      alert(`✅ You're live at ${gig.venueName}!\n\nAudience can find you by searching nearby!`);
+    } catch (error) {
+      alert('Error: ' + error.message);
+    }
+  };
+
   const handleExtendTime = async () => {
   try {
     await extendGigTime(liveGig.id, 1);
