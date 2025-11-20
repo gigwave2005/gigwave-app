@@ -194,24 +194,6 @@ useEffect(() => {
       const savedLiveGig = localStorage.getItem(`gigwave_live_${currentUser.uid}`);
       if (savedLiveGig) {
         const liveGigData = JSON.parse(savedLiveGig);
-
-  // Save interested gigs to localStorage
-useEffect(() => {
-  if (currentUser) {
-    localStorage.setItem(`gigwave_interested_${currentUser.uid}`, JSON.stringify(interestedGigs));
-  }
-}, [interestedGigs, currentUser]);
-
-  // Load interested gigs from localStorage
-useEffect(() => {
-  if (currentUser) {
-    const saved = localStorage.getItem(`gigwave_interested_${currentUser.uid}`);
-    if (saved) {
-      setInterestedGigs(JSON.parse(saved));
-      console.log('✅ Loaded interested gigs from localStorage');
-    }
-  }
-}, [currentUser]);    
         
         // Convert any timestamp strings back to Date objects or remove them
         const cleanGigData = {
@@ -237,23 +219,41 @@ useEffect(() => {
     }
   }, [currentUser]);
 
+  // Load interested gigs from localStorage
+  useEffect(() => {
+    if (currentUser) {
+      const saved = localStorage.getItem(`gigwave_interested_${currentUser.uid}`);
+      if (saved) {
+        setInterestedGigs(JSON.parse(saved));
+        console.log('✅ Loaded interested gigs from localStorage');
+      }
+    }
+  }, [currentUser]);
+
+  // Save interested gigs to localStorage
+  useEffect(() => {
+    if (currentUser) {
+      localStorage.setItem(`gigwave_interested_${currentUser.uid}`, JSON.stringify(interestedGigs));
+    }
+  }, [interestedGigs, currentUser]);
+
   // Backup polling for audience mode - refresh every minute
-useEffect(() => {
-  if (mode !== 'audience' || !liveGig?.id) return;
-  
-  console.log('🔄 Starting audience polling (every 60 seconds)');
-  
-  // The real-time listener (listenToLiveGig) already handles updates
-  // This polling just ensures we stay connected and logs activity
-  const pollInterval = setInterval(() => {
-    console.log('🔄 Audience mode active - data updating in real-time');
-  }, 60000); // 60 seconds
-  
-  return () => {
-    console.log('⏹️ Stopping audience polling');
-    clearInterval(pollInterval);
-  };
-}, [mode, liveGig?.id]);
+  useEffect(() => {
+    if (mode !== 'audience' || !liveGig?.id) return;
+    
+    console.log('🔄 Starting audience polling (every 60 seconds)');
+    
+    // The real-time listener (listenToLiveGig) already handles updates
+    // This polling just ensures we stay connected and logs activity
+    const pollInterval = setInterval(() => {
+      console.log('🔄 Audience mode active - data updating in real-time');
+    }, 60000); // 60 seconds
+    
+    return () => {
+      console.log('⏹️ Stopping audience polling');
+      clearInterval(pollInterval);
+    };
+  }, [mode, liveGig?.id]);
 
   // Save live gig to localStorage when it changes
   useEffect(() => {
