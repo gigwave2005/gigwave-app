@@ -141,7 +141,7 @@ export const searchNearbyGigs = async (userLocation, radiusKm = 50, statusFilter
         const distance = calculateDistance(userLocation, gigLocation);
         console.log('📏 Distance:', distance, 'meters');
         
-        if (distance <= radiusKm * 1000 && gigData.status !== 'ended') {
+        if (distance <= radiusKm * 1000 && gigData.status !== 'ended' && gigData.status !== 'cancelled') {
           console.log('✅ Gig within range!');
           gigs.push({
             id: snapDoc.id,
