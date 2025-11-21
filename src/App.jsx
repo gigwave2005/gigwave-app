@@ -1282,6 +1282,12 @@ useEffect(() => {
           <div className="flex gap-3">
             <button
               onClick={async () => {
+                // Check if user is logged in
+                if (!currentUser) {
+                  alert('Please sign in to mark interest');
+                  return;
+                }
+                
                 const isCurrentlyInterested = interestedGigs.includes(selectedUpcomingGig.id);
                 
                 try {
