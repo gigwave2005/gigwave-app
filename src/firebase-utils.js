@@ -588,25 +588,42 @@ export const deleteGigFromFirebase = async (gigId) => {
   }
 };
 
-// Update interested count for a gig
-export const updateInterestedCount = async (gigId, isIncrement = true) => {
+// Mark user as interested in a gig
+export const markAsInterested = async (gigId, userId) => {
   try {
-    const gigRef = doc(db, 'liveGigs', gigId);
-    
-    // Get current count
-    const gigSnap = await getDoc(gigRef);
-    const currentCount = gigSnap.data()?.interestedCount || 0;
-    const newCount = isIncrement ? currentCount + 1 : Math.max(0, currentCount - 1);
-    
-    // Update with new count
-    await updateDoc(gigRef, {
-      interestedCount: newCount
+    const interestedRef = doc(db, 'liveGigs', gigId, 'interestedUsers', userId);
+    await setDoc(interestedRef, {
+      userId: userId,
+      timestamp: serverTimestamp()
     });
-    
-    console.log(`${isIncrement ? '➕' : '➖'} Interested count updated to ${newCount} for gig:`, gigId);
+    console.log('✅ Marked as interested');
   } catch (error) {
-    console.error('❌ Error updating interested count:', error);
+    console.error('❌ Error marking interested:', error);
     throw error;
+  }
+};
+
+// Unmark user as interested
+export const unmarkAsInterested = async (gigId, userId) => {
+  try {
+    const interestedRef = doc(db, 'liveGigs', gigId, 'interestedUsers', userId);
+    await deleteDoc(interestedRef);
+    console.log('✅ Unmarked as interested');
+  } catch (error) {
+    console.error('❌ Error unmarking interested:', error);
+    throw error;
+  }
+};
+
+// Get interested count for a gig
+export const getInterestedCount = async (gigId) => {
+  try {
+    const interestedRef = collection(db, 'liveGigs', gigId, 'interestedUsers');
+    const snapshot = await getDocs(interestedRef);
+    return snapshot.size;
+  } catch (error) {
+    console.error('❌ Error getting interested count:', error);
+    return 0;
   }
 };
 
