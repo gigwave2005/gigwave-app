@@ -9,6 +9,7 @@ import {
   getDoc,
   updateDoc,
   deleteGigFromFirebase,
+  updateInterestedCount,
   arrayUnion,
   onAuthStateChanged,
   signInWithGoogle,
@@ -1278,11 +1279,21 @@ useEffect(() => {
           {/* Interested Button */}
           <div className="flex gap-3">
             <button
-              onClick={() => {
-                if (interestedGigs.includes(selectedUpcomingGig.id)) {
-                  setInterestedGigs(interestedGigs.filter(id => id !== selectedUpcomingGig.id));
-                } else {
-                  setInterestedGigs([...interestedGigs, selectedUpcomingGig.id]);
+              onClick={async () => {
+                const isCurrentlyInterested = interestedGigs.includes(selectedUpcomingGig.id);
+                
+                try {
+                  // Update Firebase count
+                  await updateInterestedCount(selectedUpcomingGig.id, !isCurrentlyInterested);
+                  
+                  // Update local state
+                  if (isCurrentlyInterested) {
+                    setInterestedGigs(interestedGigs.filter(id => id !== selectedUpcomingGig.id));
+                  } else {
+                    setInterestedGigs([...interestedGigs, selectedUpcomingGig.id]);
+                  }
+                } catch (error) {
+                  alert('Error updating interest: ' + error.message);
                 }
               }}
               className={`flex-1 px-6 py-4 rounded-lg font-bold text-lg ${
@@ -1406,6 +1417,11 @@ useEffect(() => {
                                   <p className="flex items-center gap-2 text-green-300 font-semibold mt-2">
                                   <span>⭐</span> You're interested in this gig!
                                   </p>
+                              )}
+                              {gig.interestedCount > 0 && (
+                                <p className="flex items-center gap-2 text-purple-300 font-semibold mt-2">
+                                  <span>👥</span> {gig.interestedCount} {gig.interestedCount === 1 ? 'person' : 'people'} interested
+                                </p>
                               )}
                               </div>
                             </div>
@@ -1777,9 +1793,15 @@ useEffect(() => {
                                 </p>
                               )}
                               {playlist && <p className="text-blue-300 text-sm mt-1">🎵 Playlist: {playlist.name} ({playlist.songs.length} songs)</p>}
+                              {gig.interestedCount > 0 && (
+                                <p className="text-purple-300 text-sm mt-1 font-semibold">
+                                  👥 {gig.interestedCount} {gig.interestedCount === 1 ? 'person' : 'people'} interested
+                                </p>
+                              )}
                               {isEnded && (
                                 <p className="text-red-300 text-sm mt-2 font-semibold">⚠️ This gig has ended</p>
                               )}
+                              
                             </div>
                             <div className="flex gap-2">
                               {!isEnded && (
