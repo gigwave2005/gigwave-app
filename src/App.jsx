@@ -9,7 +9,9 @@ import {
   getDoc,
   updateDoc,
   deleteGigFromFirebase,
-  updateInterestedCount,
+  markAsInterested,
+  unmarkAsInterested,
+  getInterestedCount,
   arrayUnion,
   onAuthStateChanged,
   signInWithGoogle,
@@ -1283,13 +1285,13 @@ useEffect(() => {
                 const isCurrentlyInterested = interestedGigs.includes(selectedUpcomingGig.id);
                 
                 try {
-                  // Update Firebase count
-                  await updateInterestedCount(selectedUpcomingGig.id, !isCurrentlyInterested);
-                  
-                  // Update local state
                   if (isCurrentlyInterested) {
+                    // Unmark as interested
+                    await unmarkAsInterested(selectedUpcomingGig.id, currentUser.uid);
                     setInterestedGigs(interestedGigs.filter(id => id !== selectedUpcomingGig.id));
                   } else {
+                    // Mark as interested
+                    await markAsInterested(selectedUpcomingGig.id, currentUser.uid);
                     setInterestedGigs([...interestedGigs, selectedUpcomingGig.id]);
                   }
                 } catch (error) {
