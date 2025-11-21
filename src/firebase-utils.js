@@ -592,10 +592,18 @@ export const deleteGigFromFirebase = async (gigId) => {
 export const updateInterestedCount = async (gigId, isIncrement = true) => {
   try {
     const gigRef = doc(db, 'liveGigs', gigId);
+    
+    // Get current count
+    const gigSnap = await getDoc(gigRef);
+    const currentCount = gigSnap.data()?.interestedCount || 0;
+    const newCount = isIncrement ? currentCount + 1 : Math.max(0, currentCount - 1);
+    
+    // Update with new count
     await updateDoc(gigRef, {
-      interestedCount: increment(isIncrement ? 1 : -1)
+      interestedCount: newCount
     });
-    console.log(`${isIncrement ? '➕' : '➖'} Interested count updated for gig:`, gigId);
+    
+    console.log(`${isIncrement ? '➕' : '➖'} Interested count updated to ${newCount} for gig:`, gigId);
   } catch (error) {
     console.error('❌ Error updating interested count:', error);
     throw error;
