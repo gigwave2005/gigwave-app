@@ -68,7 +68,7 @@ body {
   overflow-x: hidden;
 }
 
-/* Animated Background */
+/* Animated Background with Concert Photos */
 .rock-background {
   background: var(--gradient-stage);
   min-height: 100vh;
@@ -76,6 +76,27 @@ body {
   overflow: hidden;
 }
 
+/* Concert photo collage layer */
+.rock-background::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    url('https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=1600&q=80'), /* Concert crowd energy */
+    url('https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec?w=1600&q=80'); /* Live band performance */
+  background-size: cover;
+  background-position: center;
+  background-blend-mode: overlay;
+  opacity: 0.2;
+  filter: blur(4px) grayscale(20%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Pulsing glow effect on top */
 .rock-background::before {
   content: '';
   position: absolute;
@@ -83,9 +104,16 @@ body {
   left: -50%;
   width: 200%;
   height: 200%;
-  background: radial-gradient(circle, rgba(0, 217, 255, 0.1) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(0, 217, 255, 0.15) 0%, transparent 70%);
   animation: pulse 8s ease-in-out infinite;
   pointer-events: none;
+  z-index: 1;
+}
+
+/* Ensure content is above backgrounds */
+.rock-background > * {
+  position: relative;
+  z-index: 2;
 }
 
 @keyframes pulse {
