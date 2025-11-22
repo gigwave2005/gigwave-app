@@ -16,6 +16,8 @@ import {
   onAuthStateChanged,
   signInWithGoogle,
   signInWithFacebook,
+  signInWithEmail,
+  signUpWithEmail,
   signOutUser,
   getUserLocation,
   calculateDistance,
@@ -42,6 +44,10 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authTab, setAuthTab] = useState('signin');
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPassword, setAuthPassword] = useState('');
+  const [authError, setAuthError] = useState('');
   
   // Mode state
   const [mode, setMode] = useState('discover');
@@ -910,16 +916,59 @@ useEffect(() => {
 
   // Auth Modal
   if (showAuthModal) {
+    const handleEmailAuth = async () => {
+      setAuthError('');
+      try {
+        if (authTab === 'signup') {
+          await signUpWithEmail(authEmail, authPassword);
+        } else {
+          await signInWithEmail(authEmail, authPassword);
+        }
+        setShowAuthModal(false);
+        alert(`✅ ${authTab === 'signup' ? 'Account created' : 'Signed in'} successfully!`);
+      } catch (error) {
+        setAuthError(error.message);
+      }
+    };
+
     return (
       <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
         <div className="bg-gradient-to-br from-purple-900 to-indigo-900 rounded-2xl p-8 max-w-md w-full">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-3xl font-bold text-white">Sign In</h2>
-            <button onClick={() => setShowAuthModal(false)} className="text-white">
+            <h2 className="text-3xl font-bold text-white">
+              {authTab === 'signup' ? 'Create Account' : 'Sign In'}
+            </h2>
+            <button onClick={() => setShowAuthModal(false)} className="text-white hover:text-red-300">
               <X size={32} />
             </button>
           </div>
-          <div className="space-y-3">
+
+          {/* Tab Switcher */}
+          <div className="flex gap-2 mb-6">
+            <button
+              onClick={() => setAuthTab('signin')}
+              className={`flex-1 px-4 py-2 rounded-lg font-semibold ${
+                authTab === 'signin' 
+                  ? 'bg-purple-500 text-white' 
+                  : 'bg-white/10 text-purple-200 hover:bg-white/20'
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              onClick={() => setAuthTab('signup')}
+              className={`flex-1 px-4 py-2 rounded-lg font-semibold ${
+                authTab === 'signup' 
+                  ? 'bg-purple-500 text-white' 
+                  : 'bg-white/10 text-purple-200 hover:bg-white/20'
+              }`}
+            >
+              Sign Up
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {/* Social Sign In */}
             <button
               onClick={() => handleSignIn('google')}
               className="w-full px-6 py-4 bg-white hover:bg-gray-100 text-gray-900 rounded-lg font-semibold"
@@ -931,6 +980,45 @@ useEffect(() => {
               className="w-full px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold"
             >
               Continue with Facebook
+            </button>
+
+            {/* Divider */}
+            <div className="relative my-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-white/30"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="px-2 bg-purple-900 text-white">Or use email</span>
+              </div>
+            </div>
+
+            {/* Email/Password Form */}
+            {authError && (
+              <div className="bg-red-500/20 border border-red-400 rounded-lg p-3 text-red-200 text-sm">
+                {authError}
+              </div>
+            )}
+
+            <input
+              type="email"
+              placeholder="Email"
+              value={authEmail}
+              onChange={(e) => setAuthEmail(e.target.value)}
+              className="w-full px-4 py-3 rounded-lg bg-white/20 text-white placeholder-white/60 border border-white/30"
+            />
+            <input
+              type="password"
+              placeholder="Password"
+              value={authPassword}
+              onChange={(e) => setAuthPassword(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleEmailAuth()}
+              className="w-full px-4 py-3 rounded-lg bg-white/20 text-white placeholder-white/60 border border-white/30"
+            />
+            <button
+              onClick={handleEmailAuth}
+              className="w-full px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-bold"
+            >
+              {authTab === 'signup' ? 'Create Account' : 'Sign In'}
             </button>
           </div>
         </div>
