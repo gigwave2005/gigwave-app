@@ -1,3 +1,4 @@
+import './styles/rockTheme.css';
 import React, { useState, useEffect } from 'react';
 import { Music, Plus, Trash2, Play, Users, Calendar, Heart, Star, Zap, X, Search, Upload, Settings, Edit2, Check, Mail, Lock, ArrowLeft, MapPin, Navigation } from 'lucide-react';
 
@@ -1417,61 +1418,85 @@ useEffect(() => {
   }
 
   // Discovery Page
-  if (mode === 'discover') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 p-4">
-        <div className="max-w-4xl mx-auto pt-20">
-          <div className="text-center mb-12">
-            <Music size={100} className="text-purple-300 mx-auto mb-6" />
-            <h1 className="text-7xl font-bold text-white mb-4">Gigwave</h1>
-            <p className="text-2xl text-purple-200 mb-12">Discover Live Music Near You</p>
+if (mode === 'discover') {
+  return (
+    <div className="rock-background min-h-screen p-4 pb-24 md:pb-4">
+      <div className="max-w-4xl mx-auto pt-8 md:pt-20">
+        {/* Hero Section */}
+        <div className="text-center mb-8 md:mb-12">
+          <div className="relative inline-block mb-6">
+            <Music size={80} className="text-electric mx-auto animate-pulse" />
+            <div className="absolute inset-0 blur-xl opacity-50">
+              <Music size={80} className="text-electric mx-auto" />
+            </div>
           </div>
+          <h1 className="concert-heading text-6xl md:text-7xl font-bold text-white mb-4 drop-shadow-lg">
+            GIGWAVE
+          </h1>
+          <p className="text-xl md:text-2xl text-electric font-semibold tracking-wide uppercase">
+            ⚡ Discover Live Music Near You ⚡
+          </p>
+        </div>
 
-          <div className="bg-white/10 backdrop-blur rounded-2xl p-8 mb-8">
-            <button
-              onClick={handleSearchGigs}
-              disabled={loadingGigs}
-              className="w-full px-8 py-6 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white rounded-xl font-bold text-2xl shadow-2xl disabled:opacity-50"
-            >
-              {loadingGigs ? '🔍 Searching...' : '📍 Find Live Gigs Near Me'}
-            </button>
-          </div>
+        {/* Search Button */}
+        <div className="gig-card mb-8 hover:scale-105 transition-transform">
+          <button
+            onClick={handleSearchGigs}
+            disabled={loadingGigs}
+            className="btn btn-electric w-full text-xl md:text-2xl py-6 md:py-8"
+          >
+            {loadingGigs ? (
+              <>
+                <span className="loading-pulse">🔍</span>
+                <span>SEARCHING...</span>
+              </>
+            ) : (
+              <>
+                <span>📍</span>
+                <span>FIND LIVE GIGS</span>
+              </>
+            )}
+          </button>
+        </div>
 
-          {nearbyGigs.length > 0 && (
-            <div className="space-y-6">
-              {/* Date Filter */}
-              <div className="bg-white/10 rounded-xl p-6">
-                <h3 className="text-xl font-bold text-white mb-4">📅 Filter by Date</h3>
-                <div className="flex gap-3 flex-wrap">
-                  <button
-                    onClick={() => filterGigsByDate('all')}
-                    className={`px-6 py-3 rounded-lg font-bold ${dateFilter === 'all' ? 'bg-purple-500' : 'bg-white/20 hover:bg-white/30'} text-white`}
-                  >
-                    All Dates
-                  </button>
-                  <button
-                    onClick={() => filterGigsByDate('today')}
-                    className={`px-6 py-3 rounded-lg font-bold ${dateFilter === 'today' ? 'bg-purple-500' : 'bg-white/20 hover:bg-white/30'} text-white`}
-                  >
-                    Today
-                  </button>
-                  <button
-                    onClick={() => filterGigsByDate('tomorrow')}
-                    className={`px-6 py-3 rounded-lg font-bold ${dateFilter === 'tomorrow' ? 'bg-purple-500' : 'bg-white/20 hover:bg-white/30'} text-white`}
-                  >
-                    Tomorrow
-                  </button>
-                  <button
-                    onClick={() => filterGigsByDate('week')}
-                    className={`px-6 py-3 rounded-lg font-bold ${dateFilter === 'week' ? 'bg-purple-500' : 'bg-white/20 hover:bg-white/30'} text-white`}
-                  >
-                    This Week
-                  </button>
-                </div>
-                <p className="text-purple-200 text-sm mt-3">
-                  Showing {filteredGigs.length} of {nearbyGigs.length} gigs
-                </p>
+        {/* Results Section */}
+        {nearbyGigs.length > 0 && (
+          <div className="space-y-6">
+            {/* Date Filter */}
+            <div className="gig-card">
+              <h3 className="concert-heading text-2xl text-electric mb-4">
+                📅 FILTER BY DATE
+              </h3>
+              <div className="grid grid-cols-2 md:flex gap-3">
+                <button
+                  onClick={() => filterGigsByDate('all')}
+                  className={`btn ${dateFilter === 'all' ? 'btn-electric' : 'btn-ghost'} flex-1`}
+                >
+                  All Dates
+                </button>
+                <button
+                  onClick={() => filterGigsByDate('today')}
+                  className={`btn ${dateFilter === 'today' ? 'btn-electric' : 'btn-ghost'} flex-1`}
+                >
+                  Today
+                </button>
+                <button
+                  onClick={() => filterGigsByDate('tomorrow')}
+                  className={`btn ${dateFilter === 'tomorrow' ? 'btn-electric' : 'btn-ghost'} flex-1`}
+                >
+                  Tomorrow
+                </button>
+                <button
+                  onClick={() => filterGigsByDate('week')}
+                  className={`btn ${dateFilter === 'week' ? 'btn-electric' : 'btn-ghost'} flex-1`}
+                >
+                  This Week
+                </button>
               </div>
+              <p className="text-gray-light text-sm mt-4 text-center">
+                🎵 Showing <span className="text-electric font-bold">{filteredGigs.length}</span> of <span className="text-electric font-bold">{nearbyGigs.length}</span> gigs
+              </p>
+            </div>
 
               {/* Gig Results */}
               <div className="space-y-4">
