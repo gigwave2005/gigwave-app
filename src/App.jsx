@@ -1284,7 +1284,8 @@ useEffect(() => {
               onClick={async () => {
                 // Check if user is logged in
                 if (!currentUser) {
-                  alert('Please sign in to mark interest');
+                  // Show auth modal instead of alert
+                  setShowAuthModal(true);
                   return;
                 }
                 
