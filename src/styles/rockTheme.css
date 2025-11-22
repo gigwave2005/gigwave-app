@@ -85,8 +85,14 @@ body {
   width: 100%;
   height: 100%;
   background-image: 
-    url('https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=1600&q=80'), /* Concert crowd energy */
-    url('https://images.unsplash.com/photo-1429962714451-bb934ecdc4ec?w=1600&q=80'); /* Live band performance */
+  url('https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=1600&q=80'), /* Guitarist on stage */
+  url('https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1600&q=80'), /* Crowd with lights */
+  url('https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=1600&q=80'), /* DJ/Electronic show */
+  url('https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1600&q=80'), /* Festival crowd sunset */
+  url('https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=1600&q=80'), /* Band performing */
+  url('https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=1600&q=80'), /* Drummer close-up */
+  url('https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=1600&q=80'), /* Stage lights aerial */
+  url('https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1600&q=80'); /* Massive crowd */
   background-size: cover;
   background-position: center;
   background-blend-mode: overlay;
