@@ -1760,76 +1760,100 @@ if (mode === 'discover') {
   // Artist Mode  
   if (mode === 'artist') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-pink-900 to-indigo-900 p-4">
+      <div className="rock-background min-h-screen p-4 pb-24 md:pb-4">
         <div className="max-w-6xl mx-auto pt-6">
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h1 className="text-5xl font-bold text-white">🎤 Artist Dashboard</h1>
-              <p className="text-purple-200 text-lg mt-2">Welcome, {currentUser?.displayName || currentUser?.email}</p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setMode('discover')}
-                className="px-6 py-3 bg-white/20 hover:bg-white/30 text-white rounded-lg font-bold"
-              >
-                ← Back
-              </button>
-              <button
-                onClick={async () => {
-                  await signOutUser();
-                  setMode('discover');
-                }}
-                className="px-6 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-bold"
-              >
-                Sign Out
-              </button>
+          {/* Header */}
+          <div className="gig-card mb-8">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+              <div>
+                <h1 className="concert-heading text-4xl md:text-5xl text-white mb-2">
+                  🎸 ARTIST DASHBOARD
+                </h1>
+                <p className="text-electric text-lg font-semibold">
+                  Welcome, {currentUser?.displayName || currentUser?.email}
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setMode('discover')}
+                  className="btn btn-ghost"
+                >
+                  ← Back
+                </button>
+                <button
+                  onClick={async () => {
+                    await signOutUser();
+                    setMode('discover');
+                  }}
+                  className="btn btn-fire"
+                >
+                  Sign Out
+                </button>
+              </div>
             </div>
           </div>
-
-          <div className="flex gap-2 mb-6 flex-wrap">
-            <button onClick={() => setTab('master')} className={`px-6 py-3 rounded-lg font-semibold text-white transition ${tab === 'master' ? 'bg-purple-500' : 'bg-white/10 hover:bg-white/20'}`}>
-              <Music className="inline mr-2" size={20}/>Master Playlist
+  
+          {/* Navigation Tabs */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-8">
+            <button 
+              onClick={() => setTab('master')} 
+              className={`btn ${tab === 'master' ? 'btn-electric' : 'btn-ghost'} text-lg`}
+            >
+              <Music className="inline mr-2" size={20}/>
+              <span>Master Playlist</span>
             </button>
-            <button onClick={() => setTab('playlists')} className={`px-6 py-3 rounded-lg font-semibold text-white transition ${tab === 'playlists' ? 'bg-purple-500' : 'bg-white/10 hover:bg-white/20'}`}>
-              <Music className="inline mr-2" size={20}/>Gig Playlists
+            <button 
+              onClick={() => setTab('playlists')} 
+              className={`btn ${tab === 'playlists' ? 'btn-electric' : 'btn-ghost'} text-lg`}
+            >
+              <Music className="inline mr-2" size={20}/>
+              <span>Gig Playlists</span>
             </button>
-            <button onClick={() => setTab('gigs')} className={`px-6 py-3 rounded-lg font-semibold text-white transition ${tab === 'gigs' ? 'bg-purple-500' : 'bg-white/10 hover:bg-white/20'}`}>
-              <Calendar className="inline mr-2" size={20}/>My Gigs
+            <button 
+              onClick={() => setTab('gigs')} 
+              className={`btn ${tab === 'gigs' ? 'btn-electric' : 'btn-ghost'} text-lg`}
+            >
+              <Calendar className="inline mr-2" size={20}/>
+              <span>My Gigs</span>
             </button>
           </div>
-
+  
           {tab === 'master' && (
             <div className="space-y-6">
-              <div className="bg-white/10 rounded-xl p-6">
-                <h3 className="text-xl font-bold text-white mb-4">🎵 Search iTunes Music</h3>
-                <div className="flex gap-2 mb-4">
+              {/* iTunes Search Card */}
+              <div className="gig-card">
+                <h3 className="concert-heading text-2xl text-electric mb-4">
+                  🎵 SEARCH ITUNES MUSIC
+                </h3>
+                <div className="flex flex-col md:flex-row gap-3 mb-4">
                   <input 
                     type="text" 
                     value={itunesSearch} 
                     onChange={e => setItunesSearch(e.target.value)} 
                     onKeyPress={e => e.key === 'Enter' && searchItunesAPI()}
                     placeholder="Search for songs, artists, albums..."
-                    className="flex-1 px-4 py-3 rounded-lg bg-white/20 text-white placeholder-white/60 border border-white/30"
+                    className="flex-1 px-4 py-3 rounded-lg bg-white/20 text-white placeholder-white/60 border border-electric/30 focus:border-electric focus:outline-none"
                     disabled={searchingItunes}
                   />
                   <button 
                     onClick={searchItunesAPI} 
                     disabled={searchingItunes}
-                    className="px-6 py-3 bg-green-500 hover:bg-green-600 disabled:bg-gray-500 text-white rounded-lg font-bold"
+                    className="btn btn-neon"
                   >
-                    {searchingItunes ? '⏳' : '🔍'} Search
+                    <span>{searchingItunes ? '⏳' : '🔍'}</span>
+                    <span>Search</span>
                   </button>
                 </div>
                 
                 {itunesResults.length > 0 && (
                   <div className="space-y-2 max-h-96 overflow-y-auto">
-                    <p className="text-purple-200 font-semibold mb-3">
-                      Found {itunesResults.length} songs:
+                    <p className="text-gray-light font-semibold mb-3">
+                      🎼 Found <span className="text-electric">{itunesResults.length}</span> songs
                     </p>
                     {itunesResults.map(song => (
                       <div 
                         key={song.id} 
-                        className="bg-white/5 p-3 rounded-lg flex items-center gap-4 hover:bg-white/10 transition"
+                        className="bg-white/5 p-3 rounded-lg flex flex-col md:flex-row md:items-center gap-4 hover:bg-white/10 transition border border-white/10"
                       >
                         {song.artwork && (
                           <img 
@@ -1838,21 +1862,22 @@ if (mode === 'discover') {
                             className="w-16 h-16 rounded object-cover"
                           />
                         )}
-                        <div className="flex-1">
-                          <div className="text-white font-semibold text-lg">{song.title}</div>
-                          <div className="text-purple-200 text-sm">{song.artist}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-white font-bold text-lg truncate">{song.title}</div>
+                          <div className="text-electric text-sm">{song.artist}</div>
                           {song.album && (
-                            <div className="text-purple-300 text-xs">{song.album}</div>
+                            <div className="text-gray text-xs truncate">{song.album}</div>
                           )}
                           {song.duration && (
-                            <div className="text-green-300 text-xs">⏱️ {song.duration}</div>
+                            <div className="text-neon text-xs">⏱️ {song.duration}</div>
                           )}
                         </div>
                         <button 
                           onClick={() => addItunesSongToMaster(song)}
-                          className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold whitespace-nowrap"
+                          className="btn btn-neon text-sm md:text-base whitespace-nowrap"
                         >
-                          <Plus size={18} className="inline mr-1"/>Add to Master
+                          <Plus size={18}/>
+                          <span>Add to Master</span>
                         </button>
                       </div>
                     ))}
@@ -1861,27 +1886,43 @@ if (mode === 'discover') {
                 
                 {searchingItunes && (
                   <div className="text-center py-8">
-                    <div className="text-purple-200 text-lg">🔍 Searching iTunes...</div>
+                    <div className="text-electric text-lg loading-pulse">🔍 Searching iTunes...</div>
                   </div>
                 )}
               </div>
-              <div className="bg-white/10 rounded-xl p-6">
-                <h2 className="text-2xl font-bold text-white mb-4">🎵 Master Playlist</h2>
-                <button onClick={addToMaster} className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold mb-4">
-                  <Plus className="inline mr-2" size={20}/>Add Song
+  
+              {/* Master Playlist Card */}
+              <div className="gig-card">
+                <h2 className="concert-heading text-3xl text-magenta mb-4">
+                  🎵 MASTER PLAYLIST
+                </h2>
+                <button 
+                  onClick={addToMaster} 
+                  className="btn btn-electric mb-4"
+                >
+                  <Plus size={20}/>
+                  <span>Add Song</span>
                 </button>
                 
                 {masterSongs.length === 0 ? (
-                  <p className="text-purple-200">No songs yet. Click "Add Song" to start!</p>
+                  <div className="bg-white/5 rounded-lg p-8 text-center border border-electric/30">
+                    <p className="text-gray-light text-lg">No songs yet. Click "Add Song" to start building your library! 🎸</p>
+                  </div>
                 ) : (
                   <div className="space-y-2">
                     {masterSongs.map(song => (
-                      <div key={song.id} className="bg-white/5 p-4 rounded-lg flex justify-between items-center">
-                        <div>
-                          <div className="text-white font-semibold text-lg">{song.title}</div>
-                          <div className="text-purple-200 text-sm">{song.artist}</div>
+                      <div 
+                        key={song.id} 
+                        className="bg-white/5 p-4 rounded-lg flex justify-between items-center hover:bg-white/10 transition border border-white/10"
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className="text-white font-bold text-lg truncate">{song.title}</div>
+                          <div className="text-electric text-sm">{song.artist}</div>
                         </div>
-                        <button onClick={() => removeFromMaster(song.id)} className="text-red-400 hover:text-red-300">
+                        <button 
+                          onClick={() => removeFromMaster(song.id)} 
+                          className="text-red-400 hover:text-red-300 p-2 touch-target"
+                        >
                           <Trash2 size={20}/>
                         </button>
                       </div>
@@ -1894,25 +1935,33 @@ if (mode === 'discover') {
 
           {tab === 'playlists' && (
             <div className="space-y-6">
-              <div className="bg-white/10 rounded-xl p-6">
-                <h2 className="text-2xl font-bold text-white mb-4">🎸 Gig Playlists</h2>
-                <button onClick={createGigPlaylist} className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold mb-4">
-                  <Plus className="inline mr-2" size={20}/>Create Playlist
+              <div className="gig-card">
+                <h2 className="concert-heading text-3xl text-magenta mb-4">
+                  🎸 GIG PLAYLISTS
+                </h2>
+                <button 
+                  onClick={createGigPlaylist} 
+                  className="btn btn-electric mb-4"
+                >
+                  <Plus size={20}/>
+                  <span>Create Playlist</span>
                 </button>
                 
                 {gigPlaylists.length === 0 ? (
-                  <p className="text-purple-200">No playlists yet. Create custom setlists for different gigs!</p>
+                  <div className="bg-white/5 rounded-lg p-8 text-center border border-electric/30">
+                    <p className="text-gray-light text-lg">No playlists yet. Create custom setlists for different gigs! 🎵</p>
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     {gigPlaylists.map(playlist => (
-                      <div key={playlist.id} className="bg-white/5 p-6 rounded-xl">
-                        <div className="flex justify-between items-start mb-4">
-                          <div>
-                            <h3 className="text-2xl font-bold text-white mb-2">{playlist.name}</h3>
+                      <div key={playlist.id} className="bg-white/5 p-6 rounded-xl border border-white/10 hover:border-electric/50 transition">
+                        <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-4">
+                          <div className="flex-1">
+                            <h3 className="concert-heading text-2xl text-white mb-2">{playlist.name}</h3>
                             {playlist.description && (
-                              <p className="text-purple-200 text-sm mb-2">{playlist.description}</p>
+                              <p className="text-gray-light text-sm mb-2">{playlist.description}</p>
                             )}
-                            <p className="text-purple-300 font-semibold">🎵 {playlist.songs.length} songs</p>
+                            <p className="text-electric font-bold">🎵 {playlist.songs.length} songs</p>
                           </div>
                           <div className="flex gap-2">
                             <button
@@ -1920,32 +1969,36 @@ if (mode === 'discover') {
                                 setEditingPlaylist(playlist);
                                 setShowPlaylistModal(true);
                               }}
-                              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold"
+                              className="btn btn-electric text-sm"
                             >
-                              <Edit2 className="inline mr-1" size={16}/>Edit
+                              <Edit2 size={16}/>
+                              <span>Edit</span>
                             </button>
                             <button
                               onClick={() => deleteGigPlaylist(playlist.id)}
-                              className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-bold"
+                              className="btn btn-fire text-sm"
                             >
-                              <Trash2 className="inline" size={16}/>
+                              <Trash2 size={16}/>
                             </button>
                           </div>
                         </div>
                         
                         {playlist.songs.length > 0 && (
-                          <div className="space-y-1 mt-4">
+                          <div className="space-y-1 mt-4 pt-4 border-t border-white/10">
                             <p className="text-white font-semibold mb-2">Songs:</p>
                             {playlist.songs.slice(0, 5).map((songId, index) => {
                               const song = masterSongs.find(s => s.id === songId);
                               return song ? (
-                                <div key={songId} className="text-purple-200 text-sm">
-                                  {index + 1}. {song.title} - {song.artist}
+                                <div key={songId} className="text-gray-light text-sm flex items-center gap-2">
+                                  <span className="text-electric font-bold">{index + 1}.</span>
+                                  <span>{song.title}</span>
+                                  <span className="text-gray">-</span>
+                                  <span className="text-gray">{song.artist}</span>
                                 </div>
                               ) : null;
                             })}
                             {playlist.songs.length > 5 && (
-                              <div className="text-purple-300 text-sm font-semibold">
+                              <div className="text-magenta text-sm font-semibold">
                                 +{playlist.songs.length - 5} more...
                               </div>
                             )}
@@ -1958,25 +2011,33 @@ if (mode === 'discover') {
               </div>
             </div>
           )}
-
+          
           {tab === 'gigs' && (
             <div className="space-y-6">
-              <div className="bg-white/10 rounded-xl p-6">
-                <h2 className="text-2xl font-bold text-white mb-4">🎸 My Gigs</h2>
-                <button onClick={createGig} className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold mb-4">
-                  <Plus className="inline mr-2" size={20}/>Create Gig
+              <div className="gig-card">
+                <h2 className="concert-heading text-3xl text-neon mb-4">
+                  ⚡ MY GIGS
+                </h2>
+                <button 
+                  onClick={createGig} 
+                  className="btn btn-electric mb-4"
+                >
+                  <Plus size={20}/>
+                  <span>Create Gig</span>
                 </button>
-
+          
                 {gigs.length === 0 ? (
-                  <p className="text-purple-200">No gigs yet. Click "Create Gig" to add one!</p>
+                  <div className="bg-white/5 rounded-lg p-8 text-center border border-electric/30">
+                    <p className="text-gray-light text-lg">No gigs yet. Click "Create Gig" to add one! ⚡</p>
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     {gigs.map(gig => {
                       const playlist = gigPlaylists.find(p => p.id === gig.playlistId);
                       const isEnded = gig.status === 'ended';
                       const statusColors = {
-                        upcoming: 'bg-blue-500/20 border-blue-400 text-blue-200',
-                        live: 'bg-green-500/20 border-green-400 text-green-200',
+                        upcoming: 'bg-electric/20 border-electric text-electric',
+                        live: 'bg-neon/20 border-neon text-neon',
                         ended: 'bg-gray-500/20 border-gray-400 text-gray-300'
                       };
                       const statusLabel = {
@@ -1986,36 +2047,43 @@ if (mode === 'discover') {
                       };
                       
                       return (
-                        <div key={gig.id} className="bg-white/5 p-6 rounded-xl">
-                          <div className="flex justify-between items-start mb-4">
-                            <div>
-                              <div className="flex items-center gap-3 mb-2">
-                                <h3 className="text-2xl font-bold text-white">{gig.venueName}</h3>
-                                <span className={`px-3 py-1 rounded-full text-sm font-semibold border ${statusColors[gig.status || 'upcoming']}`}>
+                        <div key={gig.id} className="bg-white/5 p-6 rounded-xl border border-white/10 hover:border-electric/50 transition">
+                          <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-4">
+                            <div className="flex-1">
+                              <div className="flex flex-wrap items-center gap-3 mb-3">
+                                <h3 className="concert-heading text-2xl text-white">{gig.venueName}</h3>
+                                <span className={`px-3 py-1 rounded-full text-xs font-bold border ${statusColors[gig.status || 'upcoming']}`}>
                                   {statusLabel[gig.status || 'upcoming']}
                                 </span>
                               </div>
-                              <p className="text-purple-200">📅 {gig.date} at {gig.time}</p>
-                              {gig.address && (
-                                <p className="text-purple-300 text-sm mt-1">📍 {gig.address}</p>
-                              )}
-                              {gig.location && (
-                                <p className="text-green-300 text-sm mt-1">
-                                  ✅ Location: {gig.location.lat.toFixed(4)}°, {gig.location.lng.toFixed(4)}°
-                                </p>
-                              )}
-                              {playlist && <p className="text-blue-300 text-sm mt-1">🎵 Playlist: {playlist.name} ({playlist.songs.length} songs)</p>}
-                              {gig.interestedCount > 0 && (
-                                <p className="text-purple-300 text-sm mt-1 font-semibold">
-                                  👥 {gig.interestedCount} {gig.interestedCount === 1 ? 'person' : 'people'} interested
-                                </p>
-                              )}
-                              {isEnded && (
-                                <p className="text-red-300 text-sm mt-2 font-semibold">⚠️ This gig has ended</p>
-                              )}
                               
+                              <div className="space-y-1 text-sm">
+                                <p className="text-electric font-bold">📅 {gig.date} at {gig.time}</p>
+                                {gig.address && (
+                                  <p className="text-gray-light">📍 {gig.address}</p>
+                                )}
+                                {gig.location && (
+                                  <p className="text-neon text-xs">
+                                    ✅ Location: {gig.location.lat.toFixed(4)}°, {gig.location.lng.toFixed(4)}°
+                                  </p>
+                                )}
+                                {playlist && (
+                                  <p className="text-magenta font-semibold">
+                                    🎵 Playlist: {playlist.name} ({playlist.songs.length} songs)
+                                  </p>
+                                )}
+                                {gig.interestedCount > 0 && (
+                                  <p className="text-magenta font-semibold">
+                                    👥 {gig.interestedCount} {gig.interestedCount === 1 ? 'person' : 'people'} interested
+                                  </p>
+                                )}
+                                {isEnded && (
+                                  <p className="text-red-400 font-bold mt-2">⚠️ This gig has ended</p>
+                                )}
+                              </div>
                             </div>
-                            <div className="flex gap-2">
+                            
+                            <div className="flex flex-wrap gap-2">
                               {!isEnded && (
                                 <>
                                   <button
@@ -2023,36 +2091,39 @@ if (mode === 'discover') {
                                       setEditingGig(gig);
                                       setShowGigModal(true);
                                     }}
-                                    className="px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold"
+                                    className="btn btn-electric text-sm"
                                     title="Edit gig details"
                                   >
-                                    <Edit2 className="inline mr-2" size={20}/>Edit
+                                    <Edit2 size={16}/>
+                                    <span>Edit</span>
                                   </button>
                                   <button
                                     onClick={() => deleteGig(gig.id)}
-                                    className="px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-bold"
+                                    className="btn btn-fire text-sm"
                                     title="Delete this gig"
                                   >
-                                    <Trash2 className="inline mr-2" size={20}/>Delete
+                                    <Trash2 size={16}/>
                                   </button>
                                 </>
                               )}
                               {isEnded && (
                                 <button
                                   onClick={() => deleteGig(gig.id)}
-                                  className="px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg font-bold"
+                                  className="btn btn-fire text-sm"
                                   title="Delete this gig"
                                 >
-                                  <Trash2 className="inline mr-2" size={20}/>Delete
+                                  <Trash2 size={16}/>
+                                  <span>Delete</span>
                                 </button>
                               )}
                               <button
                                 onClick={() => handleGoLive(gig)}
                                 disabled={isEnded}
-                                className={`px-6 py-3 ${isEnded ? 'bg-gray-500 cursor-not-allowed' : 'bg-green-500 hover:bg-green-600'} text-white rounded-lg font-bold`}
+                                className={`btn ${isEnded ? 'bg-gray-500 cursor-not-allowed' : 'btn-neon'} text-sm md:text-base`}
                                 title={isEnded ? 'Cannot go live - gig has ended' : 'Go live with this gig'}
                               >
-                                <Play className="inline mr-2" size={20}/>{isEnded ? 'Ended' : 'Go Live'}
+                                <Play size={18}/>
+                                <span>{isEnded ? 'Ended' : 'Go Live'}</span>
                               </button>
                             </div>
                           </div>
@@ -2064,10 +2135,10 @@ if (mode === 'discover') {
               </div>
             </div>
           )}
-        </div>
-      </div>
-    );
-  }
+                </div>
+              </div>
+            );
+          }
 
   // Live Mode & Audience Mode remain the same as before
   // (keeping existing code for these modes)
