@@ -627,6 +627,32 @@ export const getInterestedCount = async (gigId) => {
   }
 };
 
+// Sign in with email and password
+export const signInWithEmail = async (email, password) => {
+  try {
+    const { signInWithEmailAndPassword } = await import('firebase/auth');
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    console.log('✅ Signed in with email:', userCredential.user.email);
+    return userCredential.user;
+  } catch (error) {
+    console.error('❌ Email sign-in error:', error);
+    throw error;
+  }
+};
+
+// Sign up with email and password
+export const signUpWithEmail = async (email, password) => {
+  try {
+    const { createUserWithEmailAndPassword } = await import('firebase/auth');
+    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    console.log('✅ Signed up with email:', userCredential.user.email);
+    return userCredential.user;
+  } catch (error) {
+    console.error('❌ Email sign-up error:', error);
+    throw error;
+  }
+};
+
 // Export everything needed
 export {
   auth,
