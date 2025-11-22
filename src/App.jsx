@@ -2363,40 +2363,74 @@ if (mode === 'discover') {
     );
   }
 
-  // Audience Mode
+  // Audience Mode - Live Concert Experience
   if (mode === 'audience' && liveGig) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-4">
+      <div className="rock-background min-h-screen p-4 pb-24 md:pb-4">
         <div className="max-w-4xl mx-auto pt-6">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h1 className="text-4xl font-bold text-white">{liveGig.artistName}</h1>
-              <p className="text-purple-200">📍 {liveGig.venueName}</p>
-              {liveGig.venueAddress && (
-                <p className="text-purple-300 text-sm">📌 {liveGig.venueAddress}</p>
-              )}
+          {/* Header */}
+          <div className="gig-card gig-card-live mb-6">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+              <div className="flex-1">
+                {/* Live Indicator */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="relative">
+                    <div className="w-4 h-4 bg-neon rounded-full animate-pulse"></div>
+                    <div className="absolute inset-0 w-4 h-4 bg-neon rounded-full animate-ping"></div>
+                  </div>
+                  <span className="concert-heading text-neon text-xl tracking-wider">
+                    🔴 LIVE NOW
+                  </span>
+                </div>
+                
+                <h1 className="concert-heading text-4xl md:text-5xl text-white mb-2">
+                  {liveGig.artistName}
+                </h1>
+                <p className="text-electric font-bold text-lg">📍 {liveGig.venueName}</p>
+                {liveGig.venueAddress && (
+                  <p className="text-gray text-sm">📌 {liveGig.venueAddress}</p>
+                )}
+              </div>
+              <button
+                onClick={() => setMode('discover')}
+                className="btn btn-ghost self-start md:self-center"
+              >
+                ← Back
+              </button>
             </div>
-            <button
-              onClick={() => setMode('discover')}
-              className="px-6 py-3 bg-white/20 hover:bg-white/30 text-white rounded-lg font-bold"
-            >
-              ← Back
-            </button>
           </div>
-
+  
+          {/* Now Playing Section */}
           {liveGigData.currentSong && (
-            <div className="bg-gradient-to-r from-purple-500/30 to-pink-500/30 border-2 border-purple-400 rounded-xl p-8 mb-6">
-              <p className="text-purple-200 text-sm mb-2">🎵 NOW PLAYING</p>
-              <h2 className="text-3xl font-bold text-white mb-2">{liveGigData.currentSong.title}</h2>
-              <p className="text-xl text-purple-200">{liveGigData.currentSong.artist}</p>
+            <div className="relative mb-6 overflow-hidden rounded-2xl">
+              {/* Stage lighting effect background */}
+              <div className="absolute inset-0 bg-gradient-to-r from-magenta/40 via-purple-500/40 to-electric/40 animate-pulse"></div>
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/60"></div>
+              
+              <div className="relative gig-card border-2 border-magenta p-8 text-center">
+                <p className="text-magenta font-bold text-sm uppercase tracking-widest mb-3 animate-pulse">
+                  🎵 NOW PLAYING
+                </p>
+                <h2 className="concert-heading text-4xl md:text-5xl text-white mb-3 drop-shadow-lg">
+                  {liveGigData.currentSong.title}
+                </h2>
+                <p className="text-2xl text-electric font-bold">
+                  {liveGigData.currentSong.artist}
+                </p>
+              </div>
             </div>
           )}
-
-          <div className="bg-white/10 rounded-xl p-6 mb-6">
-            <h3 className="text-2xl font-bold text-white mb-4">📋 Song Queue</h3>
+  
+          {/* Song Queue */}
+          <div className="gig-card mb-6">
+            <h3 className="concert-heading text-3xl text-electric mb-4">
+              📋 UP NEXT
+            </h3>
             
             {liveGigData.queuedSongs.length === 0 ? (
-              <p className="text-purple-200">No songs in queue</p>
+              <div className="bg-white/5 rounded-lg p-8 text-center border border-electric/30">
+                <p className="text-gray-light text-lg">No songs in queue</p>
+              </div>
             ) : (
               <div className="space-y-3">
                 {/* Unplayed Songs - Sorted by Votes */}
@@ -2411,23 +2445,31 @@ if (mode === 'discover') {
                   .map((song, index) => {
                     const voteCount = liveGigData.votes[Math.floor(song.id)] || 0;
                     return (
-                      <div key={song.id} className="bg-white/5 p-4 rounded-lg flex justify-between items-center">
-                        <div className="flex items-center gap-4 flex-1">
-                          <span className="text-purple-300 font-bold text-xl min-w-[40px]">{index + 1}</span>
-                          <div>
-                            <div className="text-white font-semibold">{song.title}</div>
-                            <div className="text-purple-200 text-sm">{song.artist}</div>
+                      <div 
+                        key={song.id} 
+                        className="bg-white/5 p-4 rounded-lg flex flex-col md:flex-row md:justify-between md:items-center gap-3 border border-white/10 hover:border-electric/50 transition"
+                      >
+                        <div className="flex items-center gap-4 flex-1 min-w-0">
+                          <span className="concert-heading text-electric text-2xl min-w-[40px]">
+                            {index + 1}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-white font-bold text-lg truncate">{song.title}</div>
+                            <div className="text-gray-light text-sm truncate">{song.artist}</div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 md:ml-auto">
                           {voteCount > 0 && (
-                            <span className="text-pink-300 font-bold">❤️ {voteCount}</span>
+                            <span className="text-magenta font-bold text-lg whitespace-nowrap">
+                              ❤️ {voteCount}
+                            </span>
                           )}
                           <button
                             onClick={() => handleVote(song.id)}
-                            className="px-4 py-2 bg-pink-500 hover:bg-pink-600 text-white rounded-lg font-bold"
+                            className="btn btn-fire text-sm"
                           >
-                            ❤️ Vote
+                            <span>❤️</span>
+                            <span>Vote</span>
                           </button>
                         </div>
                       </div>
@@ -2438,17 +2480,22 @@ if (mode === 'discover') {
                 {liveGigData.playedSongs && liveGigData.playedSongs.length > 0 && (
                   <>
                     <div className="border-t border-white/20 my-4 pt-4">
-                      <h4 className="text-lg font-semibold text-gray-400 mb-3">✅ Already Played</h4>
+                      <h4 className="concert-heading text-xl text-gray mb-3">
+                        ✅ ALREADY PLAYED
+                      </h4>
                     </div>
                     {liveGigData.queuedSongs
                       .filter(song => liveGigData.playedSongs.includes(song.id))
                       .map((song) => {
                         const voteCount = liveGigData.votes[Math.floor(song.id)] || 0;
                         return (
-                          <div key={song.id} className="bg-gray-500/20 border border-gray-600 p-4 rounded-lg opacity-60">
-                            <div className="flex justify-between items-center">
-                              <div className="flex items-center gap-4">
-                                <span className="text-green-400 text-2xl">✅</span>
+                          <div 
+                            key={song.id} 
+                            className="bg-gray-500/10 border border-gray-600/50 p-4 rounded-lg opacity-60"
+                          >
+                            <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-3">
+                              <div className="flex items-center gap-4 flex-1">
+                                <span className="text-neon text-2xl">✅</span>
                                 <div>
                                   <div className="text-gray-300 font-semibold line-through">{song.title}</div>
                                   <div className="text-gray-400 text-sm">{song.artist}</div>
@@ -2458,7 +2505,7 @@ if (mode === 'discover') {
                                 {voteCount > 0 && (
                                   <span className="text-gray-400">❤️ {voteCount}</span>
                                 )}
-                                <span className="px-4 py-2 bg-gray-600 text-gray-300 rounded-lg font-bold cursor-not-allowed">
+                                <span className="px-4 py-2 bg-gray-600 text-gray-300 rounded-lg font-bold text-sm cursor-not-allowed">
                                   ✅ Played
                                 </span>
                               </div>
@@ -2471,34 +2518,38 @@ if (mode === 'discover') {
               </div>
             )}
           </div>
-
-          {/* MASTER PLAYLIST - All Available Songs */}
-          <div className="bg-gradient-to-r from-blue-500/20 to-teal-500/20 border-2 border-blue-400 rounded-xl p-6 mb-6">
-            <h3 className="text-2xl font-bold text-white mb-4">📚 All Available Songs</h3>
-            <p className="text-blue-200 text-sm mb-4">
+  
+          {/* Master Playlist - All Available Songs */}
+          <div className="gig-card border-2 border-electric/50 mb-6">
+            <h3 className="concert-heading text-3xl text-electric mb-2">
+              📚 ALL AVAILABLE SONGS
+            </h3>
+            <p className="text-gray-light text-sm mb-4">
               Vote for songs not in tonight's setlist! Highly voted songs may get added to the gig.
             </p>
             
             {!liveGig.masterPlaylist || liveGig.masterPlaylist.length === 0 ? (
-              <p className="text-blue-200">No additional songs available</p>
+              <div className="bg-white/5 rounded-lg p-8 text-center border border-electric/30">
+                <p className="text-gray-light">No additional songs available</p>
+              </div>
             ) : (
               <div className="space-y-2 max-h-96 overflow-y-auto">
                 {(() => {
-                  // Get IDs of songs already in gig queue
                   const gigSongIds = (liveGigData.queuedSongs || []).map(s => s.id);
-                  
-                  // Filter master playlist to exclude gig songs
                   const availableSongs = liveGig.masterPlaylist
                     .filter(song => !gigSongIds.includes(song.id))
                     .sort((a, b) => {
-                      // Sort by votes (highest first)
                       const votesA = liveGigData.votes[Math.floor(a.id)] || 0;
                       const votesB = liveGigData.votes[Math.floor(b.id)] || 0;
                       return votesB - votesA;
                     });
                   
                   if (availableSongs.length === 0) {
-                    return <p className="text-blue-200">All songs are in the gig playlist!</p>;
+                    return (
+                      <div className="bg-white/5 rounded-lg p-4 text-center">
+                        <p className="text-gray-light">All songs are in the gig playlist!</p>
+                      </div>
+                    );
                   }
                   
                   return availableSongs.map((song) => {
@@ -2508,23 +2559,23 @@ if (mode === 'discover') {
                     return (
                       <div 
                         key={song.id} 
-                        className={`p-3 rounded-lg flex justify-between items-center transition ${
+                        className={`p-3 rounded-lg flex flex-col md:flex-row md:justify-between md:items-center gap-3 transition border ${
                           isPlayed 
-                            ? 'bg-gray-500/20 opacity-50' 
-                            : 'bg-white/5 hover:bg-white/10'
+                            ? 'bg-gray-500/10 opacity-50 border-gray-600/50' 
+                            : 'bg-white/5 hover:bg-white/10 border-white/10'
                         }`}
                       >
-                        <div className="flex-1">
-                          <div className={`font-semibold ${isPlayed ? 'text-gray-400 line-through' : 'text-white'}`}>
+                        <div className="flex-1 min-w-0">
+                          <div className={`font-bold truncate ${isPlayed ? 'text-gray-400 line-through' : 'text-white'}`}>
                             {song.title}
                           </div>
-                          <div className={`text-sm ${isPlayed ? 'text-gray-500' : 'text-blue-200'}`}>
+                          <div className={`text-sm truncate ${isPlayed ? 'text-gray-500' : 'text-electric'}`}>
                             {song.artist}
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
                           {voteCount > 0 && (
-                            <span className={isPlayed ? 'text-gray-400' : 'text-pink-300 font-bold'}>
+                            <span className={`font-bold whitespace-nowrap ${isPlayed ? 'text-gray-400' : 'text-magenta'}`}>
                               ❤️ {voteCount}
                             </span>
                           )}
@@ -2535,9 +2586,10 @@ if (mode === 'discover') {
                           ) : (
                             <button
                               onClick={() => handleVote(song.id)}
-                              className="px-3 py-1 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-semibold text-sm"
+                              className="btn btn-electric text-sm"
                             >
-                              ❤️ Vote
+                              <span>❤️</span>
+                              <span>Vote</span>
                             </button>
                           )}
                         </div>
@@ -2548,15 +2600,18 @@ if (mode === 'discover') {
               </div>
             )}
           </div>
-
+  
+          {/* Comments Section */}
           {liveGigData.comments.length > 0 && (
-            <div className="bg-white/10 rounded-xl p-6">
-              <h3 className="text-2xl font-bold text-white mb-4">💬 Comments</h3>
+            <div className="gig-card">
+              <h3 className="concert-heading text-2xl text-magenta mb-4">
+                💬 LIVE CHAT
+              </h3>
               <div className="space-y-3 max-h-64 overflow-y-auto">
                 {liveGigData.comments.slice(-10).reverse().map(comment => (
-                  <div key={comment.id} className="bg-white/5 p-3 rounded-lg">
-                    <p className="text-white font-semibold text-sm">{comment.userName}</p>
-                    <p className="text-purple-200">{comment.text}</p>
+                  <div key={comment.id} className="bg-white/5 p-3 rounded-lg border border-white/10">
+                    <p className="text-electric font-bold text-sm">{comment.userName}</p>
+                    <p className="text-gray-light">{comment.text}</p>
                   </div>
                 ))}
               </div>
