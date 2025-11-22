@@ -1511,46 +1511,86 @@ if (mode === 'discover') {
                         : 'Time TBD';
                       
                       return (
-                        <div key={gig.id} className="bg-gradient-to-r from-green-500/20 to-emerald-500/20 border-2 border-green-400 rounded-xl p-6 hover:shadow-2xl transition cursor-pointer"
+                        <div 
+                          key={gig.id} 
+                          className="gig-card gig-card-live hover:scale-[1.02] transition-all cursor-pointer"
                           onClick={() => {
                             setLiveGig(gig);
                             setMode('audience');
-                          }}>
-                          <div className="flex justify-between items-start">
+                          }}
+                        >
+                          <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
                             <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <div className="w-4 h-4 bg-green-500 rounded-full animate-pulse"></div>
-                                <h3 className="text-2xl font-bold text-white">{gig.artistName}</h3>
+                              {/* Live Indicator */}
+                              <div className="flex items-center gap-3 mb-3">
+                                <div className="relative">
+                                  <div className="w-4 h-4 bg-neon rounded-full animate-pulse"></div>
+                                  <div className="absolute inset-0 w-4 h-4 bg-neon rounded-full animate-ping"></div>
+                                </div>
+                                <span className="concert-heading text-neon text-xl tracking-wider">
+                                  🔴 LIVE NOW
+                                </span>
                               </div>
-                              <div className="text-green-300 font-bold text-lg mb-3">LIVE NOW</div>
-                              <div className="space-y-1 text-white/90">
-                                <p className="flex items-center gap-2">
-                                  <span>📍</span> {gig.venueName}
+                      
+                              {/* Artist Name */}
+                              <h3 className="concert-heading text-3xl md:text-4xl text-white mb-4">
+                                {gig.artistName}
+                              </h3>
+                      
+                              {/* Venue Info */}
+                              <div className="space-y-2 text-gray-light">
+                                <p className="flex items-center gap-2 text-lg">
+                                  <span className="text-electric">📍</span>
+                                  <span className="font-semibold">{gig.venueName}</span>
                                 </p>
+                                
                                 {gig.venueAddress && (
-                                  <p className="flex items-center gap-2 text-sm">
-                                    <span>🗺️</span> {gig.venueAddress}
+                                  <p className="flex items-center gap-2 text-sm text-gray">
+                                    <span className="text-electric">🗺️</span>
+                                    <span>{gig.venueAddress}</span>
                                   </p>
                                 )}
-                                <p className="flex items-center gap-2 text-yellow-300 font-semibold">
-                                  <span>📏</span> {gig.distance < 1000 ? `${gig.distance}m away` : `${(gig.distance/1000).toFixed(1)}km away`}
+                                
+                                <p className="flex items-center gap-2 text-electric font-bold">
+                                  <span>📏</span>
+                                  <span>
+                                    {gig.distance < 1000 
+                                      ? `${gig.distance}m away` 
+                                      : `${(gig.distance/1000).toFixed(1)}km away`
+                                    }
+                                  </span>
                                 </p>
+                      
+                                {/* Interested Status */}
                                 {interestedGigs.includes(gig.id) && (
-                                  <p className="flex items-center gap-2 text-green-300 font-semibold mt-2">
-                                  <span>⭐</span> You're interested in this gig!
+                                  <p className="flex items-center gap-2 text-neon font-semibold mt-3">
+                                    <span>⭐</span>
+                                    <span>You're interested!</span>
                                   </p>
-                              )}
-                              {gig.interestedCount > 0 && (
-                                <p className="flex items-center gap-2 text-purple-300 font-semibold mt-2">
-                                  <span>👥</span> {gig.interestedCount} {gig.interestedCount === 1 ? 'person' : 'people'} interested
-                                </p>
-                              )}
+                                )}
+                      
+                                {/* Interested Count */}
+                                {gig.interestedCount > 0 && (
+                                  <p className="flex items-center gap-2 text-magenta font-semibold">
+                                    <span>👥</span>
+                                    <span>
+                                      {gig.interestedCount} {gig.interestedCount === 1 ? 'person' : 'people'} interested
+                                    </span>
+                                  </p>
+                                )}
                               </div>
                             </div>
+                      
+                            {/* Join Button */}
                             <button 
-                              onClick={() => handleJoinGig(gig)}
-                              className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold text-lg shadow-lg">
-                              🎵 Join Live →
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleJoinGig(gig);
+                              }}
+                              className="btn btn-neon text-lg md:text-xl whitespace-nowrap self-start md:self-center touch-target"
+                            >
+                              <span>🎵</span>
+                              <span>JOIN LIVE</span>
                             </button>
                           </div>
                         </div>
@@ -1562,7 +1602,9 @@ if (mode === 'discover') {
                 {/* Upcoming Gigs Section */}
                 {filteredGigs.filter(g => g.status === 'upcoming').length > 0 && (
                   <div className="space-y-4">
-                    <h2 className="text-3xl font-bold text-white">📅 Upcoming Gigs</h2>
+                    <h2 className="concert-heading text-4xl text-electric mb-6">
+                      📅 UPCOMING GIGS
+                    </h2>
                     
                     {filteredGigs.filter(g => g.status === 'upcoming').map(gig => {
                       const gigDateTime = gig.gigDate && gig.gigTime 
@@ -1570,28 +1612,75 @@ if (mode === 'discover') {
                         : 'Time TBD';
                       
                       return (
-                        <div key={gig.id} className="bg-gradient-to-r from-blue-500/20 to-cyan-500/20 border-2 border-blue-400 rounded-xl p-6 hover:shadow-2xl transition">
-                          <div className="flex justify-between items-start">
+                        <div 
+                          key={gig.id} 
+                          className="gig-card hover:scale-[1.02] transition-all"
+                        >
+                          <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
                             <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
-                                <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
-                                <h3 className="text-2xl font-bold text-white">{gig.artistName}</h3>
+                              {/* Status Indicator */}
+                              <div className="flex items-center gap-3 mb-3">
+                                <div className="w-3 h-3 bg-electric rounded-full"></div>
+                                <span className="text-electric font-bold text-sm uppercase tracking-wider">
+                                  Upcoming
+                                </span>
                               </div>
-                              <div className="text-blue-300 font-bold text-lg mb-3">Upcoming - {gigDateTime}</div>
-                              <div className="space-y-1 text-white/90">
+                
+                              {/* Artist Name */}
+                              <h3 className="concert-heading text-2xl md:text-3xl text-white mb-2">
+                                {gig.artistName}
+                              </h3>
+                
+                              {/* Date/Time */}
+                              <p className="text-magenta font-bold text-lg mb-4">
+                                🎸 {gigDateTime}
+                              </p>
+                
+                              {/* Venue Info */}
+                              <div className="space-y-2 text-gray-light">
                                 <p className="flex items-center gap-2">
-                                  <span>📍</span> {gig.venueName}
+                                  <span className="text-electric">📍</span>
+                                  <span className="font-semibold">{gig.venueName}</span>
                                 </p>
+                                
                                 {gig.venueAddress && (
-                                  <p className="flex items-center gap-2 text-sm">
-                                    <span>🗺️</span> {gig.venueAddress}
+                                  <p className="flex items-center gap-2 text-sm text-gray">
+                                    <span className="text-electric">🗺️</span>
+                                    <span>{gig.venueAddress}</span>
                                   </p>
                                 )}
-                                <p className="flex items-center gap-2 text-cyan-300 font-semibold">
-                                  <span>📏</span> {gig.distance < 1000 ? `${gig.distance}m away` : `${(gig.distance/1000).toFixed(1)}km away`}
+                                
+                                <p className="flex items-center gap-2 text-electric font-bold">
+                                  <span>📏</span>
+                                  <span>
+                                    {gig.distance < 1000 
+                                      ? `${gig.distance}m away` 
+                                      : `${(gig.distance/1000).toFixed(1)}km away`
+                                    }
+                                  </span>
                                 </p>
+                
+                                {/* Interested Status */}
+                                {interestedGigs.includes(gig.id) && (
+                                  <p className="flex items-center gap-2 text-neon font-semibold mt-3">
+                                    <span>⭐</span>
+                                    <span>You're interested!</span>
+                                  </p>
+                                )}
+                
+                                {/* Interested Count */}
+                                {gig.interestedCount > 0 && (
+                                  <p className="flex items-center gap-2 text-magenta font-semibold">
+                                    <span>👥</span>
+                                    <span>
+                                      {gig.interestedCount} {gig.interestedCount === 1 ? 'person' : 'people'} interested
+                                    </span>
+                                  </p>
+                                )}
                               </div>
                             </div>
+                
+                            {/* View Details Button */}
                             <button 
                               onClick={async () => {
                                 try {
@@ -1613,9 +1702,10 @@ if (mode === 'discover') {
                                   setShowGigDetailModal(true);
                                 }
                               }}
-                              className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold text-lg shadow-lg"
+                              className="btn btn-electric text-lg md:text-xl whitespace-nowrap self-start md:self-center touch-target"
                             >
-                              👁️ View Details
+                              <span>👁️</span>
+                              <span>VIEW DETAILS</span>
                             </button>
                           </div>
                         </div>
