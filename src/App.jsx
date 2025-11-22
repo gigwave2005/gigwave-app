@@ -1704,7 +1704,7 @@ if (mode === 'discover') {
                               }}
                               className="btn btn-electric text-lg md:text-xl whitespace-nowrap self-start md:self-center touch-target"
                             >
-                              <span>👁️</span>
+                              <span>🎫</span>
                               <span>VIEW DETAILS</span>
                             </button>
                           </div>
@@ -2224,7 +2224,7 @@ if (mode === 'discover') {
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-center">
-                          <div className="text-pink-300 font-bold text-2xl">❤️ {voteCount}</div>
+                          <div className="text-pink-300 font-bold text-2xl">⚡ {voteCount}</div>
                           <div className="text-pink-200 text-xs">votes</div>
                         </div>
                         <button
@@ -2269,7 +2269,7 @@ if (mode === 'discover') {
                           <div className="text-white font-semibold text-lg">{song.title}</div>
                           <div className="text-purple-200 text-sm">{song.artist}</div>
                           {voteCount > 0 && (
-                            <div className="text-pink-300 text-sm mt-1">❤️ {voteCount} votes</div>
+                            <div className="text-pink-300 text-sm mt-1">⚡ {voteCount} votes</div>
                           )}
                         </div>
                         
@@ -2336,7 +2336,7 @@ if (mode === 'discover') {
                               <div className="text-gray-400 text-sm">{song.artist}</div>
                             </div>
                           </div>
-                          <div className="text-gray-400 text-sm">❤️ {voteCount} votes</div>
+                          <div className="text-gray-400 text-sm">⚡ {voteCount} votes</div>
                         </div>
                       </div>
                     );
@@ -2461,14 +2461,14 @@ if (mode === 'discover') {
                         <div className="flex items-center gap-3 md:ml-auto">
                           {voteCount > 0 && (
                             <span className="text-magenta font-bold text-lg whitespace-nowrap">
-                              ❤️ {voteCount}
+                              ⚡ {voteCount}
                             </span>
                           )}
                           <button
                             onClick={() => handleVote(song.id)}
                             className="btn btn-fire text-sm"
                           >
-                            <span>❤️</span>
+                            <span>⚡</span>
                             <span>Vote</span>
                           </button>
                         </div>
@@ -2503,7 +2503,7 @@ if (mode === 'discover') {
                               </div>
                               <div className="flex items-center gap-3">
                                 {voteCount > 0 && (
-                                  <span className="text-gray-400">❤️ {voteCount}</span>
+                                  <span className="text-gray-400">⚡ {voteCount}</span>
                                 )}
                                 <span className="px-4 py-2 bg-gray-600 text-gray-300 rounded-lg font-bold text-sm cursor-not-allowed">
                                   ✅ Played
@@ -2576,7 +2576,7 @@ if (mode === 'discover') {
                         <div className="flex items-center gap-3">
                           {voteCount > 0 && (
                             <span className={`font-bold whitespace-nowrap ${isPlayed ? 'text-gray-400' : 'text-magenta'}`}>
-                              ❤️ {voteCount}
+                              ⚡ {voteCount}
                             </span>
                           )}
                           {isPlayed ? (
@@ -2588,7 +2588,7 @@ if (mode === 'discover') {
                               onClick={() => handleVote(song.id)}
                               className="btn btn-electric text-sm"
                             >
-                              <span>❤️</span>
+                              <span>⚡</span>
                               <span>Vote</span>
                             </button>
                           )}
