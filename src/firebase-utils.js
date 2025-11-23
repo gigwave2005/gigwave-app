@@ -654,7 +654,7 @@ export const signUpWithEmail = async (email, password) => {
 };
 
 // Task 20: Check if user already voted for a song in this gig
-export const hasUserVoted = async (gigId, songId, userId) => {
+const hasUserVoted = async (gigId, songId, userId) => {
   try {
     const voteRef = doc(db, 'liveGigs', String(gigId), 'votes', `${userId}_${songId}`);
     const voteSnap = await getDoc(voteRef);
@@ -666,7 +666,7 @@ export const hasUserVoted = async (gigId, songId, userId) => {
 };
 
 // Task 20: Record user vote
-export const recordUserVote = async (gigId, songId, userId) => {
+const recordUserVote = async (gigId, songId, userId) => {
   try {
     const voteRef = doc(db, 'liveGigs', String(gigId), 'votes', `${userId}_${songId}`);
     await setDoc(voteRef, {
@@ -694,7 +694,7 @@ export const recordUserVote = async (gigId, songId, userId) => {
 };
 
 // Task 21: Check if artist has any active live gig
-export const getActiveLiveGigForArtist = async (artistEmail) => {
+const getActiveLiveGigForArtist = async (artistEmail) => {
   try {
     const q = query(
       collection(db, 'liveGigs'),
