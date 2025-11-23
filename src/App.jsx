@@ -36,7 +36,7 @@ import {
   checkAndSwapSongs,
   checkAndCancelExpiredGigs,
   serverTimestamp,
-  GeoPoint
+  GeoPoint,
   hasUserVoted,
   recordUserVote,
   getActiveLiveGigForArtist,
