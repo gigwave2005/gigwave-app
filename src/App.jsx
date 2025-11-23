@@ -1027,67 +1027,85 @@ useEffect(() => {
     );
   }
 
-  // Playlist Editor Modal
+  // Playlist Editor Modal - Setlist Builder
   if (showPlaylistModal && editingPlaylist) {
     return (
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-        <div className="bg-gradient-to-br from-blue-900 to-purple-900 rounded-2xl p-8 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="rock-background gig-card border-2 border-magenta max-w-4xl w-full max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-3xl font-bold text-white">Edit Playlist</h2>
+            <h2 className="concert-heading text-3xl md:text-4xl text-magenta">
+              🎸 SETLIST BUILDER
+            </h2>
             <button 
               onClick={() => {
                 setShowPlaylistModal(false);
                 setEditingPlaylist(null);
               }} 
-              className="text-white hover:text-red-300"
+              className="text-white hover:text-red-400 p-2 touch-target"
             >
               <X size={32}/>
             </button>
           </div>
-
+  
+          {/* Playlist Info */}
           <div className="space-y-4 mb-6">
             <div>
-              <label className="text-white font-semibold mb-2 block">Playlist Name *</label>
+              <label className="text-electric font-bold mb-2 block text-sm uppercase tracking-wider">
+                Playlist Name *
+              </label>
               <input
                 type="text"
                 value={editingPlaylist.name}
                 onChange={(e) => setEditingPlaylist({...editingPlaylist, name: e.target.value})}
-                className="w-full px-4 py-3 rounded-lg bg-white/20 text-white placeholder-white/60 border border-white/30"
-                placeholder="e.g., Friday Night Jazz"
+                className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
+                placeholder="e.g., Friday Night Rock"
               />
             </div>
             
             <div>
-              <label className="text-white font-semibold mb-2 block">Description</label>
+              <label className="text-electric font-bold mb-2 block text-sm uppercase tracking-wider">
+                Description
+              </label>
               <textarea
                 value={editingPlaylist.description}
                 onChange={(e) => setEditingPlaylist({...editingPlaylist, description: e.target.value})}
-                className="w-full px-4 py-3 rounded-lg bg-white/20 text-white placeholder-white/60 border border-white/30"
+                className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
                 rows={2}
                 placeholder="Optional description..."
               />
             </div>
           </div>
-
-          <div className="bg-white/10 rounded-xl p-6 mb-6">
-            <h3 className="text-xl font-bold text-white mb-4">
-              Songs in Playlist ({editingPlaylist.songs.length})
+  
+          {/* Songs in Playlist */}
+          <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
+            <h3 className="concert-heading text-2xl text-neon mb-4">
+              🎵 SONGS IN SETLIST ({editingPlaylist.songs.length})
             </h3>
             {editingPlaylist.songs.length === 0 ? (
-              <p className="text-purple-200">No songs yet. Add from master playlist below.</p>
+              <div className="bg-white/5 rounded-lg p-8 text-center border border-electric/30">
+                <p className="text-gray-light">No songs yet. Add from master playlist below. 🎸</p>
+              </div>
             ) : (
               <div className="space-y-2">
                 {editingPlaylist.songs.map((songId, index) => {
                   const song = masterSongs.find(s => s.id === songId);
                   return song ? (
-                    <div key={songId} className="bg-white/5 p-3 rounded-lg flex justify-between items-center">
-                      <div>
-                        <div className="text-white font-semibold">{index + 1}. {song.title}</div>
-                        <div className="text-purple-200 text-sm">{song.artist}</div>
+                    <div 
+                      key={songId} 
+                      className="bg-white/5 p-3 rounded-lg flex flex-col md:flex-row md:justify-between md:items-center gap-3 border border-white/10 hover:border-electric/50 transition"
+                    >
+                      <div className="flex items-center gap-3 flex-1 min-w-0">
+                        <span className="concert-heading text-electric text-xl min-w-[40px]">
+                          {index + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-white font-bold truncate">{song.title}</div>
+                          <div className="text-gray-light text-sm truncate">{song.artist}</div>
+                        </div>
                       </div>
                       <button
                         onClick={() => removeSongFromGigPlaylist(songId)}
-                        className="text-red-400 hover:text-red-300"
+                        className="text-red-400 hover:text-red-300 p-2 touch-target self-end md:self-center"
                       >
                         <Trash2 size={20}/>
                       </button>
@@ -1097,49 +1115,66 @@ useEffect(() => {
               </div>
             )}
           </div>
-
-          <div className="bg-white/10 rounded-xl p-6 mb-6">
-            <h3 className="text-xl font-bold text-white mb-4">Add Songs from Master Playlist</h3>
+  
+          {/* Add Songs Section */}
+          <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
+            <h3 className="concert-heading text-2xl text-electric mb-4">
+              📚 ADD FROM MASTER PLAYLIST
+            </h3>
             {masterSongs.length === 0 ? (
-              <p className="text-purple-200">No songs in master playlist. Add songs in the Master Playlist tab first.</p>
+              <div className="bg-white/5 rounded-lg p-8 text-center border border-electric/30">
+                <p className="text-gray-light">
+                  No songs in master playlist. Add songs in the Master Playlist tab first! 🎵
+                </p>
+              </div>
             ) : (
-              <div className="space-y-2 max-h-64 overflow-y-auto">
+              <div className="space-y-2 max-h-80 overflow-y-auto">
                 {masterSongs
                   .filter(song => !editingPlaylist.songs.includes(song.id))
                   .map(song => (
-                    <div key={song.id} className="bg-white/5 p-3 rounded-lg flex justify-between items-center hover:bg-white/10 transition">
-                      <div>
-                        <div className="text-white font-semibold">{song.title}</div>
-                        <div className="text-purple-200 text-sm">{song.artist}</div>
+                    <div 
+                      key={song.id} 
+                      className="bg-white/5 p-3 rounded-lg flex flex-col md:flex-row md:justify-between md:items-center gap-3 border border-white/10 hover:bg-white/10 transition"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="text-white font-bold truncate">{song.title}</div>
+                        <div className="text-gray-light text-sm truncate">{song.artist}</div>
                       </div>
                       <button
                         onClick={() => addSongToGigPlaylist(song.id)}
-                        className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-semibold"
+                        className="btn btn-neon text-sm self-end md:self-center"
                       >
-                        <Plus size={18}/> Add
+                        <Plus size={18}/>
+                        <span>Add</span>
                       </button>
                     </div>
                   ))}
                 {masterSongs.filter(song => !editingPlaylist.songs.includes(song.id)).length === 0 && (
-                  <p className="text-purple-200 text-center py-4">All master songs have been added to this playlist!</p>
+                  <div className="bg-white/5 rounded-lg p-6 text-center border border-neon/30">
+                    <p className="text-neon font-bold">
+                      ✅ All master songs have been added to this setlist!
+                    </p>
+                  </div>
                 )}
               </div>
             )}
           </div>
           
-          <div className="flex gap-3">
+          {/* Action Buttons */}
+          <div className="flex flex-col md:flex-row gap-3">
             <button
               onClick={saveGigPlaylist}
-              className="flex-1 px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold"
+              className="flex-1 btn btn-neon text-lg"
             >
-              <Check className="inline mr-2" size={20}/>Save Playlist
+              <Check size={20}/>
+              <span>Save Setlist</span>
             </button>
             <button
               onClick={() => {
                 setShowPlaylistModal(false);
                 setEditingPlaylist(null);
               }}
-              className="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-bold"
+              className="btn btn-ghost"
             >
               Cancel
             </button>
