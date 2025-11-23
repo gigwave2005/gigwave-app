@@ -763,21 +763,29 @@ useEffect(() => {
     }
   };
 
-  const deleteGig = async (id) => {
-  if (window.confirm('Are you sure you want to delete this gig? This cannot be undone.')) {
-    try {
-      // Delete from Firebase
-      await deleteGigFromFirebase(id);
-      
-      // Delete from local state
-      setGigs(gigs.filter(g => g.id !== id));
-      
-      alert('✅ Gig deleted successfully!');
-    } catch (error) {
-      alert('Error deleting gig: ' + error.message);
+  const deleteGig = async (gigId) => {
+    if (window.confirm('Delete this gig permanently?')) {
+      try {
+        // Delete from Firebase
+        const gigRef = doc(db, 'liveGigs', gigId);
+        await deleteDoc(gigRef);
+        
+        // Remove from local state
+        setGigs(prevGigs => prevGigs.filter(g => g.id !== gigId));
+        
+        // Close modal if it's open
+        if (editingGig && editingGig.id === gigId) {
+          setEditingGig(null);
+          setShowGigModal(false);
+        }
+        
+        alert('✅ Gig deleted successfully!');
+      } catch (error) {
+        console.error('Error deleting gig:', error);
+        alert('❌ Error deleting gig: ' + error.message);
+      }
     }
-  }
-};
+  };
   
   const handleGoLive = async (gig) => {
     // Check if already live (NEW - FIRST CHECK!)
