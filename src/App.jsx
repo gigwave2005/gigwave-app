@@ -915,7 +915,7 @@ useEffect(() => {
     );
   }
 
-  // Auth Modal
+  // Auth Modal - Backstage Access
   if (showAuthModal) {
     const handleEmailAuth = async () => {
       setAuthError('');
@@ -931,81 +931,89 @@ useEffect(() => {
         setAuthError(error.message);
       }
     };
-
+  
     return (
-      <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-        <div className="bg-gradient-to-br from-purple-900 to-indigo-900 rounded-2xl p-8 max-w-md w-full">
+      <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="rock-background gig-card border-2 border-electric max-w-md w-full">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-3xl font-bold text-white">
-              {authTab === 'signup' ? 'Create Account' : 'Sign In'}
+            <h2 className="concert-heading text-3xl text-electric">
+              {authTab === 'signup' ? '🎸 JOIN US' : '🎤 SIGN IN'}
             </h2>
-            <button onClick={() => setShowAuthModal(false)} className="text-white hover:text-red-300">
+            <button 
+              onClick={() => setShowAuthModal(false)} 
+              className="text-white hover:text-red-400 p-2 touch-target"
+            >
               <X size={32} />
             </button>
           </div>
-
+  
           {/* Tab Switcher */}
-          <div className="flex gap-2 mb-6">
+          <div className="grid grid-cols-2 gap-3 mb-6">
             <button
               onClick={() => setAuthTab('signin')}
-              className={`flex-1 px-4 py-2 rounded-lg font-semibold ${
+              className={`btn ${
                 authTab === 'signin' 
-                  ? 'bg-purple-500 text-white' 
-                  : 'bg-white/10 text-purple-200 hover:bg-white/20'
+                  ? 'btn-electric' 
+                  : 'btn-ghost'
               }`}
             >
               Sign In
             </button>
             <button
               onClick={() => setAuthTab('signup')}
-              className={`flex-1 px-4 py-2 rounded-lg font-semibold ${
+              className={`btn ${
                 authTab === 'signup' 
-                  ? 'bg-purple-500 text-white' 
-                  : 'bg-white/10 text-purple-200 hover:bg-white/20'
+                  ? 'btn-electric' 
+                  : 'btn-ghost'
               }`}
             >
               Sign Up
             </button>
           </div>
-
+  
           <div className="space-y-4">
             {/* Social Sign In */}
             <button
               onClick={() => handleSignIn('google')}
-              className="w-full px-6 py-4 bg-white hover:bg-gray-100 text-gray-900 rounded-lg font-semibold"
+              className="w-full px-6 py-4 bg-white hover:bg-gray-100 text-gray-900 rounded-lg font-bold flex items-center justify-center gap-2"
             >
-              Continue with Google
+              <span>🔐</span>
+              <span>Continue with Google</span>
             </button>
             <button
               onClick={() => handleSignIn('facebook')}
-              className="w-full px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold"
+              className="w-full px-6 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-bold flex items-center justify-center gap-2"
             >
-              Continue with Facebook
+              <span>📘</span>
+              <span>Continue with Facebook</span>
             </button>
-
+  
             {/* Divider */}
             <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-white/30"></div>
+                <div className="w-full border-t border-electric/30"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-purple-900 text-white">Or use email</span>
+                <span className="px-3 bg-dark text-electric font-bold uppercase tracking-wider">
+                  Or use email
+                </span>
               </div>
             </div>
-
+  
             {/* Email/Password Form */}
             {authError && (
-              <div className="bg-red-500/20 border border-red-400 rounded-lg p-3 text-red-200 text-sm">
-                {authError}
+              <div className="bg-red-500/20 border border-red-400 rounded-lg p-4 text-red-200 text-sm">
+                <p className="font-bold mb-1">⚠️ Error</p>
+                <p>{authError}</p>
               </div>
             )}
-
+  
             <input
               type="email"
               placeholder="Email"
               value={authEmail}
               onChange={(e) => setAuthEmail(e.target.value)}
-              className="w-full px-4 py-3 rounded-lg bg-white/20 text-white placeholder-white/60 border border-white/30"
+              className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
             />
             <input
               type="password"
@@ -1013,13 +1021,23 @@ useEffect(() => {
               value={authPassword}
               onChange={(e) => setAuthPassword(e.target.value)}
               onKeyPress={(e) => e.key === 'Enter' && handleEmailAuth()}
-              className="w-full px-4 py-3 rounded-lg bg-white/20 text-white placeholder-white/60 border border-white/30"
+              className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
             />
             <button
               onClick={handleEmailAuth}
-              className="w-full px-6 py-3 bg-purple-500 hover:bg-purple-600 text-white rounded-lg font-bold"
+              className="btn btn-neon w-full text-lg"
             >
-              {authTab === 'signup' ? 'Create Account' : 'Sign In'}
+              {authTab === 'signup' ? (
+                <>
+                  <span>⚡</span>
+                  <span>Create Account</span>
+                </>
+              ) : (
+                <>
+                  <span>⚡</span>
+                  <span>Sign In</span>
+                </>
+              )}
             </button>
           </div>
         </div>
@@ -1184,132 +1202,184 @@ useEffect(() => {
     );
   }
 
-  // Gig Modal with Venue Location
+  // Gig Modal - Show Creator
   if (showGigModal && editingGig) {
     return (
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-        <div className="bg-gradient-to-br from-orange-900 to-red-900 rounded-2xl p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="rock-background gig-card border-2 border-orange max-w-2xl w-full max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-3xl font-bold text-white">
-              {gigs.find(g => g.id === editingGig.id) ? 'Edit Gig' : 'Create New Gig'}
+            <h2 className="concert-heading text-3xl md:text-4xl text-orange">
+              {gigs.find(g => g.id === editingGig.id) ? '🎸 EDIT SHOW' : '⚡ CREATE SHOW'}
             </h2>
-            <button onClick={() => {setShowGigModal(false); setEditingGig(null);}} className="text-white">
+            <button 
+              onClick={() => {
+                setShowGigModal(false); 
+                setEditingGig(null);
+              }} 
+              className="text-white hover:text-red-400 p-2 touch-target"
+            >
               <X size={32} />
             </button>
           </div>
-
-          <div className="space-y-4">
+  
+          <div className="space-y-6">
+            {/* Venue Name */}
             <div>
-              <label className="text-white font-semibold mb-2 block">Venue Name *</label>
+              <label className="text-electric font-bold mb-2 block text-sm uppercase tracking-wider">
+                Venue Name *
+              </label>
               <input
                 type="text"
                 value={editingGig.venueName}
                 onChange={(e) => setEditingGig({...editingGig, venueName: e.target.value})}
-                className="w-full px-4 py-3 rounded-lg bg-white/20 text-white placeholder-white/60 border border-white/30"
+                className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
                 placeholder="e.g. The Blue Note Jazz Club"
               />
             </div>
-
+  
             {/* Venue Location Section */}
-            <div className="bg-white/10 rounded-xl p-6 space-y-4">
-              <h3 className="text-xl font-bold text-white flex items-center">
-                <MapPin className="mr-2" size={24}/>Venue Location
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6 space-y-4">
+              <h3 className="concert-heading text-xl text-neon flex items-center">
+                <MapPin className="mr-2" size={24}/>
+                VENUE LOCATION
               </h3>
               
               {/* GPS Capture Button */}
               <button
                 onClick={captureGPSLocation}
                 disabled={capturingGPS}
-                className="w-full px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn btn-electric w-full disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {capturingGPS ? '📍 Capturing...' : '📍 Use My Current Location'}
+                {capturingGPS ? (
+                  <>
+                    <span className="loading-pulse">📍</span>
+                    <span>Capturing...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>📍</span>
+                    <span>Use My Current Location</span>
+                  </>
+                )}
               </button>
-
+  
               {/* Manual Address Entry */}
               <div>
-                <label className="text-white font-semibold mb-2 block">Or Enter Address:</label>
-                <div className="flex gap-2">
+                <label className="text-gray-light font-semibold mb-2 block text-sm">
+                  Or Enter Address:
+                </label>
+                <div className="flex flex-col md:flex-row gap-3">
                   <input
                     type="text"
                     value={editingGig.address || ''}
                     onChange={(e) => setEditingGig({...editingGig, address: e.target.value})}
-                    className="flex-1 px-4 py-3 rounded-lg bg-white/20 text-white placeholder-white/60 border border-white/30"
+                    className="flex-1 px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-white/30 focus:border-electric focus:outline-none"
                     placeholder="e.g. 131 W 3rd St, New York, NY"
                   />
                   <button
                     onClick={searchVenueAddress}
                     disabled={searchingAddress}
-                    className="px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold disabled:opacity-50"
+                    className="btn btn-neon disabled:opacity-50 whitespace-nowrap"
                   >
-                    {searchingAddress ? '🔍' : '🔍 Search'}
+                    {searchingAddress ? (
+                      <>
+                        <span className="loading-pulse">🔍</span>
+                        <span>Searching...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>🔍</span>
+                        <span>Search</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
-
+  
               {/* Display Coordinates if captured */}
               {editingGig.location && (
-                <div className="bg-green-500/20 border border-green-400 rounded-lg p-4">
-                  <p className="text-green-200 font-semibold mb-2">✅ Location Captured:</p>
-                  <p className="text-white text-sm">
+                <div className="bg-neon/20 border border-neon rounded-lg p-4">
+                  <p className="text-neon font-bold mb-2 flex items-center gap-2">
+                    <span>✅</span>
+                    <span>Location Captured:</span>
+                  </p>
+                  <p className="text-white text-sm font-mono">
                     📍 {editingGig.location.lat.toFixed(6)}°N, {editingGig.location.lng.toFixed(6)}°W
                   </p>
                   {editingGig.address && (
-                    <p className="text-green-100 text-sm mt-1">📌 {editingGig.address}</p>
+                    <p className="text-gray-light text-sm mt-2">
+                      📌 {editingGig.address}
+                    </p>
                   )}
                 </div>
               )}
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
+  
+            {/* Date & Time */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="text-white font-semibold mb-2 block">Date *</label>
+                <label className="text-electric font-bold mb-2 block text-sm uppercase tracking-wider">
+                  Date *
+                </label>
                 <input
                   type="date"
                   value={editingGig.date}
                   onChange={(e) => setEditingGig({...editingGig, date: e.target.value})}
-                  className="w-full px-4 py-3 rounded-lg bg-white/20 text-white border border-white/30"
+                  className="w-full px-4 py-3 rounded-lg bg-white/10 text-white border border-electric/30 focus:border-electric focus:outline-none"
                 />
               </div>
               <div>
-                <label className="text-white font-semibold mb-2 block">Time *</label>
+                <label className="text-electric font-bold mb-2 block text-sm uppercase tracking-wider">
+                  Time *
+                </label>
                 <input
                   type="time"
                   value={editingGig.time}
                   onChange={(e) => setEditingGig({...editingGig, time: e.target.value})}
-                  className="w-full px-4 py-3 rounded-lg bg-white/20 text-white border border-white/30"
+                  className="w-full px-4 py-3 rounded-lg bg-white/10 text-white border border-electric/30 focus:border-electric focus:outline-none"
                 />
               </div>
             </div>
-
+  
+            {/* Playlist Selector */}
             <div>
-              <label className="text-white font-semibold mb-2 block">Assign Playlist (Optional)</label>
+              <label className="text-electric font-bold mb-2 block text-sm uppercase tracking-wider">
+                Assign Setlist (Optional)
+              </label>
               <select
                 value={editingGig.playlistId || ''}
                 onChange={(e) => setEditingGig({
                   ...editingGig,
                   playlistId: e.target.value ? parseInt(e.target.value) : null
                 })}
-                className="w-full px-4 py-3 rounded-lg bg-gray-800 text-white border border-white/30"
+                className="w-full px-4 py-3 rounded-lg bg-white/10 text-white border border-electric/30 focus:border-electric focus:outline-none"
               >
-                <option value="" className="bg-white text-gray-900">No playlist (use master)</option>
+                <option value="" className="bg-gray-900 text-white">
+                  No setlist (use master playlist)
+                </option>
                 {gigPlaylists.map(p => (
-                  <option key={p.id} value={p.id} className="bg-white text-gray-900">
+                  <option key={p.id} value={p.id} className="bg-gray-900 text-white">
                     {p.name} ({p.songs.length} songs)
                   </option>
                 ))}
               </select>
             </div>
-
-            <div className="flex gap-3 mt-6">
+  
+            {/* Action Buttons */}
+            <div className="flex flex-col md:flex-row gap-3 pt-4">
               <button
                 onClick={saveGig}
-                className="flex-1 px-6 py-3 bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold"
+                className="flex-1 btn btn-neon text-lg"
               >
-                <Check className="inline mr-2" size={20}/>Save Gig
+                <Check size={20}/>
+                <span>Save Show</span>
               </button>
               <button
-                onClick={() => {setShowGigModal(false); setEditingGig(null);}}
-                className="px-6 py-3 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-bold"
+                onClick={() => {
+                  setShowGigModal(false); 
+                  setEditingGig(null);
+                }}
+                className="btn btn-ghost"
               >
                 Cancel
               </button>
