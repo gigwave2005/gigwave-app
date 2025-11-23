@@ -9,6 +9,7 @@ import {
   doc,
   getDoc,
   updateDoc,
+  deleteDoc,
   deleteGigFromFirebase,
   markAsInterested,
   unmarkAsInterested,
