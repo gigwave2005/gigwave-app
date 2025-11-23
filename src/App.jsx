@@ -767,8 +767,11 @@ useEffect(() => {
   const deleteGig = async (gigId) => {
     if (window.confirm('Delete this gig permanently?')) {
       try {
+        // Convert gigId to string (Firebase requires string IDs)
+        const gigIdString = String(gigId);
+        
         // Delete from Firebase
-        const gigRef = doc(db, 'liveGigs', gigId);
+        const gigRef = doc(db, 'liveGigs', gigIdString);
         await deleteDoc(gigRef);
         
         // Remove from local state
