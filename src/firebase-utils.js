@@ -660,6 +660,7 @@ export {
   doc,
   getDoc,
   updateDoc,
+  deleteDoc,
   arrayUnion,
   serverTimestamp,
   GeoPoint,
