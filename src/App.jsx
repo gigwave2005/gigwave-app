@@ -37,6 +37,9 @@ import {
   checkAndCancelExpiredGigs,
   serverTimestamp,
   GeoPoint
+  hasUserVoted,
+  recordUserVote,
+  getActiveLiveGigForArtist,
 } from './firebase-utils';
 
 const CFG = { app: 'Gigwave', fee: 0.15, jbFee: 5, tips: [5,10,20,50] };
@@ -428,35 +431,42 @@ useEffect(() => {
   };
   
   const handleVote = async (songId) => {
+    // Check if user is logged in
     if (!currentUser) {
+      alert('Please sign in to vote!');
       setShowAuthModal(true);
       return;
     }
     
-    // Check if user already voted for this song in this gig
-    const voteKey = `vote_${liveGig.id}_${songId}`;
-    const hasVoted = localStorage.getItem(voteKey);
-    
-    if (hasVoted) {
-      alert('⚠️ You already voted for this song in this gig!');
-      return;
-    }
+    // Make sure we're in a live gig
+    if (!liveGig) return;
     
     try {
-      const location = await getUserLocation();
-      const venueLocation = {
-        lat: liveGig.location.latitude,
-        lng: liveGig.location.longitude
-      };
+      // ⭐ TASK 20: Check if this user already voted for this song
+      const alreadyVoted = await hasUserVoted(liveGig.id, songId, currentUser.uid);
       
-      await firebaseVoteForSong(liveGig.id, songId, currentUser.uid, location, venueLocation);
+      if (alreadyVoted) {
+        alert('⚠️ You already voted for this song!');
+        return;  // ← STOP HERE, don't allow second vote
+      }
       
-      // Mark as voted in localStorage
-      localStorage.setItem(voteKey, 'true');
+      // Record the new vote in Firebase
+      await recordUserVote(liveGig.id, songId, currentUser.uid);
       
       alert('✅ Vote recorded!');
+      
+      // Refresh the vote counts from Firebase
+      const gigRef = doc(db, 'liveGigs', String(liveGig.id));
+      const gigSnap = await getDoc(gigRef);
+      if (gigSnap.exists()) {
+        setLiveGigData(prev => ({
+          ...prev,
+          votes: gigSnap.data().votes || {}
+        }));
+      }
     } catch (error) {
-      alert(error.message);
+      console.error('Error voting:', error);
+      alert('❌ Error recording vote: ' + error.message);
     }
   };
 
@@ -803,6 +813,28 @@ useEffect(() => {
     if (gig.status === 'ended') {
       alert('❌ This gig has ended! You cannot go live with an ended gig.');
       return;
+    }
+
+    // ⭐ TASK 21: Check if artist has another live gig in Firebase
+    const existingLiveGig = await getActiveLiveGigForArtist(currentUser.email);
+    
+    if (existingLiveGig && existingLiveGig.id !== gig.id) {
+      const confirm = window.confirm(
+        `⚠️ You already have a live gig at "${existingLiveGig.venueName}".\n\n` +
+        `You can only have one live gig at a time.\n\n` +
+        `Would you like to end that gig and start this one?`
+      );
+      
+      if (!confirm) return;  // User said NO
+      
+      // User said YES - end the existing gig
+      try {
+        await firebaseEndLiveGig(existingLiveGig.id);
+        setLiveGig(null); // Clear local state
+      } catch (error) {
+        alert('Error ending previous gig: ' + error.message);
+        return;
+      }
     }
     
     try {
