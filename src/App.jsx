@@ -1566,21 +1566,63 @@ useEffect(() => {
   }
 
   // Discovery Page
-if (mode === 'discover') {
-  return (
-    <div className="rock-background min-h-screen p-4 pb-24 md:pb-4">
-      <div className="max-w-4xl mx-auto pt-8 md:pt-20">
-        {/* Hero Section */}
-        <div className="text-center mb-8 md:mb-12">
-          <div className="relative inline-block mb-6">
-            <Music size={80} className="text-electric mx-auto animate-pulse" />
-            <div className="absolute inset-0 blur-xl opacity-50">
-              <Music size={80} className="text-electric mx-auto" />
+  if (mode === 'discover') {
+    return (
+      <div className="rock-background min-h-screen p-4 pb-24 md:pb-4">
+        <div className="max-w-4xl mx-auto pt-8 md:pt-20">
+          {/* Hero Section */}
+          <div className="text-center mb-8 md:mb-12">
+            <div className="relative inline-block mb-6">
+              <Music size={80} className="text-electric mx-auto animate-pulse" />
+              <div className="absolute inset-0 blur-xl opacity-50">
+                <Music size={80} className="text-electric mx-auto" />
+              </div>
             </div>
-          </div>
-          <h1 className="concert-heading text-6xl md:text-7xl font-bold text-white mb-4 drop-shadow-lg">
-            GIGWAVE
-          </h1>
+            {/* Logo and Title */}
+  <div className="flex items-center justify-center gap-4 mb-4">
+    {/* Soundwave Logo */}
+    <div className="relative">
+      <svg width="80" height="80" viewBox="0 0 100 100" className="text-electric">
+        {/* Soundwave bars */}
+        <rect x="10" y="30" width="8" height="40" fill="currentColor" rx="4">
+          <animate attributeName="height" values="40;60;40" dur="1s" repeatCount="indefinite" />
+          <animate attributeName="y" values="30;20;30" dur="1s" repeatCount="indefinite" />
+        </rect>
+        <rect x="25" y="20" width="8" height="60" fill="currentColor" rx="4">
+          <animate attributeName="height" values="60;80;60" dur="1.2s" repeatCount="indefinite" />
+          <animate attributeName="y" values="20;10;20" dur="1.2s" repeatCount="indefinite" />
+        </rect>
+        <rect x="40" y="15" width="8" height="70" fill="#FF1B6D" rx="4">
+          <animate attributeName="height" values="70;90;70" dur="0.8s" repeatCount="indefinite" />
+          <animate attributeName="y" values="15;5;15" dur="0.8s" repeatCount="indefinite" />
+        </rect>
+        <rect x="55" y="20" width="8" height="60" fill="currentColor" rx="4">
+          <animate attributeName="height" values="60;80;60" dur="1.2s" repeatCount="indefinite" />
+          <animate attributeName="y" values="20;10;20" dur="1.2s" repeatCount="indefinite" />
+        </rect>
+        <rect x="70" y="30" width="8" height="40" fill="currentColor" rx="4">
+          <animate attributeName="height" values="40;60;40" dur="1s" repeatCount="indefinite" />
+          <animate attributeName="y" values="30;20;30" dur="1s" repeatCount="indefinite" />
+        </rect>
+      </svg>
+      {/* Glow effect */}
+      <div className="absolute inset-0 blur-xl opacity-50">
+        <svg width="80" height="80" viewBox="0 0 100 100" className="text-electric">
+          <rect x="40" y="15" width="8" height="70" fill="currentColor" rx="4" />
+        </svg>
+      </div>
+    </div>
+    
+    {/* App Name */}
+    <h1 className="concert-heading text-6xl md:text-7xl font-bold text-white drop-shadow-lg">
+      GigWave
+    </h1>
+  </div>
+  
+  {/* Tagline */}
+  <p className="text-lg md:text-xl text-electric font-bold tracking-widest uppercase mb-12">
+    Ride the wave of live music
+  </p>
           <p className="text-xl md:text-2xl text-electric font-semibold tracking-wide uppercase">
             ⚡ Discover Live Music Near You ⚡
           </p>
