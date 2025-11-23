@@ -1285,55 +1285,80 @@ useEffect(() => {
     );
   }
 
-  // Gig Detail Modal
+  // Gig Detail Modal - Backstage Pass Style
   if (showGigDetailModal && selectedUpcomingGig) {
     return (
-      <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
-        <div className="bg-gradient-to-br from-blue-900 to-purple-900 rounded-2xl p-8 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="rock-background gig-card border-2 border-electric max-w-3xl w-full max-h-[90vh] overflow-y-auto">
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-3xl font-bold text-white">🎸 Gig Details</h2>
+            <h2 className="concert-heading text-3xl md:text-4xl text-electric">
+              🎸 BACKSTAGE PASS
+            </h2>
             <button 
               onClick={() => {
                 setShowGigDetailModal(false);
                 setSelectedUpcomingGig(null);
               }} 
-              className="text-white hover:text-red-300"
+              className="text-white hover:text-red-400 p-2 touch-target"
             >
               <X size={32}/>
             </button>
           </div>
-
-          {/* Gig Info */}
-          <div className="bg-white/10 rounded-xl p-6 mb-6">
-            <h3 className="text-2xl font-bold text-white mb-4">{selectedUpcomingGig.artistName}</h3>
-            <div className="space-y-2 text-purple-200">
-              <p className="flex items-center gap-2">
-                <span>📍</span> <strong>Venue:</strong> {selectedUpcomingGig.venueName}
-              </p>
-              {selectedUpcomingGig.venueAddress && (
-                <p className="flex items-center gap-2">
-                  <span>🗺️</span> <strong>Address:</strong> {selectedUpcomingGig.venueAddress}
-                </p>
-              )}
+  
+          {/* Artist Header */}
+          <div className="bg-gradient-to-r from-magenta/20 to-electric/20 border border-electric/50 rounded-xl p-6 mb-6">
+            <h3 className="concert-heading text-3xl md:text-4xl text-white mb-4">
+              {selectedUpcomingGig.artistName}
+            </h3>
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 text-gray-light">
+                <span className="text-electric text-xl">📍</span>
+                <div>
+                  <p className="font-bold text-white">{selectedUpcomingGig.venueName}</p>
+                  {selectedUpcomingGig.venueAddress && (
+                    <p className="text-sm text-gray">{selectedUpcomingGig.venueAddress}</p>
+                  )}
+                </div>
+              </div>
+              
               {selectedUpcomingGig.gigDate && (
-                <p className="flex items-center gap-2">
-                  <span>📅</span> <strong>Date:</strong> {new Date(selectedUpcomingGig.gigDate).toLocaleDateString('en-US', {weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'})}
+                <p className="flex items-center gap-3">
+                  <span className="text-magenta text-xl">📅</span>
+                  <span className="font-bold text-white">
+                    {new Date(selectedUpcomingGig.gigDate).toLocaleDateString('en-US', {
+                      weekday: 'long', 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric'
+                    })}
+                  </span>
                 </p>
               )}
+              
               {selectedUpcomingGig.gigTime && (
-                <p className="flex items-center gap-2">
-                  <span>🕐</span> <strong>Time:</strong> {selectedUpcomingGig.gigTime}
+                <p className="flex items-center gap-3">
+                  <span className="text-neon text-xl">🕐</span>
+                  <span className="font-bold text-white">{selectedUpcomingGig.gigTime}</span>
                 </p>
               )}
-              <p className="flex items-center gap-2">
-                <span>📏</span> <strong>Distance:</strong> {selectedUpcomingGig.distance < 1000 ? `${selectedUpcomingGig.distance}m away` : `${(selectedUpcomingGig.distance/1000).toFixed(1)}km away`}
+              
+              <p className="flex items-center gap-3">
+                <span className="text-electric text-xl">📏</span>
+                <span className="font-bold text-electric">
+                  {selectedUpcomingGig.distance < 1000 
+                    ? `${selectedUpcomingGig.distance}m away` 
+                    : `${(selectedUpcomingGig.distance/1000).toFixed(1)}km away`
+                  }
+                </span>
               </p>
             </div>
           </div>
-
-          {/* Playlist Preview */}
-          <div className="bg-white/10 rounded-xl p-6 mb-6">
-            <h3 className="text-xl font-bold text-white mb-4">🎵 Expected Setlist</h3>
+  
+          {/* Setlist Preview */}
+          <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
+            <h3 className="concert-heading text-2xl text-magenta mb-4">
+              🎵 EXPECTED SETLIST
+            </h3>
             {(() => {
               const songs = selectedUpcomingGig.queuedSongs && selectedUpcomingGig.queuedSongs.length > 0
                 ? selectedUpcomingGig.queuedSongs
@@ -1345,35 +1370,45 @@ useEffect(() => {
               
               return songs.length > 0 ? (
                 <>
-                  <p className="text-purple-300 text-sm mb-3 italic">Showing: {playlistType}</p>
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                  <p className="text-electric text-sm mb-4 font-semibold">
+                    Showing: {playlistType}
+                  </p>
+                  <div className="space-y-2 max-h-80 overflow-y-auto">
                     {songs.map((song, index) => (
-                      <div key={song.id || index} className="bg-white/5 p-3 rounded-lg flex items-center gap-3 hover:bg-white/10 transition">
-                        <span className="text-purple-300 font-bold text-lg min-w-[30px]">{index + 1}</span>
-                        <div className="flex-1">
-                          <div className="text-white font-semibold">{song.title}</div>
-                          <div className="text-purple-200 text-sm">{song.artist}</div>
+                      <div 
+                        key={song.id || index} 
+                        className="bg-white/5 p-3 rounded-lg flex items-center gap-3 hover:bg-white/10 transition border border-white/10"
+                      >
+                        <span className="concert-heading text-electric text-xl min-w-[40px]">
+                          {index + 1}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-white font-bold truncate">{song.title}</div>
+                          <div className="text-gray-light text-sm truncate">{song.artist}</div>
                         </div>
                       </div>
                     ))}
                   </div>
-                  <p className="text-purple-300 text-sm mt-3 italic">
+                  <p className="text-gray text-sm mt-4 italic text-center">
                     {songs.length} song{songs.length !== 1 ? 's' : ''} • Final setlist may vary
                   </p>
                 </>
               ) : (
-                <p className="text-purple-200">Setlist not available yet. Check back closer to showtime!</p>
+                <div className="bg-white/5 rounded-lg p-8 text-center border border-electric/30">
+                  <p className="text-gray-light">
+                    Setlist not available yet. Check back closer to showtime! 🎸
+                  </p>
+                </div>
               );
             })()}
           </div>
-
-          {/* Interested Button */}
-          <div className="flex gap-3">
+  
+          {/* Action Buttons */}
+          <div className="flex flex-col md:flex-row gap-3">
             <button
               onClick={async () => {
                 // Check if user is logged in
                 if (!currentUser) {
-                  // Show auth modal instead of alert
                   setShowAuthModal(true);
                   return;
                 }
@@ -1382,11 +1417,9 @@ useEffect(() => {
                 
                 try {
                   if (isCurrentlyInterested) {
-                    // Unmark as interested
                     await unmarkAsInterested(selectedUpcomingGig.id, currentUser.uid);
                     setInterestedGigs(interestedGigs.filter(id => id !== selectedUpcomingGig.id));
                   } else {
-                    // Mark as interested
                     await markAsInterested(selectedUpcomingGig.id, currentUser.uid);
                     setInterestedGigs([...interestedGigs, selectedUpcomingGig.id]);
                   }
@@ -1394,20 +1427,30 @@ useEffect(() => {
                   alert('Error updating interest: ' + error.message);
                 }
               }}
-              className={`flex-1 px-6 py-4 rounded-lg font-bold text-lg ${
+              className={`flex-1 btn text-lg ${
                 interestedGigs.includes(selectedUpcomingGig.id)
-                  ? 'bg-green-500 hover:bg-green-600 text-white'
-                  : 'bg-yellow-500 hover:bg-yellow-600 text-white'
+                  ? 'btn-neon'
+                  : 'btn-electric'
               }`}
             >
-              {interestedGigs.includes(selectedUpcomingGig.id) ? '⭐ Interested!' : '⭐ Mark as Interested'}
+              {interestedGigs.includes(selectedUpcomingGig.id) ? (
+                <>
+                  <span>⭐</span>
+                  <span>Interested!</span>
+                </>
+              ) : (
+                <>
+                  <span>⭐</span>
+                  <span>Mark as Interested</span>
+                </>
+              )}
             </button>
             <button
               onClick={() => {
                 setShowGigDetailModal(false);
                 setSelectedUpcomingGig(null);
               }}
-              className="px-6 py-4 bg-gray-500 hover:bg-gray-600 text-white rounded-lg font-bold"
+              className="btn btn-ghost"
             >
               Close
             </button>
