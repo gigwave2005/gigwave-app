@@ -76,7 +76,7 @@ body {
   overflow: hidden;
 }
 
-/* Concert photo collage layer */
+/* Concert photo mega collage - multiple layers */
 .rock-background::after {
   content: '';
   position: absolute;
@@ -85,19 +85,36 @@ body {
   width: 100%;
   height: 100%;
   background-image: 
-  url('https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?w=1600&q=80'), /* Guitarist on stage */
-  url('https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=1600&q=80'), /* Crowd with lights */
-  url('https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=1600&q=80'), /* DJ/Electronic show */
-  url('https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=1600&q=80'), /* Festival crowd sunset */
-  url('https://images.unsplash.com/photo-1510915361894-db8b60106cb1?w=1600&q=80'), /* Band performing */
-  url('https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?w=1600&q=80'), /* Drummer close-up */
-  url('https://images.unsplash.com/photo-1540039155733-5bb30b53aa14?w=1600&q=80'), /* Stage lights aerial */
-  url('https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=1600&q=80'); /* Massive crowd */
-  background-size: cover;
-  background-position: center;
-  background-blend-mode: overlay;
-  opacity: 0.2;
-  filter: blur(4px) grayscale(20%);
+    /* Layer 1: Top section - Stadium crowd */
+    url('https://images.unsplash.com/photo-1506157786151-b8491531f063?w=1600&q=80'),
+    /* Layer 2: Middle-left - Guitarist */
+    url('https://images.unsplash.com/photo-1519892300165-cb5542fb47c7?w=1600&q=80'),
+    /* Layer 3: Middle-right - DJ/Electronic */
+    url('https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1600&q=80'),
+    /* Layer 4: Bottom - Drummer */
+    url('https://images.unsplash.com/photo-1519139270028-ab664cf42264?w=1600&q=80'),
+    /* Layer 5: Festival sunset */
+    url('https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=1600&q=80'),
+    /* Layer 6: Stage lights */
+    url('https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?w=1600&q=80');
+  background-size: 
+    cover,
+    50% auto,
+    50% auto,
+    cover,
+    cover,
+    cover;
+  background-position: 
+    top center,
+    left 20% center,
+    right 20% center,
+    bottom center,
+    center center,
+    center center;
+  background-repeat: no-repeat;
+  background-blend-mode: overlay, overlay, overlay, overlay, soft-light, screen;
+  opacity: 0.25;
+  filter: blur(4px) grayscale(15%);
   z-index: 0;
   pointer-events: none;
 }
@@ -339,4 +356,76 @@ h3.concert-heading {
 /* Loading Animation */
 .loading-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ================================
+   MOBILE BOTTOM NAVIGATION
+   ================================ */
+
+.mobile-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, var(--dark), rgba(10, 10, 20, 0.95));
+  border-top: 2px solid var(--electric);
+  box-shadow: 0 -4px 20px rgba(0, 217, 255, 0.3);
+  padding: 0.75rem 1rem;
+  z-index: 40;
+  backdrop-filter: blur(10px);
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-nav {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+  }
+}
+
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.75rem;
+  background: transparent;
+  border: none;
+  color: var(--gray-light);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  min-width: 60px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-nav-item:active {
+  transform: scale(0.95);
+}
+
+.mobile-nav-item.active {
+  background: var(--electric);
+  color: var(--dark);
+  box-shadow: 0 0 20px rgba(0, 217, 255, 0.5);
+}
+
+.mobile-nav-item:not(.active):hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--electric);
+}
+
+.mobile-nav-icon {
+  font-size: 1.5rem;
+}
+
+/* Add bottom padding to main content on mobile to prevent nav overlap */
+@media (max-width: 768px) {
+  .rock-background {
+    padding-bottom: 5rem !important;
+  }
 }
