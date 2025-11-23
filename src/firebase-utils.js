@@ -653,6 +653,67 @@ export const signUpWithEmail = async (email, password) => {
   }
 };
 
+// Task 20: Check if user already voted for a song in this gig
+export const hasUserVoted = async (gigId, songId, userId) => {
+  try {
+    const voteRef = doc(db, 'liveGigs', String(gigId), 'votes', `${userId}_${songId}`);
+    const voteSnap = await getDoc(voteRef);
+    return voteSnap.exists();
+  } catch (error) {
+    console.error('Error checking vote:', error);
+    return false;
+  }
+};
+
+// Task 20: Record user vote
+export const recordUserVote = async (gigId, songId, userId) => {
+  try {
+    const voteRef = doc(db, 'liveGigs', String(gigId), 'votes', `${userId}_${songId}`);
+    await setDoc(voteRef, {
+      userId,
+      songId,
+      gigId: String(gigId),
+      timestamp: serverTimestamp()
+    });
+    
+    // Increment vote count
+    const gigRef = doc(db, 'liveGigs', String(gigId));
+    const gigSnap = await getDoc(gigRef);
+    const currentVotes = gigSnap.data()?.votes || {};
+    const songKey = String(songId);
+    
+    await updateDoc(gigRef, {
+      [`votes.${songKey}`]: (currentVotes[songKey] || 0) + 1
+    });
+    
+    return true;
+  } catch (error) {
+    console.error('Error recording vote:', error);
+    throw error;
+  }
+};
+
+// Task 21: Check if artist has any active live gig
+export const getActiveLiveGigForArtist = async (artistEmail) => {
+  try {
+    const q = query(
+      collection(db, 'liveGigs'),
+      where('artistEmail', '==', artistEmail),
+      where('status', '==', 'live')
+    );
+    const snapshot = await getDocs(q);
+    
+    if (!snapshot.empty) {
+      const gigDoc = snapshot.docs[0];
+      return { id: gigDoc.id, ...gigDoc.data() };
+    }
+    return null;
+  } catch (error) {
+    console.error('Error checking active gigs:', error);
+    return null;
+  }
+};
+
 // Export everything needed
 export {
   auth,
@@ -664,4 +725,7 @@ export {
   arrayUnion,
   serverTimestamp,
   GeoPoint,
+  hasUserVoted,
+  recordUserVote,
+  getActiveLiveGigForArtist,
 };
