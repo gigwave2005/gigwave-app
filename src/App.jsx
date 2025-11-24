@@ -40,7 +40,86 @@ import {
   hasUserVoted,
   recordUserVote,
   getActiveLiveGigForArtist,
+  saveArtistProfile,
+  getArtistProfile,
+  isProfileComplete,
+  sendEmailVerification,
+  checkEmailVerified,
+  uploadProfilePhoto,
 } from './firebase-utils';
+
+// Social Media Follow Buttons Component
+const SocialFollowButtons = ({ socialMedia, artistName }) => {
+  if (!socialMedia || !Object.values(socialMedia).some(v => v)) {
+    return null; // Don't show if no social links
+  }
+
+  const getSocialUrl = (platform, value) => {
+    if (!value) return null;
+    
+    // If already a full URL, return as-is
+    if (value.startsWith('http://') || value.startsWith('https://')) {
+      return value;
+    }
+    
+    // Convert username/handle to full URL
+    switch(platform) {
+      case 'instagram':
+        return `https://instagram.com/${value.replace('@', '')}`;
+      case 'facebook':
+        return value.includes('facebook.com') ? value : `https://facebook.com/${value}`;
+      case 'twitter':
+        return `https://twitter.com/${value.replace('@', '')}`;
+      case 'youtube':
+        return value.includes('youtube.com') ? value : `https://youtube.com/${value}`;
+      case 'spotify':
+        return value.includes('spotify.com') ? value : `https://open.spotify.com/artist/${value}`;
+      case 'tiktok':
+        return `https://tiktok.com/@${value.replace('@', '')}`;
+      case 'soundcloud':
+        return `https://soundcloud.com/${value}`;
+      default:
+        return value;
+    }
+  };
+
+  const platforms = [
+    { key: 'instagram', icon: '📷', name: 'Instagram', color: 'from-purple-500 to-pink-500' },
+    { key: 'facebook', icon: '👍', name: 'Facebook', color: 'from-blue-600 to-blue-500' },
+    { key: 'spotify', icon: '🎵', name: 'Spotify', color: 'from-green-600 to-green-500' },
+    { key: 'youtube', icon: '📺', name: 'YouTube', color: 'from-red-600 to-red-500' },
+    { key: 'twitter', icon: '🐦', name: 'Twitter', color: 'from-sky-500 to-blue-500' },
+    { key: 'tiktok', icon: '🎬', name: 'TikTok', color: 'from-black to-pink-500' },
+    { key: 'soundcloud', icon: '🎧', name: 'SoundCloud', color: 'from-orange-600 to-orange-500' }
+  ];
+
+  return (
+    <div className="space-y-3">
+      <p className="text-electric font-bold text-sm uppercase tracking-wider">
+        🔗 Follow {artistName}
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {platforms.map(platform => {
+          const url = getSocialUrl(platform.key, socialMedia[platform.key]);
+          if (!url) return null;
+          
+          return (
+            
+              key={platform.key}
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={`px-4 py-2 bg-gradient-to-r ${platform.color} hover:opacity-80 text-white rounded-lg font-bold text-sm transition-all hover:scale-105 flex items-center gap-2`}
+            >
+              <span>{platform.icon}</span>
+              <span>{platform.name}</span>
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
 
 const CFG = { app: 'Gigwave', fee: 0.15, jbFee: 5, tips: [5,10,20,50] };
 
@@ -99,12 +178,61 @@ export default function App() {
   const [interestedGigs, setInterestedGigs] = useState([]);
   const [isEndingGig, setIsEndingGig] = useState(false);
 
-  // Listen to auth changes
+  // Profile state
+const [artistProfile, setArtistProfile] = useState(null);
+const [showProfileSetup, setShowProfileSetup] = useState(false);
+const [profileStep, setProfileStep] = useState(1);
+const [profileData, setProfileData] = useState({
+  artistName: '',
+  fullName: '',
+  bio: '',
+  profilePhoto: '',
+  genre: '',
+  location: '',
+  socialMedia: {
+    instagram: '',
+    facebook: '',
+    youtube: '',
+    spotify: '',
+    twitter: '',
+    tiktok: '',
+    soundcloud: ''
+  }
+});
+const [emailVerified, setEmailVerified] = useState(false);
+const [showEmailVerification, setShowEmailVerification] = useState(false);
+
+  // Listen to auth changes and check profile
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
+      
+      if (user) {
+        // Check email verification
+        setEmailVerified(user.emailVerified);
+        
+        // Load artist profile
+        try {
+          const profile = await getArtistProfile(user.uid);
+          setArtistProfile(profile);
+          
+          // Check if profile is complete
+          const complete = await isProfileComplete(user.uid);
+          
+          // If profile incomplete, force profile setup
+          if (!complete && mode !== 'discover' && mode !== 'audience') {
+            setShowProfileSetup(true);
+          }
+        } catch (error) {
+          console.error('Error loading profile:', error);
+        }
+      } else {
+        setArtistProfile(null);
+      }
+      
       setAuthLoading(false);
     });
+    
     return () => unsubscribe();
   }, []);
 
@@ -701,6 +829,7 @@ useEffect(() => {
       const gigData = {
         artistId: currentUser.uid,
         artistName: currentUser.displayName || 'Artist',
+        artistProfile: artistProfile,  // ← ADD THIS LINE
         venueName: editingGig.venueName,
         venueAddress: editingGig.address || '',
         location: location,
@@ -832,6 +961,7 @@ useEffect(() => {
       const gigData = {
         artistId: currentUser.uid,
         artistName: currentUser.displayName || 'Artist',
+        artistProfile: artistProfile,  // ← ADD THIS LINE
         venueName: gig.venueName,
         venueAddress: gig.address || '',
         location: location,
@@ -918,6 +1048,65 @@ useEffect(() => {
   }
 };
 
+  // Profile handlers
+const handleSaveProfile = async () => {
+  try {
+    // Validate required fields
+    if (!profileData.artistName || !profileData.fullName || !profileData.bio || 
+        !profileData.genre || !profileData.location) {
+      alert('⚠️ Please fill in all required fields!');
+      return;
+    }
+    
+    if (profileData.bio.length < 50) {
+      alert('⚠️ Bio must be at least 50 characters long!');
+      return;
+    }
+    
+    // Save profile
+    await saveArtistProfile(currentUser.uid, {
+      ...profileData,
+      email: currentUser.email,
+      emailVerified: currentUser.emailVerified
+    });
+    
+    // Reload profile
+    const updatedProfile = await getArtistProfile(currentUser.uid);
+    setArtistProfile(updatedProfile);
+    
+    setShowProfileSetup(false);
+    alert('✅ Profile saved successfully!');
+  } catch (error) {
+    alert('Error saving profile: ' + error.message);
+  }
+};
+
+const handleSendVerification = async () => {
+  try {
+    await sendEmailVerification();
+    alert('📧 Verification email sent! Check your inbox.');
+    setShowEmailVerification(false);
+  } catch (error) {
+    alert('Error: ' + error.message);
+  }
+};
+
+const handleCheckVerification = async () => {
+  try {
+    const verified = await checkEmailVerified();
+    setEmailVerified(verified);
+    
+    if (verified) {
+      alert('✅ Email verified successfully!');
+      setShowEmailVerification(false);
+    } else {
+      alert('⚠️ Email not verified yet. Please check your inbox and click the verification link.');
+    }
+  } catch (error) {
+    alert('Error: ' + error.message);
+  }
+};
+  
   // Task 20: Handle voting with duplicate prevention
   const handleVote = async (songId) => {
     // Check if user is logged in
@@ -1097,6 +1286,354 @@ useEffect(() => {
                 </>
               )}
             </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Profile Setup Modal - REQUIRED BEFORE USING APP
+  if (showProfileSetup) {
+    return (
+      <div className="fixed inset-0 bg-black/95 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+        <div className="rock-background gig-card border-2 border-electric max-w-3xl w-full my-8">
+          <div className="mb-6">
+            <h2 className="concert-heading text-4xl text-electric mb-2">
+              🎸 COMPLETE YOUR ARTIST PROFILE
+            </h2>
+            <p className="text-gray-light">
+              Fill out your profile to start creating gigs and going live!
+            </p>
+            
+            {/* Progress Indicator */}
+            <div className="mt-4 flex items-center gap-2">
+              <div className={`flex-1 h-2 rounded-full ${profileStep >= 1 ? 'bg-electric' : 'bg-white/20'}`}></div>
+              <div className={`flex-1 h-2 rounded-full ${profileStep >= 2 ? 'bg-electric' : 'bg-white/20'}`}></div>
+              <div className={`flex-1 h-2 rounded-full ${profileStep >= 3 ? 'bg-electric' : 'bg-white/20'}`}></div>
+            </div>
+            <p className="text-electric text-sm mt-2 font-bold">Step {profileStep} of 3</p>
+          </div>
+  
+          {/* Email Verification Warning */}
+          {!emailVerified && (
+            <div className="bg-orange/20 border border-orange rounded-lg p-4 mb-6">
+              <p className="text-orange font-bold mb-2">⚠️ Email Not Verified</p>
+              <p className="text-white text-sm mb-3">
+                Please verify your email to use all features.
+              </p>
+              <button
+                onClick={() => setShowEmailVerification(true)}
+                className="btn btn-electric text-sm"
+              >
+                📧 Verify Email
+              </button>
+            </div>
+          )}
+  
+          {/* Privacy Message */}
+          <div className="bg-green-500/20 border border-neon rounded-lg p-4 mb-6">
+            <p className="text-neon font-bold text-sm">
+              🔒 Your email ({currentUser?.email}) will NOT be displayed publicly and remains confidential.
+            </p>
+          </div>
+  
+          <div className="space-y-6">
+            {/* Step 1: Basic Info */}
+            {profileStep === 1 && (
+              <div className="space-y-4">
+                <h3 className="concert-heading text-2xl text-magenta mb-4">📝 BASIC INFORMATION</h3>
+                
+                <div>
+                  <label className="text-electric font-bold mb-2 block text-sm">
+                    Artist/Band Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={profileData.artistName}
+                    onChange={(e) => setProfileData({...profileData, artistName: e.target.value})}
+                    placeholder="e.g. The Electric Waves"
+                    className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
+                  />
+                </div>
+  
+                <div>
+                  <label className="text-electric font-bold mb-2 block text-sm">
+                    Your Full Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={profileData.fullName}
+                    onChange={(e) => setProfileData({...profileData, fullName: e.target.value})}
+                    placeholder="e.g. John Smith"
+                    className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
+                  />
+                </div>
+  
+                <div>
+                  <label className="text-electric font-bold mb-2 block text-sm">
+                    Bio * (minimum 50 characters)
+                  </label>
+                  <textarea
+                    value={profileData.bio}
+                    onChange={(e) => setProfileData({...profileData, bio: e.target.value})}
+                    placeholder="Tell your audience about your music, style, and story..."
+                    rows={5}
+                    className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
+                  />
+                  <p className={`text-sm mt-1 ${profileData.bio.length >= 50 ? 'text-neon' : 'text-gray'}`}>
+                    {profileData.bio.length}/50 characters
+                  </p>
+                </div>
+  
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-electric font-bold mb-2 block text-sm">
+                      Genre/Style *
+                    </label>
+                    <input
+                      type="text"
+                      value={profileData.genre}
+                      onChange={(e) => setProfileData({...profileData, genre: e.target.value})}
+                      placeholder="e.g. Rock, Jazz, Electronic"
+                      className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
+                    />
+                  </div>
+  
+                  <div>
+                    <label className="text-electric font-bold mb-2 block text-sm">
+                      Location/City *
+                    </label>
+                    <input
+                      type="text"
+                      value={profileData.location}
+                      onChange={(e) => setProfileData({...profileData, location: e.target.value})}
+                      placeholder="e.g. New York, NY"
+                      className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
+                    />
+                  </div>
+                </div>
+  
+                <button
+                  onClick={() => {
+                    if (!profileData.artistName || !profileData.fullName || !profileData.bio || 
+                        profileData.bio.length < 50 || !profileData.genre || !profileData.location) {
+                      alert('⚠️ Please fill in all required fields!');
+                      return;
+                    }
+                    setProfileStep(2);
+                  }}
+                  className="btn btn-neon w-full text-lg"
+                >
+                  Next: Social Media →
+                </button>
+              </div>
+            )}
+  
+            {/* Step 2: Social Media */}
+            {profileStep === 2 && (
+              <div className="space-y-4">
+                <h3 className="concert-heading text-2xl text-magenta mb-4">🔗 SOCIAL MEDIA (Optional)</h3>
+                <p className="text-gray-light text-sm mb-4">
+                  Add your social media links so fans can follow you!
+                </p>
+  
+                <div>
+                  <label className="text-electric font-bold mb-2 block text-sm flex items-center gap-2">
+                    <span>📷</span> Instagram
+                  </label>
+                  <input
+                    type="text"
+                    value={profileData.socialMedia.instagram}
+                    onChange={(e) => setProfileData({
+                      ...profileData,
+                      socialMedia: {...profileData.socialMedia, instagram: e.target.value}
+                    })}
+                    placeholder="@username or full URL"
+                    className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
+                  />
+                </div>
+  
+                <div>
+                  <label className="text-electric font-bold mb-2 block text-sm flex items-center gap-2">
+                    <span>👍</span> Facebook
+                  </label>
+                  <input
+                    type="text"
+                    value={profileData.socialMedia.facebook}
+                    onChange={(e) => setProfileData({
+                      ...profileData,
+                      socialMedia: {...profileData.socialMedia, facebook: e.target.value}
+                    })}
+                    placeholder="Page URL"
+                    className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
+                  />
+                </div>
+  
+                <div>
+                  <label className="text-electric font-bold mb-2 block text-sm flex items-center gap-2">
+                    <span>🎵</span> Spotify
+                  </label>
+                  <input
+                    type="text"
+                    value={profileData.socialMedia.spotify}
+                    onChange={(e) => setProfileData({
+                      ...profileData,
+                      socialMedia: {...profileData.socialMedia, spotify: e.target.value}
+                    })}
+                    placeholder="Artist URL"
+                    className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
+                  />
+                </div>
+  
+                <div>
+                  <label className="text-electric font-bold mb-2 block text-sm flex items-center gap-2">
+                    <span>📺</span> YouTube
+                  </label>
+                  <input
+                    type="text"
+                    value={profileData.socialMedia.youtube}
+                    onChange={(e) => setProfileData({
+                      ...profileData,
+                      socialMedia: {...profileData.socialMedia, youtube: e.target.value}
+                    })}
+                    placeholder="Channel URL"
+                    className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
+                  />
+                </div>
+  
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setProfileStep(1)}
+                    className="btn btn-ghost"
+                  >
+                    ← Back
+                  </button>
+                  <button
+                    onClick={() => setProfileStep(3)}
+                    className="flex-1 btn btn-neon text-lg"
+                  >
+                    Next: Review →
+                  </button>
+                </div>
+              </div>
+            )}
+  
+            {/* Step 3: Review & Save */}
+            {profileStep === 3 && (
+              <div className="space-y-4">
+                <h3 className="concert-heading text-2xl text-magenta mb-4">✅ REVIEW & SAVE</h3>
+  
+                <div className="bg-white/5 rounded-lg p-6 space-y-3">
+                  <div>
+                    <p className="text-gray text-sm">Artist Name</p>
+                    <p className="text-white font-bold text-lg">{profileData.artistName}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray text-sm">Full Name</p>
+                    <p className="text-white font-bold">{profileData.fullName}</p>
+                  </div>
+                  <div>
+                    <p className="text-gray text-sm">Bio</p>
+                    <p className="text-white">{profileData.bio}</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-gray text-sm">Genre</p>
+                      <p className="text-electric font-bold">{profileData.genre}</p>
+                    </div>
+                    <div>
+                      <p className="text-gray text-sm">Location</p>
+                      <p className="text-electric font-bold">{profileData.location}</p>
+                    </div>
+                  </div>
+                  
+                  {Object.values(profileData.socialMedia).some(v => v) && (
+                    <div>
+                      <p className="text-gray text-sm mb-2">Social Media</p>
+                      <div className="flex flex-wrap gap-2">
+                        {profileData.socialMedia.instagram && (
+                          <span className="px-3 py-1 bg-magenta/20 text-magenta rounded-full text-sm">📷 Instagram</span>
+                        )}
+                        {profileData.socialMedia.facebook && (
+                          <span className="px-3 py-1 bg-blue-500/20 text-blue-300 rounded-full text-sm">👍 Facebook</span>
+                        )}
+                        {profileData.socialMedia.spotify && (
+                          <span className="px-3 py-1 bg-green-500/20 text-neon rounded-full text-sm">🎵 Spotify</span>
+                        )}
+                        {profileData.socialMedia.youtube && (
+                          <span className="px-3 py-1 bg-red-500/20 text-red-300 rounded-full text-sm">📺 YouTube</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+  
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setProfileStep(2)}
+                    className="btn btn-ghost"
+                  >
+                    ← Back
+                  </button>
+                  <button
+                    onClick={handleSaveProfile}
+                    className="flex-1 btn btn-neon text-lg"
+                  >
+                    <Check size={20}/>
+                    <span>Save Profile & Continue</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+  
+  // Email Verification Modal
+  if (showEmailVerification) {
+    return (
+      <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+        <div className="rock-background gig-card border-2 border-orange max-w-md w-full">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="concert-heading text-3xl text-orange">
+              📧 VERIFY EMAIL
+            </h2>
+            <button 
+              onClick={() => setShowEmailVerification(false)} 
+              className="text-white hover:text-red-400 p-2"
+            >
+              <X size={32} />
+            </button>
+          </div>
+  
+          <div className="space-y-4">
+            <p className="text-white">
+              Verify your email address to unlock all features.
+            </p>
+            <p className="text-gray-light text-sm">
+              We'll send a verification link to: <span className="text-electric font-bold">{currentUser?.email}</span>
+            </p>
+  
+            <button
+              onClick={handleSendVerification}
+              className="btn btn-neon w-full"
+            >
+              📧 Send Verification Email
+            </button>
+  
+            <div className="border-t border-white/20 pt-4">
+              <p className="text-gray-light text-sm mb-3">
+                Already verified? Click below to refresh.
+              </p>
+              <button
+                onClick={handleCheckVerification}
+                className="btn btn-electric w-full"
+              >
+                🔄 Check Verification Status
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1514,6 +2051,16 @@ useEffect(() => {
                   }
                 </span>
               </p>
+
+              {/* Social Follow Buttons */}
+              {selectedUpcomingGig.artistProfile?.socialMedia && (
+                <div className="mt-6 pt-4 border-t border-electric/30">
+                  <SocialFollowButtons 
+                    socialMedia={selectedUpcomingGig.artistProfile.socialMedia}
+                    artistName={selectedUpcomingGig.artistName}
+                  />
+                </div>
+              )}
             </div>
           </div>
   
@@ -1828,6 +2375,16 @@ useEffect(() => {
                                 )}
                               </div>
                             </div>
+
+                            {/* Social Follow Buttons */}
+                            {gig.artistProfile?.socialMedia && (
+                              <div className="mt-4 pt-4 border-t border-white/20">
+                                <SocialFollowButtons 
+                                  socialMedia={gig.artistProfile.socialMedia}
+                                  artistName={gig.artistName}
+                                />
+                              </div>
+                            )}
                       
                             {/* Join Button */}
                             <button 
@@ -2330,6 +2887,16 @@ useEffect(() => {
                                 )}
                               </div>
                             </div>
+
+                            {/* Social Follow Buttons */}
+                            {gig.artistProfile?.socialMedia && (
+                              <div className="mt-4 pt-4 border-t border-white/20">
+                                <SocialFollowButtons 
+                                  socialMedia={gig.artistProfile.socialMedia}
+                                  artistName={gig.artistName}
+                                />
+                              </div>
+                            )}
                             
                             <div className="flex flex-wrap gap-2">
                               {!isEnded && (
@@ -2651,6 +3218,15 @@ useEffect(() => {
                 <p className="text-electric font-bold text-lg">📍 {liveGig.venueName}</p>
                 {liveGig.venueAddress && (
                   <p className="text-gray text-sm">📌 {liveGig.venueAddress}</p>
+                )}
+                {/* Social Follow Buttons */}
+                {artistProfile?.socialMedia && (
+                  <div className="mt-4">
+                    <SocialFollowButtons 
+                      socialMedia={artistProfile.socialMedia}
+                      artistName={liveGig.artistName}
+                    />
+                  </div>
                 )}
               </div>
               <button
