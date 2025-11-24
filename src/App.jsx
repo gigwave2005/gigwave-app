@@ -2469,12 +2469,26 @@ useEffect(() => {
                           onClick={async () => {
                             if (window.confirm(`Mark "${song.title}" as played?`)) {
                               try {
-                                const gigRef = doc(db, 'liveGigs', liveGig.id);
+                                console.log('🎵 Marking song as played');
+                                console.log('📝 Live Gig ID:', liveGig.id);
+                                console.log('🎤 Song ID:', song.id);
+                                
+                                const gigIdString = String(liveGig.id);
+                                const gigRef = doc(db, 'liveGigs', gigIdString);
+                                
+                                // Check if document exists first
+                                const gigSnap = await getDoc(gigRef);
+                                if (!gigSnap.exists()) {
+                                  alert(`❌ Error: Gig document not found!\n\nID: ${gigIdString}\n\nPlease restart the gig.`);
+                                  return;
+                                }
+                                
                                 await updateDoc(gigRef, {
                                   playedSongs: arrayUnion(song.id)
                                 });
                                 alert('✅ Song marked as played!');
                               } catch (error) {
+                                console.error('❌ Error marking song:', error);
                                 alert('Error: ' + error.message);
                               }
                             }
