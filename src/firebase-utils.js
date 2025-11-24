@@ -714,6 +714,139 @@ const getActiveLiveGigForArtist = async (artistEmail) => {
   }
 };
 
+// ===================================
+// ARTIST PROFILE FUNCTIONS
+// ===================================
+
+/**
+ * Create or update artist profile
+ */
+export const saveArtistProfile = async (userId, profileData) => {
+  try {
+    const profileRef = doc(db, 'userProfiles', userId);
+    
+    const profileToSave = {
+      ...profileData,
+      updatedAt: serverTimestamp(),
+      profileComplete: !!(
+        profileData.artistName &&
+        profileData.fullName &&
+        profileData.bio &&
+        profileData.genre &&
+        profileData.location
+      )
+    };
+    
+    // If new profile, add createdAt
+    const existingProfile = await getDoc(profileRef);
+    if (!existingProfile.exists()) {
+      profileToSave.createdAt = serverTimestamp();
+    }
+    
+    await setDoc(profileRef, profileToSave, { merge: true });
+    console.log('✅ Artist profile saved');
+    return profileToSave;
+  } catch (error) {
+    console.error('❌ Error saving profile:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get artist profile by user ID
+ */
+export const getArtistProfile = async (userId) => {
+  try {
+    const profileRef = doc(db, 'userProfiles', userId);
+    const profileSnap = await getDoc(profileRef);
+    
+    if (profileSnap.exists()) {
+      return { id: profileSnap.id, ...profileSnap.data() };
+    }
+    return null;
+  } catch (error) {
+    console.error('❌ Error getting profile:', error);
+    throw error;
+  }
+};
+
+/**
+ * Check if artist profile is complete
+ */
+export const isProfileComplete = async (userId) => {
+  try {
+    const profile = await getArtistProfile(userId);
+    
+    if (!profile) return false;
+    
+    return !!(
+      profile.artistName &&
+      profile.fullName &&
+      profile.bio &&
+      profile.bio.length >= 50 &&
+      profile.genre &&
+      profile.location
+    );
+  } catch (error) {
+    console.error('❌ Error checking profile:', error);
+    return false;
+  }
+};
+
+/**
+ * Send email verification
+ */
+export const sendEmailVerification = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) throw new Error('No user logged in');
+    
+    if (user.emailVerified) {
+      console.log('✅ Email already verified');
+      return true;
+    }
+    
+    await user.sendEmailVerification();
+    console.log('📧 Verification email sent');
+    return true;
+  } catch (error) {
+    console.error('❌ Error sending verification:', error);
+    throw error;
+  }
+};
+
+/**
+ * Check if email is verified
+ */
+export const checkEmailVerified = async () => {
+  try {
+    const user = auth.currentUser;
+    if (!user) return false;
+    
+    await user.reload(); // Refresh user data
+    return user.emailVerified;
+  } catch (error) {
+    console.error('❌ Error checking verification:', error);
+    return false;
+  }
+};
+
+/**
+ * Upload profile photo to Firebase Storage
+ */
+export const uploadProfilePhoto = async (userId, file) => {
+  try {
+    // Note: You'll need to import and configure Firebase Storage
+    // For now, we'll return a placeholder
+    // TODO: Implement Firebase Storage upload
+    console.log('📸 Profile photo upload - TODO: Implement Storage');
+    return 'https://via.placeholder.com/150';
+  } catch (error) {
+    console.error('❌ Error uploading photo:', error);
+    throw error;
+  }
+};
+
 // Export everything needed
 export {
   auth,
@@ -728,4 +861,11 @@ export {
   hasUserVoted,
   recordUserVote,
   getActiveLiveGigForArtist,
+  saveArtistProfile,
+  getArtistProfile,
+  isProfileComplete,
+  sendEmailVerification,
+  checkEmailVerified,
+  uploadProfilePhoto,
+  
 };
