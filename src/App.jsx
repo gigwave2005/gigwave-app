@@ -104,7 +104,7 @@ const SocialFollowButtons = ({ socialMedia, artistName }) => {
           if (!url) return null;
           
           return (
-            
+            <a
               key={platform.key}
               href={url}
               target="_blank"
