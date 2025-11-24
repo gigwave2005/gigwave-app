@@ -97,6 +97,7 @@ export default function App() {
   const [selectedUpcomingGig, setSelectedUpcomingGig] = useState(null);
   const [showGigDetailModal, setShowGigDetailModal] = useState(false);
   const [interestedGigs, setInterestedGigs] = useState([]);
+  const [isEndingGig, setIsEndingGig] = useState(false);
 
   // Listen to auth changes
   useEffect(() => {
@@ -141,7 +142,7 @@ export default function App() {
 
   // Auto-end timer check
 useEffect(() => {
-  if (!liveGig?.id || mode !== 'live') return;
+  if (!liveGig?.id || mode !== 'live' || isEndingGig) return; // ← ADD isEndingGig check
   
   const checkTimer = async () => {
     if (!liveGigData.scheduledEndTime) return;
@@ -164,8 +165,8 @@ useEffect(() => {
       alert(`⚠️ Your gig will auto-end in ${remainingMinutes} minutes!\n\nClick "Add 1 Hour" to extend.`);
     }
     
-    // Auto-end at 0 - ONLY RUN ONCE
-    if (remainingMinutes <= 0 && mode === 'live') {
+    // Auto-end at 0
+    if (remainingMinutes <= 0 && mode === 'live' && !isEndingGig) { // ← ADD !isEndingGig check
       try {
         await handleEndGig();
         alert('⏰ Time limit reached! Your gig has been automatically ended.');
@@ -175,12 +176,11 @@ useEffect(() => {
     }
   };
   
-  // Check immediately and then every minute
   checkTimer();
   const interval = setInterval(checkTimer, 60000);
   
   return () => clearInterval(interval);
-}, [liveGig?.id, liveGigData.scheduledEndTime, mode, showTimeWarning]);
+}, [liveGig?.id, liveGigData.scheduledEndTime, mode, showTimeWarning, isEndingGig]); // ← ADD isEndingGig to dependencies
 
   // Get user location on mount
   useEffect(() => {
@@ -876,37 +876,47 @@ useEffect(() => {
   }
 };
 
-  const handleEndGig = async () => {
-    if (!window.confirm('End this gig?')) return;
+ const handleEndGig = async () => {
+  // Prevent multiple simultaneous calls
+  if (isEndingGig) {
+    console.log('⚠️ Already ending gig, ignoring duplicate call');
+    return;
+  }
+  
+  if (!window.confirm('End this gig?')) return;
+  
+  setIsEndingGig(true); // Set flag immediately
+  
+  try {
+    await firebaseEndLiveGig(liveGig.id);
     
-    try {
-      await firebaseEndLiveGig(liveGig.id);
-      
-      // Update gigs with ended status
-      const updatedGigs = gigs.map(g => 
-        g.id === liveGig.gigId || (g.venueName === liveGig.venueName && g.date === liveGig.date)
-          ? {...g, status: 'ended'} 
-          : g
-      );
-      
-      // Update state
-      setGigs(updatedGigs);
-      
-      // Force save to localStorage immediately
-      if (currentUser) {
-        localStorage.setItem(`gigwave_gigs_${currentUser.uid}`, JSON.stringify(updatedGigs));
-        console.log('💾 Gig status updated to ended in localStorage');
-      }
-      
-      // Clear live gig
-      setMode('artist');
-      setLiveGig(null);
-      
-      alert('✅ Gig ended! Status updated to ended.');
-    } catch (error) {
-      alert('Error: ' + error.message);
+    // Update gigs with ended status
+    const updatedGigs = gigs.map(g => 
+      g.id === liveGig.gigId || (g.venueName === liveGig.venueName && g.date === liveGig.date)
+        ? {...g, status: 'ended'} 
+        : g
+    );
+    
+    // Update state
+    setGigs(updatedGigs);
+    
+    // Force save to localStorage immediately
+    if (currentUser) {
+      localStorage.setItem(`gigwave_gigs_${currentUser.uid}`, JSON.stringify(updatedGigs));
+      console.log('💾 Gig status updated to ended in localStorage');
     }
-  };
+    
+    // Clear live gig
+    setLiveGig(null);
+    setMode('artist');
+    
+    alert('✅ Gig ended! Status updated to ended.');
+  } catch (error) {
+    alert('Error: ' + error.message);
+  } finally {
+    setIsEndingGig(false); // Reset flag
+  }
+};
 
   // Task 20: Handle voting with duplicate prevention
   const handleVote = async (songId) => {
