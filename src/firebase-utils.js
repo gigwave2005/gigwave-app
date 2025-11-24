@@ -862,7 +862,7 @@ export {
   increment,
   serverTimestamp,
   GeoPoint,
-  onAuthStateChanged: firebaseOnAuthStateChanged,
+  firebaseOnAuthStateChanged as onAuthStateChanged,
   signInWithGoogle,
   signInWithFacebook,
   signInWithEmail,
