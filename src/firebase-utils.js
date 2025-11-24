@@ -49,9 +49,6 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const auth = getAuth(app);
 
-// Re-export onAuthStateChanged
-export const onAuthStateChanged = firebaseOnAuthStateChanged;
-
 // ============================================
 // GEOLOCATION UTILITIES
 // ============================================
@@ -865,7 +862,7 @@ export {
   increment,
   serverTimestamp,
   GeoPoint,
-  onAuthStateChanged,
+  onAuthStateChanged: firebaseOnAuthStateChanged,
   signInWithGoogle,
   signInWithFacebook,
   signInWithEmail,
