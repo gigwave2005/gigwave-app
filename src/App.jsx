@@ -430,46 +430,6 @@ useEffect(() => {
     setFilteredGigs(filtered);
   };
   
-  const handleVote = async (songId) => {
-    // Check if user is logged in
-    if (!currentUser) {
-      alert('Please sign in to vote!');
-      setShowAuthModal(true);
-      return;
-    }
-    
-    // Make sure we're in a live gig
-    if (!liveGig) return;
-    
-    try {
-      // ⭐ TASK 20: Check if this user already voted for this song
-      const alreadyVoted = await hasUserVoted(liveGig.id, songId, currentUser.uid);
-      
-      if (alreadyVoted) {
-        alert('⚠️ You already voted for this song!');
-        return;  // ← STOP HERE, don't allow second vote
-      }
-      
-      // Record the new vote in Firebase
-      await recordUserVote(liveGig.id, songId, currentUser.uid);
-      
-      alert('✅ Vote recorded!');
-      
-      // Refresh the vote counts from Firebase
-      const gigRef = doc(db, 'liveGigs', String(liveGig.id));
-      const gigSnap = await getDoc(gigRef);
-      if (gigSnap.exists()) {
-        setLiveGigData(prev => ({
-          ...prev,
-          votes: gigSnap.data().votes || {}
-        }));
-      }
-    } catch (error) {
-      console.error('Error voting:', error);
-      alert('❌ Error recording vote: ' + error.message);
-    }
-  };
-
   const addToMaster = () => {
     const title = prompt('Song title:');
     if (!title) return;
