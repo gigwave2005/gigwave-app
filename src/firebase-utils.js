@@ -856,7 +856,7 @@ export const uploadProfilePhoto = async (userId, file) => {
 export {
   // Firebase Auth
   auth,
-  onAuthStateChanged,
+  firebaseOnAuthStateChanged as onAuthStateChanged,
   
   // Firestore Instance
   db,
