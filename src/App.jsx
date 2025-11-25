@@ -1131,12 +1131,32 @@ useEffect(() => {
     }
   };
 
+// Handle sending email verification
 const handleSendVerification = async () => {
   try {
-    await sendEmailVerification();
-    alert('📧 Verification email sent! Check your inbox.');
-    setShowEmailVerification(false);
+    console.log('📧 Attempting to send verification email...');
+    
+    if (!currentUser) {
+      alert('❌ No user logged in!');
+      return;
+    }
+    
+    console.log('👤 Current user:', currentUser.email);
+    console.log('✅ Email verified?', currentUser.emailVerified);
+    
+    if (currentUser.emailVerified) {
+      alert('✅ Your email is already verified!');
+      setEmailVerified(true);
+      setShowEmailVerification(false);
+      return;
+    }
+    
+    const result = await sendEmailVerification();
+    console.log('📧 Send result:', result);
+    
+    alert(result.message || 'Verification email sent! Check your inbox.');
   } catch (error) {
+    console.error('❌ Error sending verification:', error);
     alert('Error: ' + error.message);
   }
 };
