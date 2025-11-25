@@ -773,63 +773,43 @@ export const getArtistProfile = async (userId) => {
 /**
  * Check if artist profile is complete
  */
-export const isProfileComplete = async (userId) => {
-  try {
-    const profile = await getArtistProfile(userId);
-    
-    if (!profile) return false;
-    
-    return !!(
-      profile.artistName &&
-      profile.fullName &&
-      profile.bio &&
-      profile.bio.length >= 50 &&
-      profile.genre &&
-      profile.location
-    );
-  } catch (error) {
-    console.error('❌ Error checking profile:', error);
-    return false;
-  }
-};
-
-/**
- * Send email verification
- */
-export const sendEmailVerification = async () => {
-  try {
-    const user = auth.currentUser;
-    if (!user) throw new Error('No user logged in');
-    
-    if (user.emailVerified) {
-      console.log('✅ Email already verified');
-      return true;
+  export const isProfileComplete = async (userId) => {
+    try {
+      const profile = await getArtistProfile(userId);
+      console.log('🔍 isProfileComplete - profile:', profile);
+      
+      if (!profile) {
+        console.log('🔍 isProfileComplete - No profile, returning false');
+        return false;
+      }
+      
+      const checks = {
+        artistName: !!profile.artistName,
+        fullName: !!profile.fullName,
+        bio: !!profile.bio,
+        bioLength: profile.bio && profile.bio.length >= 50,
+        genre: !!profile.genre,
+        location: !!profile.location
+      };
+      
+      console.log('🔍 isProfileComplete - checks:', checks);
+      
+      const complete = !!(
+        profile.artistName &&
+        profile.fullName &&
+        profile.bio &&
+        profile.bio.length >= 50 &&
+        profile.genre &&
+        profile.location
+      );
+      
+      console.log('🔍 isProfileComplete - result:', complete);
+      return complete;
+    } catch (error) {
+      console.error('❌ Error checking profile:', error);
+      return false;
     }
-    
-    await user.sendEmailVerification();
-    console.log('📧 Verification email sent');
-    return true;
-  } catch (error) {
-    console.error('❌ Error sending verification:', error);
-    throw error;
-  }
-};
-
-/**
- * Check if email is verified
- */
-export const checkEmailVerified = async () => {
-  try {
-    const user = auth.currentUser;
-    if (!user) return false;
-    
-    await user.reload(); // Refresh user data
-    return user.emailVerified;
-  } catch (error) {
-    console.error('❌ Error checking verification:', error);
-    return false;
-  }
-};
+  };
 
 /**
  * Upload profile photo to Firebase Storage
