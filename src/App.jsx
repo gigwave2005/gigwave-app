@@ -258,6 +258,26 @@ const [showEmailVerification, setShowEmailVerification] = useState(false);
     };
   }, [mode]);
 
+  // Auto-check email verification status when profile setup is open
+useEffect(() => {
+  if (showProfileSetup && currentUser && !emailVerified) {
+    // Check every 5 seconds if email is verified
+    const interval = setInterval(async () => {
+      console.log('🔄 Checking email verification status...');
+      const verified = await checkEmailVerified();
+      
+      if (verified) {
+        setEmailVerified(true);
+        console.log('✅ Email verified!');
+        alert('✅ Email verified! You can now complete your profile.');
+        clearInterval(interval);
+      }
+    }, 5000); // Check every 5 seconds
+    
+    return () => clearInterval(interval);
+  }
+}, [showProfileSetup, currentUser, emailVerified]);
+
   // Listen to live gig updates
   useEffect(() => {
     if (!liveGig?.id) return;
@@ -1072,37 +1092,44 @@ useEffect(() => {
 };
 
   // Profile handlers
-const handleSaveProfile = async () => {
-  try {
-    // Validate required fields
-    if (!profileData.artistName || !profileData.fullName || !profileData.bio || 
-        !profileData.genre || !profileData.location) {
-      alert('⚠️ Please fill in all required fields!');
-      return;
+  const handleSaveProfile = async () => {
+    try {
+      // 🔒 CHECK EMAIL VERIFICATION FIRST
+      if (!emailVerified) {
+        alert('⚠️ Please verify your email before completing your profile!\n\nCheck your inbox for the verification link.');
+        setShowEmailVerification(true);
+        return;
+      }
+      
+      // Validate required fields
+      if (!profileData.artistName || !profileData.fullName || !profileData.bio || 
+          !profileData.genre || !profileData.location) {
+        alert('⚠️ Please fill in all required fields!');
+        return;
+      }
+      
+      if (profileData.bio.length < 50) {
+        alert('⚠️ Bio must be at least 50 characters long!');
+        return;
+      }
+      
+      // Save profile
+      await saveArtistProfile(currentUser.uid, {
+        ...profileData,
+        email: currentUser.email,
+        emailVerified: currentUser.emailVerified
+      });
+      
+      // Reload profile
+      const updatedProfile = await getArtistProfile(currentUser.uid);
+      setArtistProfile(updatedProfile);
+      
+      setShowProfileSetup(false);
+      alert('✅ Profile saved successfully!');
+    } catch (error) {
+      alert('Error saving profile: ' + error.message);
     }
-    
-    if (profileData.bio.length < 50) {
-      alert('⚠️ Bio must be at least 50 characters long!');
-      return;
-    }
-    
-    // Save profile
-    await saveArtistProfile(currentUser.uid, {
-      ...profileData,
-      email: currentUser.email,
-      emailVerified: currentUser.emailVerified
-    });
-    
-    // Reload profile
-    const updatedProfile = await getArtistProfile(currentUser.uid);
-    setArtistProfile(updatedProfile);
-    
-    setShowProfileSetup(false);
-    alert('✅ Profile saved successfully!');
-  } catch (error) {
-    alert('Error saving profile: ' + error.message);
-  }
-};
+  };
 
 const handleSendVerification = async () => {
   try {
