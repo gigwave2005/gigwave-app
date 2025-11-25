@@ -628,7 +628,6 @@ export const getInterestedCount = async (gigId) => {
 // Sign in with email and password
 export const signInWithEmail = async (email, password) => {
   try {
-    const { signInWithEmailAndPassword } = await import('firebase/auth');
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     console.log('✅ Signed in with email:', userCredential.user.email);
     return userCredential.user;
@@ -641,8 +640,11 @@ export const signInWithEmail = async (email, password) => {
 // Sign up with email and password
 export const signUpWithEmail = async (email, password) => {
   try {
-    const { createUserWithEmailAndPassword } = await import('firebase/auth');
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    
+    // Create user profile in Firestore
+    await createOrUpdateUser(userCredential.user);
+    
     console.log('✅ Signed up with email:', userCredential.user.email);
     return userCredential.user;
   } catch (error) {
@@ -652,7 +654,7 @@ export const signUpWithEmail = async (email, password) => {
 };
 
 // Task 20: Check if user already voted for a song in this gig
-const hasUserVoted = async (gigId, songId, userId) => {
+export const hasUserVoted = async (gigId, songId, userId) => {
   try {
     const voteRef = doc(db, 'liveGigs', String(gigId), 'votes', `${userId}_${songId}`);
     const voteSnap = await getDoc(voteRef);
@@ -664,7 +666,7 @@ const hasUserVoted = async (gigId, songId, userId) => {
 };
 
 // Task 20: Record user vote
-const recordUserVote = async (gigId, songId, userId) => {
+export const recordUserVote = async (gigId, songId, userId) => {
   try {
     const voteRef = doc(db, 'liveGigs', String(gigId), 'votes', `${userId}_${songId}`);
     await setDoc(voteRef, {
@@ -692,7 +694,7 @@ const recordUserVote = async (gigId, songId, userId) => {
 };
 
 // Task 21: Check if artist has any active live gig
-const getActiveLiveGigForArtist = async (artistEmail) => {
+export const getActiveLiveGigForArtist = async (artistEmail) => {
   try {
     const q = query(
       collection(db, 'liveGigs'),
