@@ -204,37 +204,59 @@ const [showEmailVerification, setShowEmailVerification] = useState(false);
 
   // Listen to auth changes and check profile
   useEffect(() => {
+    console.log('🔄 useEffect RUNNING - mode:', mode);
+    
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log('👤 Auth state changed:', user ? user.email : 'No user');
       setCurrentUser(user);
       
       if (user) {
         // Check email verification
         setEmailVerified(user.emailVerified);
+        console.log('📧 Email verified:', user.emailVerified);
         
         // Load artist profile
         try {
+          console.log('📥 Loading profile for UID:', user.uid);
           const profile = await getArtistProfile(user.uid);
+          console.log('📦 Profile loaded:', profile);
           setArtistProfile(profile);
           
           // Check if profile is complete
+          console.log('🔍 Checking if profile is complete...');
           const complete = await isProfileComplete(user.uid);
+          console.log('✅ Profile complete?', complete);
           
-          // If profile incomplete, force profile setup
-          if (!complete && mode !== 'discover' && mode !== 'audience') {
+          // Debug the condition
+          console.log('🎯 Condition check:');
+          console.log('   - !complete:', !complete);
+          console.log('   - mode === "artist":', mode === 'artist');
+          console.log('   - Result:', !complete && mode === 'artist');
+          
+          // If profile incomplete and in artist mode, force profile setup
+          if (!complete && mode === 'artist') {
+            console.log('🎸 ✅ SHOWING PROFILE SETUP MODAL');
             setShowProfileSetup(true);
+          } else {
+            console.log('❌ NOT showing profile setup modal');
           }
         } catch (error) {
-          console.error('Error loading profile:', error);
+          console.error('❌ Error loading profile:', error);
         }
       } else {
+        console.log('👤 No user - clearing profile');
         setArtistProfile(null);
       }
       
       setAuthLoading(false);
+      console.log('✅ Auth loading complete');
     });
     
-    return () => unsubscribe();
-  }, []);
+    return () => {
+      console.log('🧹 Cleaning up auth listener');
+      unsubscribe();
+    };
+  }, [mode]);
 
   // Listen to live gig updates
   useEffect(() => {
@@ -457,6 +479,7 @@ useEffect(() => {
         await signInWithFacebook();
       }
       setShowAuthModal(false);
+      setMode('artist'); // ← ADD THIS LINE
     } catch (error) {
       alert('Sign-in failed: ' + error.message);
     }
@@ -1169,8 +1192,10 @@ const handleCheckVerification = async () => {
       try {
         if (authTab === 'signup') {
           await signUpWithEmail(authEmail, authPassword);
+          setMode('artist'); // ← THIS LINE MUST BE HERE
         } else {
           await signInWithEmail(authEmail, authPassword);
+          setMode('artist'); // ← AND HERE
         }
         setShowAuthModal(false);
         alert(`✅ ${authTab === 'signup' ? 'Account created' : 'Signed in'} successfully!`);
