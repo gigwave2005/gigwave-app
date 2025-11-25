@@ -8,6 +8,7 @@ import {
   updateDoc,
   deleteDoc,
   arrayUnion,
+  arrayRemove,
   setDoc, 
   getDoc, 
   query,
