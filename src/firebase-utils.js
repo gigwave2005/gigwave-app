@@ -847,55 +847,37 @@ export const uploadProfilePhoto = async (userId, file) => {
   }
 };
 
-// Export everything needed
+// ===================================
+// RE-EXPORT FIREBASE UTILITIES
+// ===================================
+// Only re-export Firebase SDK imports that App.jsx uses
+// All custom functions are already exported with 'export const' above
+
 export {
+  // Firebase Auth
   auth,
+  onAuthStateChanged,
+  
+  // Firestore Instance
   db,
+  
+  // Firestore Document Operations
   doc,
   getDoc,
   setDoc,
   updateDoc,
   deleteDoc,
+  
+  // Firestore Query Operations
   collection,
   query,
   where,
   getDocs,
+  
+  // Firestore Data Types & Utilities
   arrayUnion,
   arrayRemove,
   increment,
   serverTimestamp,
-  GeoPoint,
-  firebaseOnAuthStateChanged as onAuthStateChanged,
-  signInWithGoogle,
-  signInWithFacebook,
-  signInWithEmail,
-  signUpWithEmail,
-  signOutUser,
-  getUserLocation,
-  calculateDistance,
-  isWithinRange,
-  searchNearbyGigs,
-  createLiveGig,
-  updateGigToLive,
-  extendGigTime,
-  listenToLiveGig,
-  voteForSong,
-  addComment,
-  processDonation,
-  endLiveGig,
-  checkAndSwapSongs,
-  checkAndCancelExpiredGigs,
-  deleteGigFromFirebase,
-  markAsInterested,
-  unmarkAsInterested,
-  getInterestedCount,
-  hasUserVoted,
-  recordUserVote,
-  getActiveLiveGigForArtist,
-  saveArtistProfile,
-  getArtistProfile,
-  isProfileComplete,
-  sendEmailVerification,
-  checkEmailVerified,
-  uploadProfilePhoto
+  GeoPoint
 };
