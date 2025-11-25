@@ -27,7 +27,9 @@ import {
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
-  onAuthStateChanged as firebaseOnAuthStateChanged
+  onAuthStateChanged as firebaseOnAuthStateChanged,
+  sendEmailVerification as firebaseSendEmailVerification,
+  reload as firebaseReload
 } from 'firebase/auth';
 import { 
   geohashForLocation,
@@ -824,6 +826,65 @@ export const uploadProfilePhoto = async (userId, file) => {
   } catch (error) {
     console.error('❌ Error uploading photo:', error);
     throw error;
+  }
+};
+
+/**
+ * Send email verification
+ */
+export const sendEmailVerification = async () => {
+  try {
+    const user = auth.currentUser;
+    
+    if (!user) {
+      throw new Error('No user logged in. Please sign in first.');
+    }
+    
+    if (user.emailVerified) {
+      console.log('✅ Email already verified');
+      return { success: true, message: 'Email already verified' };
+    }
+    
+    await firebaseSendEmailVerification(user);
+    console.log('📧 Verification email sent to:', user.email);
+    
+    return { success: true, message: 'Verification email sent! Check your inbox.' };
+  } catch (error) {
+    console.error('❌ Error sending verification:', error);
+    
+    if (error.code === 'auth/too-many-requests') {
+      throw new Error('Too many requests. Please wait a few minutes and try again.');
+    }
+    
+    throw new Error(error.message || 'Failed to send verification email');
+  }
+};
+
+/**
+ * Check if email is verified
+ */
+export const checkEmailVerified = async () => {
+  try {
+    const user = auth.currentUser;
+    
+    if (!user) {
+      console.log('⚠️ No user logged in');
+      return false;
+    }
+    
+    await firebaseReload(user);
+    
+    console.log('🔄 Email verification status:', user.emailVerified);
+    return user.emailVerified;
+  } catch (error) {
+    console.error('❌ Error checking verification:', error);
+    
+    if (error.code === 'auth/user-token-expired' || error.code === 'auth/invalid-user-token') {
+      console.log('⚠️ User session expired');
+      return false;
+    }
+    
+    return false;
   }
 };
 
