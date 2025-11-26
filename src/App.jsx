@@ -1388,17 +1388,28 @@ const handleCheckVerification = async () => {
   
           {/* Email Verification Warning */}
           {!emailVerified && (
-            <div className="bg-orange/20 border border-orange rounded-lg p-4 mb-6">
-              <p className="text-orange font-bold mb-2">⚠️ Email Not Verified</p>
-              <p className="text-white text-sm mb-3">
-                Please verify your email to use all features.
+            <div className="bg-red-500/20 border-2 border-red-400 rounded-lg p-6 mb-6">
+              <p className="text-red-300 font-bold text-lg mb-2">⚠️ EMAIL NOT VERIFIED</p>
+              <p className="text-white mb-4">
+                You must verify your email before completing your profile.
               </p>
-              <button
-                onClick={() => setShowEmailVerification(true)}
-                className="btn btn-electric text-sm"
-              >
-                📧 Verify Email
-              </button>
+              <p className="text-red-200 text-sm mb-4">
+                Check your inbox: <span className="font-bold">{currentUser?.email}</span>
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleSendVerification}  // ✅ CORRECT - actually sends email
+                  className="flex-1 btn btn-neon text-sm"
+                >
+                  📧 Send Verification Email
+                </button>
+                <button
+                  onClick={handleCheckVerification}  // ✅ CORRECT - checks status
+                  className="flex-1 btn btn-electric text-sm"
+                >
+                  🔄 Check Status
+                </button>
+              </div>
             </div>
           )}
   
