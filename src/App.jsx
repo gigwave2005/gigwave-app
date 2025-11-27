@@ -3270,7 +3270,7 @@ const handleCheckVerification = async () => {
                 <h3 className="text-2xl font-bold text-white mb-4">
                   🎤 SONG REQUESTS ({liveGigData?.songRequests?.length || 0})
                 </h3>
-    
+              
                 {(!liveGigData?.songRequests || liveGigData.songRequests.length === 0) ? (
                   <div className="bg-white/5 rounded-lg p-8 text-center">
                     <p className="text-gray-400">No song requests yet</p>
@@ -3353,17 +3353,17 @@ const handleCheckVerification = async () => {
                           </div>
                         </div>
                         
-                      {request.message && (
-                        <div className="mt-3 p-3 bg-black/30 rounded border border-white/10">
-                          <p className="text-sm text-gray-400 mb-1">💬 Message:</p>
-                          <p className="text-white italic">"{request.message}"</p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                        {request.message && (
+                          <div className="mt-3 p-3 bg-black/30 rounded border border-white/10">
+                            <p className="text-sm text-gray-400 mb-1">💬 Message:</p>
+                            <p className="text-white italic">"{request.message}"</p>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
           
               {/* Master Playlist Section - ADD SONGS ON THE FLY */}
           <div className="bg-white/10 rounded-xl p-6 mb-6">
