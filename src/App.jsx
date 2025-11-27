@@ -46,6 +46,12 @@ import {
   sendEmailVerification,
   checkEmailVerified,
   uploadProfilePhoto,
+  // 🎵 NEW SONG REQUEST FUNCTIONS
+  submitSongRequest,
+  acceptSongRequest,
+  rejectSongRequest,
+  updateJukeboxSettings,
+  getSortedSongRequests,
 } from './firebase-utils';
 
 // Social Media Follow Buttons Component
@@ -177,6 +183,13 @@ export default function App() {
   const [showGigDetailModal, setShowGigDetailModal] = useState(false);
   const [interestedGigs, setInterestedGigs] = useState([]);
   const [isEndingGig, setIsEndingGig] = useState(false);
+
+  // Add with other state declarations
+  const [showJukeboxSettings, setShowJukeboxSettings] = useState(false);
+  const [jukeboxSettings, setJukeboxSettings] = useState({
+    enabled: false,
+    price: 50
+  });
 
   // Profile state
 const [artistProfile, setArtistProfile] = useState(null);
@@ -3161,7 +3174,203 @@ const handleCheckVerification = async () => {
                     </div>
                   );
                 })}
-
+                
+                            await updateDoc(gigRef, {
+                                  playedSongs: arrayUnion(song.id)
+                                });
+                                alert('✅ Song marked as played!');
+                              } catch (error) {
+                                console.error('❌ Error marking song:', error);
+                                alert('Error: ' + error.message);
+                              }
+                            }
+                          }}
+                          className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold whitespace-nowrap"
+                        >
+                          ✅ Mark Played
+                        </button>
+                      </div>
+                    </div>
+                    );
+                  })}
+      
+              </div>
+            </div>
+      
+            {/* 🎵 JUKEBOX SETTINGS CARD */}
+              <div className="bg-white/10 rounded-xl p-6 mb-6 border-2 border-electric">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-2xl font-bold text-white">
+                    🎵 JUKEBOX MODE
+                  </h3>
+                  <button
+                    onClick={() => setShowJukeboxSettings(!showJukeboxSettings)}
+                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold text-sm"
+                  >
+                    ⚙️ Settings
+                  </button>
+                </div>
+    
+                {/* Quick Toggle */}
+                <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg mb-4">
+                  <div>
+                    <p className="text-white font-bold">Enable Paid Requests</p>
+                    <p className="text-gray-400 text-sm">
+                      Audience pays ₹{liveGigData?.jukeboxPrice || 50} per request
+                    </p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      const newStatus = !liveGigData?.jukeboxMode;
+                      try {
+                        await updateJukeboxSettings(liveGig.id, {
+                          jukeboxMode: newStatus,
+                          jukeboxPrice: liveGigData?.jukeboxPrice || 50
+                        });
+                        alert(newStatus ? '✅ Jukebox Mode ENABLED' : '⚠️ Jukebox Mode DISABLED');
+                      } catch (error) {
+                        alert('Error: ' + error.message);
+                      }
+                    }}
+                    className={`px-6 py-3 rounded-lg font-bold transition ${
+                      liveGigData?.jukeboxMode 
+                        ? 'bg-green-500 hover:bg-green-600' 
+                        : 'bg-gray-500 hover:bg-gray-600'
+                    } text-white`}
+                  >
+                    {liveGigData?.jukeboxMode ? 'ON' : 'OFF'}
+                  </button>
+                </div>
+    
+                {/* Request Stats */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-blue-500/20 border border-blue-400 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-white">
+                      {liveGigData?.songRequests?.filter(r => r.status === 'pending').length || 0}
+                    </div>
+                    <div className="text-blue-300 text-sm">Pending</div>
+                  </div>
+                  <div className="bg-green-500/20 border border-green-400 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-white">
+                      {liveGigData?.songRequests?.filter(r => r.isPaid).length || 0}
+                    </div>
+                    <div className="text-green-300 text-sm">Paid</div>
+                  </div>
+                  <div className="bg-purple-500/20 border border-purple-400 rounded-lg p-3 text-center">
+                    <div className="text-2xl font-bold text-white">
+                      ₹{liveGigData?.songRequests?.filter(r => r.isPaid).reduce((sum, r) => sum + r.amount, 0) || 0}
+                    </div>
+                    <div className="text-purple-300 text-sm">Earned</div>
+                  </div>
+                </div>
+              </div>
+    
+              {/* 🎤 SONG REQUESTS CARD */}
+              <div className="bg-white/10 rounded-xl p-6 mb-6 border-2 border-magenta">
+                <h3 className="text-2xl font-bold text-white mb-4">
+                  🎤 SONG REQUESTS ({liveGigData?.songRequests?.length || 0})
+                </h3>
+    
+                {(!liveGigData?.songRequests || liveGigData.songRequests.length === 0) ? (
+                  <div className="bg-white/5 rounded-lg p-8 text-center">
+                    <p className="text-gray-400">No song requests yet</p>
+                    <p className="text-gray-400 text-sm mt-2">
+                      {liveGigData?.jukeboxMode 
+                        ? 'Jukebox mode is ON - requests cost ₹' + (liveGigData?.jukeboxPrice || 50)
+                        : 'Jukebox mode is OFF - requests are free'
+                      }
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-96 overflow-y-auto">
+                    {getSortedSongRequests(liveGigData.songRequests).map(request => (
+                      <div
+                        key={request.id}
+                        className={`p-4 rounded-lg border-2 ${
+                          request.isPaid 
+                            ? 'bg-yellow-500/20 border-yellow-400' 
+                            : 'bg-white/5 border-white/20'
+                        }`}
+                      >
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="text-white font-bold text-lg">
+                                {request.songTitle}
+                              </span>
+                              {request.isPaid && (
+                                <span className="px-2 py-1 bg-yellow-500 text-black text-xs font-bold rounded">
+                                  ₹{request.amount}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-gray-400 text-sm">{request.songArtist}</p>
+                            <p className="text-blue-300 text-sm mt-1">
+                              Requested by: {request.requesterName}
+                            </p>
+                          </div>
+                          <div className="flex gap-2">
+                            {request.status === 'pending' && (
+                              <>
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      await acceptSongRequest(liveGig.id, request.id);
+                                      alert('✅ Request accepted!');
+                                    } catch (error) {
+                                      alert('Error: ' + error.message);
+                                    }
+                                  }}
+                                  className="px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg font-bold text-sm"
+                                >
+                                  ✓ Accept
+                                </button>
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      await rejectSongRequest(liveGig.id, request.id);
+                                      alert('❌ Request rejected');
+                                    } catch (error) {
+                                      alert('Error: ' + error.message);
+                                    }
+                                  }}
+                                  className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg font-bold text-sm"
+                                >
+                                  ✗ Reject
+                                </button>
+                              </>
+                            )}
+                            {request.status === 'accepted' && (
+                              <span className="text-green-400 text-sm font-bold">
+                                ✓ Accepted
+                              </span>
+                            )}
+                            {request.status === 'rejected' && (
+                              <span className="text-red-400 text-sm font-bold">
+                                ✗ Rejected
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        
+                      {request.message && (
+                        <div className="mt-3 p-3 bg-black/30 rounded border border-white/10">
+                          <p className="text-sm text-gray-400 mb-1">💬 Message:</p>
+                          <p className="text-white italic">"{request.message}"</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          
+              {/* Master Playlist Section - ADD SONGS ON THE FLY */}
+          <div className="bg-white/10 rounded-xl p-6 mb-6">
+            <h3 className="text-2xl font-bold text-white mb-4">📚 Master Playlist - Add Songs</h3>
+            <p className="text-purple-200 text-sm mb-4">Add songs from your master playlist to the queue during the performance</p>
+            
+              
               {/* Master Playlist Section - ADD SONGS ON THE FLY */}
           <div className="bg-white/10 rounded-xl p-6 mb-6">
             <h3 className="text-2xl font-bold text-white mb-4">📚 Master Playlist - Add Songs</h3>
