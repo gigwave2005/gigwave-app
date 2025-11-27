@@ -3276,7 +3276,7 @@ const handleCheckVerification = async () => {
                     <p className="text-gray-400">No song requests yet</p>
                     <p className="text-gray-400 text-sm mt-2">
                       {liveGigData?.jukeboxMode 
-                        ? 'Jukebox mode is ON - requests cost ₹' + (liveGigData?.jukeboxPrice || 50)
+                        ? `Jukebox mode is ON - requests cost ₹${liveGigData?.jukeboxPrice || 50}`
                         : 'Jukebox mode is OFF - requests are free'
                       }
                     </p>
