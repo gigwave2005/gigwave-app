@@ -3197,6 +3197,7 @@ const handleCheckVerification = async () => {
               </div>
             </div>
       
+            {/* TEMPORARILY DISABLED FOR DEBUGGING
             {/* 🎵 JUKEBOX SETTINGS CARD */}
               <div className="bg-white/10 rounded-xl p-6 mb-6 border-2 border-electric">
                 <div className="flex justify-between items-center mb-4">
@@ -3364,6 +3365,7 @@ const handleCheckVerification = async () => {
                   </div>
                 )}
               </div>
+              END TEMPORARILY DISABLED */}
           
               {/* Master Playlist Section - ADD SONGS ON THE FLY */}
           <div className="bg-white/10 rounded-xl p-6 mb-6">
