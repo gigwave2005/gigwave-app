@@ -3781,6 +3781,7 @@ const handleCheckVerification = async () => {
               </div>
             </div>
           )}
+
           {/* FREE SONG REQUEST MODAL */}
           {showRequestModal && (
             <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -3788,12 +3789,8 @@ const handleCheckVerification = async () => {
                 {/* Modal Header */}
                 <div className="flex justify-between items-center mb-6">
                   <div>
-                    <h2 className="concert-heading text-3xl text-magenta">
-                      REQUEST A SONG
-                    </h2>
-                    <p className="text-gray-light text-sm mt-2">
-                      Send your song request to the artist
-                    </p>
+                    <h2 className="concert-heading text-3xl text-magenta">REQUEST A SONG</h2>
+                    <p className="text-gray-light text-sm mt-2">Send your song request to the artist</p>
                   </div>
                   <button
                     onClick={() => {
@@ -3806,7 +3803,7 @@ const handleCheckVerification = async () => {
                     <X size={32} />
                   </button>
                 </div>
-  
+          
                 {/* Song Selection */}
                 <div className="mb-6">
                   <h3 className="text-white font-bold text-xl mb-3">Select a Song</h3>
@@ -3836,13 +3833,11 @@ const handleCheckVerification = async () => {
                           </div>
                         ))
                     ) : (
-                      <div className="text-center py-8 text-gray-light">
-                        No songs available for request
-                      </div>
+                      <div className="text-center py-8 text-gray-light">No songs available</div>
                     )}
                   </div>
                 </div>
-  
+          
                 {/* Selected Song Display */}
                 {selectedRequestSong && (
                   <div className="mb-6 p-4 bg-magenta/20 border-2 border-magenta rounded-lg">
@@ -3851,16 +3846,14 @@ const handleCheckVerification = async () => {
                     <p className="text-electric">{selectedRequestSong.artist}</p>
                   </div>
                 )}
-  
+          
                 {/* Optional Message */}
                 <div className="mb-6">
-                  <label className="text-white font-bold mb-2 block">
-                    Add a Message (Optional)
-                  </label>
+                  <label className="text-white font-bold mb-2 block">Add a Message (Optional)</label>
                   <textarea
                     value={requestMessage}
                     onChange={(e) => setRequestMessage(e.target.value)}
-                    placeholder="Add a dedication or message for the artist..."
+                    placeholder="Add a dedication or message..."
                     maxLength={200}
                     className="w-full px-4 py-3 rounded-lg bg-black/50 text-white placeholder-gray-400 border border-white/20 focus:border-magenta focus:outline-none resize-none"
                     rows={3}
@@ -3869,7 +3862,7 @@ const handleCheckVerification = async () => {
                     {requestMessage.length}/200 characters
                   </div>
                 </div>
-  
+          
                 {/* Action Buttons */}
                 <div className="flex flex-col md:flex-row gap-3">
                   <button
@@ -3894,21 +3887,16 @@ const handleCheckVerification = async () => {
                     Cancel
                   </button>
                 </div>
-  
+          
                 {/* Info Notice */}
                 <div className="mt-4 p-3 bg-blue-500/20 border border-blue-400/50 rounded-lg">
                   <p className="text-blue-300 text-sm">
-                    Your song request will be reviewed by the artist. 
                     Requests are FREE - no payment required!
                   </p>
                 </div>
               </div>
             </div>
           )}
-        </div>
-      </div>
-    );
-  }
 
   // Fallback
   return (
