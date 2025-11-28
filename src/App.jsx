@@ -3215,26 +3215,7 @@ const handleCheckVerification = async () => {
                     </div>
                   );
                 })}
-                
-                            await updateDoc(gigRef, {
-                                  playedSongs: arrayUnion(song.id)
-                                });
-                                alert('✅ Song marked as played!');
-                              } catch (error) {
-                                console.error('❌ Error marking song:', error);
-                                alert('Error: ' + error.message);
-                              }
-                            }
-                          }}
-                          className="px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold whitespace-nowrap"
-                        >
-                          ✅ Mark Played
-                        </button>
-                      </div>
-                    </div>
-                    );
-                  })}
-      
+              
               </div>
             </div>
       
