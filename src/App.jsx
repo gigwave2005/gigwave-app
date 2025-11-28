@@ -186,10 +186,10 @@ export default function App() {
 
   // Add with other state declarations
   const [showJukeboxSettings, setShowJukeboxSettings] = useState(false);
-  const [jukeboxSettings, setJukeboxSettings] = useState({
-    enabled: false,
-    price: 50
-  });
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [selectedRequestSong, setSelectedRequestSong] = useState(null);
+  const [requestMessage, setRequestMessage] = useState('');
+  const [requestsEnabled, setRequestsEnabled] = useState(true); // Toggle for requests
 
   // Profile state
 const [artistProfile, setArtistProfile] = useState(null);
@@ -1231,6 +1231,47 @@ const handleCheckVerification = async () => {
     } catch (error) {
       console.error('Error voting:', error);
       alert('❌ Error recording vote: ' + error.message);
+    }
+  };
+
+  // Handle FREE Song Request Submission (No Payment)
+  const handleSongRequest = async () => {
+    if (!selectedRequestSong) {
+      alert('Please select a song first!');
+      return;
+    }
+
+    if (!currentUser) {
+      alert('Please log in to request a song');
+      setShowAuthModal(true);
+      return;
+    }
+
+    if (requestMessage.length > 200) {
+      alert('Message must be 200 characters or less');
+      return;
+    }
+    
+    try {
+      // Submit FREE song request (no payment)
+      await submitSongRequest(
+        liveGig.id,
+        selectedRequestSong,
+        currentUser.uid,
+        currentUser.displayName || 'Anonymous',
+        requestMessage,
+        0, // No payment amount
+        false // Not paid
+      );
+
+      alert(`Song requested!\n\n"${selectedRequestSong.title}"\n\nThe artist will review your request.`);
+
+      setShowRequestModal(false);
+      setSelectedRequestSong(null);
+      setRequestMessage('');
+    } catch (error) {
+      console.error('Error submitting song request:', error);
+      alert('Error: ' + error.message);
     }
   };
      
@@ -3197,74 +3238,58 @@ const handleCheckVerification = async () => {
               </div>
             </div>
       
-              {/* 🎵 JUKEBOX SETTINGS CARD */}
+              {/* 🎵 SONG REQUESTS TOGGLE */}
               <div className="bg-white/10 rounded-xl p-6 mb-6 border-2 border-electric">
-                <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-2xl font-bold text-white">
-                    🎵 JUKEBOX MODE
-                  </h3>
-                  <button
-                    onClick={() => setShowJukeboxSettings(!showJukeboxSettings)}
-                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-bold text-sm"
-                  >
-                    ⚙️ Settings
-                  </button>
-                </div>
-    
-                {/* Quick Toggle */}
-                <div className="flex items-center justify-between p-4 bg-white/5 rounded-lg mb-4">
+                <div className="flex justify-between items-center">
                   <div>
-                    <p className="text-white font-bold">Enable Paid Requests</p>
-                    <p className="text-gray-400 text-sm">
-                      Audience pays ₹{liveGigData?.jukeboxPrice || 50} per request
+                    <h3 className="text-2xl font-bold text-white">
+                      SONG REQUESTS
+                    </h3>
+                    <p className="text-gray-400 text-sm mt-1">
+                      Allow audience to request songs (FREE)
                     </p>
                   </div>
                   <button
                     onClick={async () => {
-                      const newStatus = !liveGigData?.jukeboxMode;
+                      const newStatus = !(liveGigData?.requestsEnabled !== false);
                       try {
                         await updateJukeboxSettings(liveGig.id, {
-                          jukeboxMode: newStatus,
-                          jukeboxPrice: liveGigData?.jukeboxPrice || 50
+                          requestsEnabled: newStatus,
+                          jukeboxMode: false, // Disable paid mode
+                          jukeboxPrice: 0
                         });
-                        alert(newStatus ? '✅ Jukebox Mode ENABLED' : '⚠️ Jukebox Mode DISABLED');
+                        alert(newStatus ? 'Song requests ENABLED' : 'Song requests DISABLED');
                       } catch (error) {
                         alert('Error: ' + error.message);
                       }
                     }}
-                    className={`px-6 py-3 rounded-lg font-bold transition ${
-                      liveGigData?.jukeboxMode 
+                    className={`px-8 py-4 rounded-lg font-bold text-xl transition ${
+                      liveGigData?.requestsEnabled !== false
                         ? 'bg-green-500 hover:bg-green-600' 
                         : 'bg-gray-500 hover:bg-gray-600'
                     } text-white`}
                   >
-                    {liveGigData?.jukeboxMode ? 'ON' : 'OFF'}
+                    {liveGigData?.requestsEnabled !== false ? 'ON' : 'OFF'}
                   </button>
                 </div>
-    
-                {/* Request Stats */}
-                <div className="grid grid-cols-3 gap-3">
+                
+                {/* Request Stats - Simple Version */}
+                <div className="grid grid-cols-2 gap-3 mt-4">
                   <div className="bg-blue-500/20 border border-blue-400 rounded-lg p-3 text-center">
                     <div className="text-2xl font-bold text-white">
                       {liveGigData?.songRequests?.filter(r => r.status === 'pending').length || 0}
                     </div>
-                    <div className="text-blue-300 text-sm">Pending</div>
+                    <div className="text-blue-300 text-sm">Pending Requests</div>
                   </div>
                   <div className="bg-green-500/20 border border-green-400 rounded-lg p-3 text-center">
                     <div className="text-2xl font-bold text-white">
-                      {liveGigData?.songRequests?.filter(r => r.isPaid).length || 0}
+                      {liveGigData?.songRequests?.filter(r => r.status === 'accepted').length || 0}
                     </div>
-                    <div className="text-green-300 text-sm">Paid</div>
-                  </div>
-                  <div className="bg-purple-500/20 border border-purple-400 rounded-lg p-3 text-center">
-                    <div className="text-2xl font-bold text-white">
-                      ₹{liveGigData?.songRequests?.filter(r => r.isPaid).reduce((sum, r) => sum + r.amount, 0) || 0}
-                    </div>
-                    <div className="text-purple-300 text-sm">Earned</div>
+                    <div className="text-green-300 text-sm">Accepted</div>
                   </div>
                 </div>
               </div>
-    
+                  
               {/* 🎤 SONG REQUESTS CARD */}
               <div className="bg-white/10 rounded-xl p-6 mb-6 border-2 border-magenta">
                 <h3 className="text-2xl font-bold text-white mb-4">
@@ -3275,9 +3300,9 @@ const handleCheckVerification = async () => {
                   <div className="bg-white/5 rounded-lg p-8 text-center">
                     <p className="text-gray-400">No song requests yet</p>
                     <p className="text-gray-400 text-sm mt-2">
-                      {liveGigData?.jukeboxMode 
-                        ? `Jukebox mode is ON - requests cost ₹${liveGigData?.jukeboxPrice || 50}`
-                        : 'Jukebox mode is OFF - requests are free'
+                      {liveGigData?.requestsEnabled !== false
+                        ? 'Song requests are enabled (FREE)'
+                        : 'Song requests are currently disabled'
                       }
                     </p>
                   </div>
@@ -3297,12 +3322,7 @@ const handleCheckVerification = async () => {
                             <div className="flex items-center gap-2 mb-1">
                               <span className="text-white font-bold text-lg">
                                 {request.songTitle}
-                              </span>
-                              {request.isPaid && (
-                                <span className="px-2 py-1 bg-yellow-500 text-black text-xs font-bold rounded">
-                                  ₹{request.amount}
-                                </span>
-                              )}
+                              </span>                              
                             </div>
                             <p className="text-gray-400 text-sm">{request.songArtist}</p>
                             <p className="text-blue-300 text-sm mt-1">
@@ -3511,6 +3531,20 @@ const handleCheckVerification = async () => {
                 {liveGig.venueAddress && (
                   <p className="text-gray text-sm">📌 {liveGig.venueAddress}</p>
                 )}
+                
+                {/* FREE SONG REQUEST BUTTON */}
+                {liveGigData?.requestsEnabled !== false && (
+                  <div className="mt-4">
+                    <button
+                      onClick={() => setShowRequestModal(true)}
+                      className="btn btn-fire text-lg px-6 py-3 w-full md:w-auto"
+                    >
+                      <Music size={24} />
+                      <span>Request a Song</span>
+                    </button>
+                  </div>
+                )}
+                
                 {/* Social Follow Buttons */}
                 {artistProfile?.socialMedia && (
                   <div className="mt-4">
@@ -3744,6 +3778,130 @@ const handleCheckVerification = async () => {
                     <p className="text-gray-light">{comment.text}</p>
                   </div>
                 ))}
+              </div>
+            </div>
+          )}
+          {/* FREE SONG REQUEST MODAL */}
+          {showRequestModal && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <div className="gig-card max-w-2xl w-full max-h-[90vh] overflow-y-auto border-2 border-magenta">
+                {/* Modal Header */}
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h2 className="concert-heading text-3xl text-magenta">
+                      REQUEST A SONG
+                    </h2>
+                    <p className="text-gray-light text-sm mt-2">
+                      Send your song request to the artist
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowRequestModal(false);
+                      setSelectedRequestSong(null);
+                      setRequestMessage('');
+                    }}
+                    className="text-white hover:text-neon transition"
+                  >
+                    <X size={32} />
+                  </button>
+                </div>
+  
+                {/* Song Selection */}
+                <div className="mb-6">
+                  <h3 className="text-white font-bold text-xl mb-3">Select a Song</h3>
+                  <div className="space-y-2 max-h-64 overflow-y-auto bg-black/30 rounded-lg p-3 border border-white/10">
+                    {liveGig.masterPlaylist && liveGig.masterPlaylist.length > 0 ? (
+                      liveGig.masterPlaylist
+                        .filter(song => !liveGigData.playedSongs?.includes(song.id))
+                        .map(song => (
+                          <div
+                            key={song.id}
+                            onClick={() => setSelectedRequestSong(song)}
+                            className={`p-3 rounded-lg cursor-pointer transition border-2 ${
+                              selectedRequestSong?.id === song.id
+                                ? 'bg-magenta/30 border-magenta'
+                                : 'bg-white/5 border-white/10 hover:border-electric/50'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="text-white font-bold">{song.title}</div>
+                                <div className="text-electric text-sm">{song.artist}</div>
+                              </div>
+                              {selectedRequestSong?.id === song.id && (
+                                <div className="text-magenta text-2xl">✓</div>
+                              )}
+                            </div>
+                          </div>
+                        ))
+                    ) : (
+                      <div className="text-center py-8 text-gray-light">
+                        No songs available for request
+                      </div>
+                    )}
+                  </div>
+                </div>
+  
+                {/* Selected Song Display */}
+                {selectedRequestSong && (
+                  <div className="mb-6 p-4 bg-magenta/20 border-2 border-magenta rounded-lg">
+                    <p className="text-magenta font-bold text-sm mb-2">SELECTED SONG:</p>
+                    <h4 className="text-white font-bold text-xl">{selectedRequestSong.title}</h4>
+                    <p className="text-electric">{selectedRequestSong.artist}</p>
+                  </div>
+                )}
+  
+                {/* Optional Message */}
+                <div className="mb-6">
+                  <label className="text-white font-bold mb-2 block">
+                    Add a Message (Optional)
+                  </label>
+                  <textarea
+                    value={requestMessage}
+                    onChange={(e) => setRequestMessage(e.target.value)}
+                    placeholder="Add a dedication or message for the artist..."
+                    maxLength={200}
+                    className="w-full px-4 py-3 rounded-lg bg-black/50 text-white placeholder-gray-400 border border-white/20 focus:border-magenta focus:outline-none resize-none"
+                    rows={3}
+                  />
+                  <div className="text-right text-gray-light text-sm mt-1">
+                    {requestMessage.length}/200 characters
+                  </div>
+                </div>
+  
+                {/* Action Buttons */}
+                <div className="flex flex-col md:flex-row gap-3">
+                  <button
+                    onClick={handleSongRequest}
+                    disabled={!selectedRequestSong}
+                    className={`flex-1 py-4 rounded-lg font-bold text-lg transition ${
+                      selectedRequestSong
+                        ? 'bg-gradient-to-r from-magenta to-electric hover:from-magenta/80 hover:to-electric/80 text-white'
+                        : 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                    }`}
+                  >
+                    {selectedRequestSong ? 'Send Request' : 'Select a song first'}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setShowRequestModal(false);
+                      setSelectedRequestSong(null);
+                      setRequestMessage('');
+                    }}
+                    className="px-6 py-4 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-bold transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+  
+                {/* Info Notice */}
+                <div className="mt-4 p-3 bg-blue-500/20 border border-blue-400/50 rounded-lg">
+                  <p className="text-blue-300 text-sm">
+                    Your song request will be reviewed by the artist. 
+                    Requests are FREE - no payment required!
+                  </p>
+                </div>
               </div>
             </div>
           )}
