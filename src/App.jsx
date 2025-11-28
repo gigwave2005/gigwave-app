@@ -3880,7 +3880,7 @@ const handleCheckVerification = async () => {
           )}
 
         </div>
-     </div>
+      </div>
    );
   }
 
