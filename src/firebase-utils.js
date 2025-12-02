@@ -1018,6 +1018,29 @@ export const updateJukeboxSettings = async (gigId, settings) => {
   }
 };
 
+// Sort song requests by priority (pending first, then by amount, then by timestamp)
+export const getSortedSongRequests = (requests) => {
+  if (!requests || requests.length === 0) return [];
+  
+  return [...requests].sort((a, b) => {
+    // First priority: pending requests before accepted/rejected
+    if (a.status === 'pending' && b.status !== 'pending') return -1;
+    if (a.status !== 'pending' && b.status === 'pending') return 1;
+    
+    // Second priority: paid requests (higher amounts first)
+    if (a.isPaid && !b.isPaid) return -1;
+    if (!a.isPaid && b.isPaid) return 1;
+    if (a.isPaid && b.isPaid && a.amount !== b.amount) {
+      return b.amount - a.amount; // Higher amounts first
+    }
+    
+    // Third priority: by timestamp (most recent first)
+    const timeA = a.timestamp?.seconds || 0;
+    const timeB = b.timestamp?.seconds || 0;
+    return timeB - timeA;
+  });
+};
+
 // ===================================
 // RE-EXPORT FIREBASE UTILITIES
 // ===================================
