@@ -1,3 +1,5 @@
+// Gigwave Auto-Cleanup Function - v1.0
+
 const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 
