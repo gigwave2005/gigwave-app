@@ -888,6 +888,136 @@ export const checkEmailVerified = async () => {
   }
 };
 
+// ========================================
+// ADD THIS FUNCTION TO firebase-utils.js
+// Insert it BEFORE the final export block (before line 897)
+// ========================================
+
+// Submit a song request (FREE - no payment)
+export const submitSongRequest = async (gigId, song, userId, userName, message = '', amount = 0, isPaid = false) => {
+  try {
+    const gigRef = doc(db, 'liveGigs', String(gigId));
+    const gigSnap = await getDoc(gigRef);
+    
+    if (!gigSnap.exists()) {
+      throw new Error('Live gig not found');
+    }
+
+    const gigData = gigSnap.data();
+    
+    // Check if requests are enabled
+    if (gigData.requestsEnabled === false) {
+      throw new Error('Song requests are currently disabled');
+    }
+
+    // Create the request object
+    const request = {
+      id: Date.now().toString(),
+      songId: song.id,
+      songTitle: song.title,
+      songArtist: song.artist,
+      requesterId: userId,
+      requesterName: userName,
+      message: message || '',
+      amount: amount,
+      isPaid: isPaid,
+      status: 'pending',
+      timestamp: serverTimestamp()
+    };
+
+    // Add the request to the songRequests array
+    await updateDoc(gigRef, {
+      songRequests: arrayUnion(request)
+    });
+
+    console.log('✅ Song request submitted:', request);
+    return request;
+  } catch (error) {
+    console.error('❌ Error submitting song request:', error);
+    throw error;
+  }
+};
+
+// Accept a song request
+export const acceptSongRequest = async (gigId, requestId) => {
+  try {
+    const gigRef = doc(db, 'liveGigs', String(gigId));
+    const gigSnap = await getDoc(gigRef);
+    
+    if (!gigSnap.exists()) {
+      throw new Error('Live gig not found');
+    }
+
+    const gigData = gigSnap.data();
+    const requests = gigData.songRequests || [];
+    
+    // Find and update the request
+    const updatedRequests = requests.map(req => 
+      req.id === requestId 
+        ? { ...req, status: 'accepted' }
+        : req
+    );
+
+    await updateDoc(gigRef, {
+      songRequests: updatedRequests
+    });
+
+    console.log('✅ Song request accepted:', requestId);
+  } catch (error) {
+    console.error('❌ Error accepting request:', error);
+    throw error;
+  }
+};
+
+// Reject a song request
+export const rejectSongRequest = async (gigId, requestId) => {
+  try {
+    const gigRef = doc(db, 'liveGigs', String(gigId));
+    const gigSnap = await getDoc(gigRef);
+    
+    if (!gigSnap.exists()) {
+      throw new Error('Live gig not found');
+    }
+
+    const gigData = gigSnap.data();
+    const requests = gigData.songRequests || [];
+    
+    // Find and update the request
+    const updatedRequests = requests.map(req => 
+      req.id === requestId 
+        ? { ...req, status: 'rejected' }
+        : req
+    );
+
+    await updateDoc(gigRef, {
+      songRequests: updatedRequests
+    });
+
+    console.log('✅ Song request rejected:', requestId);
+  } catch (error) {
+    console.error('❌ Error rejecting request:', error);
+    throw error;
+  }
+};
+
+// Update jukebox/request settings
+export const updateJukeboxSettings = async (gigId, settings) => {
+  try {
+    const gigRef = doc(db, 'liveGigs', String(gigId));
+    
+    await updateDoc(gigRef, {
+      requestsEnabled: settings.requestsEnabled !== undefined ? settings.requestsEnabled : true,
+      jukeboxMode: settings.jukeboxMode || false,
+      jukeboxPrice: settings.jukeboxPrice || 0
+    });
+
+    console.log('✅ Request settings updated:', settings);
+  } catch (error) {
+    console.error('❌ Error updating settings:', error);
+    throw error;
+  }
+};
+
 // ===================================
 // RE-EXPORT FIREBASE UTILITIES
 // ===================================
