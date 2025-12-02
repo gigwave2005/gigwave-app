@@ -5,10 +5,10 @@ const admin = require('firebase-admin');
 admin.initializeApp();
 const db = admin.firestore();
 
-// 🔄 SCHEDULED FUNCTION: Runs every hour
+// 🔄 Auto-cancel expired gigs every hour
 exports.autoCleanupExpiredGigs = functions.pubsub
-  .schedule('0 * * * *') // Every hour at minute 0 (e.g., 1:00, 2:00, 3:00)
-  .timeZone('America/New_York') // Change to your timezone
+  .schedule('0 * * * *') // Run every hour at :00
+  .timeZone('America/New_York') // Adjust to your timezone
   .onRun(async (context) => {
     console.log('🔍 Starting auto-cleanup of expired gigs...');
     
@@ -23,20 +23,20 @@ exports.autoCleanupExpiredGigs = functions.pubsub
       
       console.log(`📊 Found ${gigsSnapshot.size} gigs to check`);
       
-      // Check each gig
+      // Prepare batch update
       const batch = db.batch();
       let batchCount = 0;
       
       for (const doc of gigsSnapshot.docs) {
         const gig = doc.data();
         
-        // Only check gigs with date and time
+        // Check if gig has date and time
         if (gig.date && gig.time) {
-          // Combine date and time into a Date object
+          // Parse scheduled time
           const gigDateTime = new Date(`${gig.date}T${gig.time}`);
           const expiryTime = new Date(gigDateTime.getTime() + (5 * 60 * 60 * 1000)); // +5 hours
           
-          // If current time is past expiry time, cancel the gig
+          // Check if expired
           if (now > expiryTime) {
             console.log(`⏰ Auto-cancelling expired gig: ${gig.venueName} (scheduled: ${gig.date} ${gig.time})`);
             
@@ -53,35 +53,25 @@ exports.autoCleanupExpiredGigs = functions.pubsub
             });
             
             batchCount++;
-            
-            // Firestore batch limit is 500 operations
-            if (batchCount >= 500) {
-              await batch.commit();
-              batchCount = 0;
-            }
           }
         }
       }
       
-      // Commit any remaining updates
+      // Commit batch updates
       if (batchCount > 0) {
         await batch.commit();
-      }
-      
-      if (cancelledGigs.length > 0) {
-        console.log(`✅ Auto-cancelled ${cancelledGigs.length} expired gig(s):`, 
-          cancelledGigs.map(g => g.venueName).join(', '));
-        
-        // Optional: Send email notification to artists
-        // await sendCancellationEmails(cancelledGigs);
+        console.log(`✅ Successfully cancelled ${cancelledGigs.length} expired gig(s):`);
+        cancelledGigs.forEach(gig => {
+          console.log(`   - ${gig.venueName} (${gig.scheduledTime})`);
+        });
       } else {
-        console.log('✅ No expired gigs found');
+        console.log('✅ No expired gigs found. All gigs are within their time window.');
       }
       
       return {
         success: true,
         cancelledCount: cancelledGigs.length,
-        cancelledGigs: cancelledGigs
+        cancelledGigs: cancelledGigs.map(g => g.venueName)
       };
       
     } catch (error) {
@@ -90,14 +80,21 @@ exports.autoCleanupExpiredGigs = functions.pubsub
     }
   });
 
-// 🔄 ALTERNATIVE: Check every 30 minutes
-// exports.autoCleanupExpiredGigs = functions.pubsub
-//   .schedule('*/30 * * * *') // Every 30 minutes
-//   .timeZone('America/New_York')
-//   .onRun(async (context) => { ... });
-
-// 🔄 ALTERNATIVE: Check every day at 2 AM
-// exports.autoCleanupExpiredGigs = functions.pubsub
-//   .schedule('0 2 * * *') // Daily at 2:00 AM
-//   .timeZone('America/New_York')
-//   .onRun(async (context) => { ... });
+// 🧪 Test function - can be called manually for testing
+exports.testCleanupGigs = functions.https.onRequest(async (req, res) => {
+  try {
+    console.log('🧪 Manual test triggered');
+    const result = await exports.autoCleanupExpiredGigs.run();
+    res.json({
+      success: true,
+      message: 'Cleanup completed',
+      result: result
+    });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
