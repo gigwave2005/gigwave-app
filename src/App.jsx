@@ -3465,7 +3465,6 @@ const handleCheckVerification = async () => {
                   })}
               </div>
             )}
-          </div>
 
           {liveGigData.comments.length > 0 && (
             <div className="bg-white/10 rounded-xl p-6">
