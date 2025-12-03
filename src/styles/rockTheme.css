@@ -149,8 +149,7 @@ body {
    ============================================ */
 
 .concert-heading {
-  font-family: var(--font-concert);
-  text-transform: uppercase;
+  font-family: var(--font-concert);  
   letter-spacing: 0.05em;
   line-height: 1.2;
 }
