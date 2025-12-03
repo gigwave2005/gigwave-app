@@ -8,7 +8,13 @@ admin.initializeApp();
 const db = admin.firestore();
 
 // 🔄 Auto-cancel expired gigs every hour
-exports.autoCleanupExpiredGigs = functions.pubsub
+exports.autoCleanupExpiredGigs = functions
+     .runWith({ 
+       runtime: 'nodejs20',
+       memory: '256MB',
+       timeoutSeconds: 540
+   })
+   .pubsub
   .schedule('0 * * * *') // Run every hour at :00
   .timeZone('America/New_York') // Adjust to your timezone
   .onRun(async (context) => {
