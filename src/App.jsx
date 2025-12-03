@@ -2353,7 +2353,7 @@ const handleCheckVerification = async () => {
     </div>
     
     {/* App Name */}
-    <h1 className="concert-heading text-6xl md:text-7xl font-bold text-white drop-shadow-lg">
+    h1 className="text-6xl md:text-7xl font-bold text-white drop-shadow-lg">
       GigWave
     </h1>
   </div>
