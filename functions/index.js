@@ -87,22 +87,3 @@ exports.autoCleanupExpiredGigs = functions
       throw error;
     }
   });
-
-// 🧪 Test function - can be called manually for testing
-exports.testCleanupGigs = functions.https.onRequest(async (req, res) => {
-  try {
-    console.log('🧪 Manual test triggered');
-    const result = await exports.autoCleanupExpiredGigs.run();
-    res.json({
-      success: true,
-      message: 'Cleanup completed',
-      result: result
-    });
-  } catch (error) {
-    console.error('Error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
