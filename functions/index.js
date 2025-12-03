@@ -1,23 +1,20 @@
-// Gigwave Auto-Cleanup Function - v1.1
-
-const functions = require('firebase-functions');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
 const admin = require('firebase-admin');
 
 // Initialize Firebase Admin
 admin.initializeApp();
 const db = admin.firestore();
 
-// 🔄 Auto-cancel expired gigs every hour
-exports.autoCleanupExpiredGigs = functions
-     .runWith({ 
-       runtime: 'nodejs20',
-       memory: '256MB',
-       timeoutSeconds: 540
-   })
-   .pubsub
-  .schedule('0 * * * *') // Run every hour at :00
-  .timeZone('America/New_York') // Adjust to your timezone
-  .onRun(async (context) => {
+// 🔄 Auto-cancel expired gigs every hour (2nd Gen)
+exports.autoCleanupExpiredGigs = onSchedule(
+  {
+    schedule: 'every 1 hours',
+    timeZone: 'America/New_York',
+    region: 'us-central1',
+    memory: '256MiB',
+    timeoutSeconds: 540
+  },
+  async (event) => {
     console.log('🔍 Starting auto-cleanup of expired gigs...');
     
     try {
@@ -33,7 +30,6 @@ exports.autoCleanupExpiredGigs = functions
       
       // Prepare batch update
       const batch = db.batch();
-      let batchCount = 0;
       
       for (const doc of gigsSnapshot.docs) {
         const gig = doc.data();
@@ -59,14 +55,12 @@ exports.autoCleanupExpiredGigs = functions
               venueName: gig.venueName,
               scheduledTime: gigDateTime.toISOString()
             });
-            
-            batchCount++;
           }
         }
       }
       
       // Commit batch updates
-      if (batchCount > 0) {
+      if (cancelledGigs.length > 0) {
         await batch.commit();
         console.log(`✅ Successfully cancelled ${cancelledGigs.length} expired gig(s):`);
         cancelledGigs.forEach(gig => {
@@ -86,4 +80,5 @@ exports.autoCleanupExpiredGigs = functions
       console.error('❌ Error in auto-cleanup function:', error);
       throw error;
     }
-  });
+  }
+);
