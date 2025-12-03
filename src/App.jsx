@@ -837,18 +837,19 @@ useEffect(() => {
   };
 
   const createGig = () => {
-    setEditingGig({
-      id: Date.now(),
-      venueName: '',
-      address: '',
-      location: null,
-      date: '',
-      time: '',
-      playlistId: null,
-      status: 'upcoming'
-    });
-    setShowGigModal(true);
-  };
+  setEditingGig({
+    id: Date.now(),
+    venueName: '',
+    address: '',
+    location: null,
+    date: '',
+    time: '',
+    playlistId: null,
+    queueSize: 20,        // ← ADD THIS LINE
+    status: 'upcoming'
+  });
+  setShowGigModal(true);
+};
 
   const saveGig = async () => {
     if (!editingGig.venueName || !editingGig.date || !editingGig.time) {
@@ -1021,7 +1022,8 @@ useEffect(() => {
         venueName: gig.venueName,
         venueAddress: gig.address || '',
         location: location,
-        queuedSongs: songs.slice(0, 20),
+        queuedSongs: songs.slice(0, gig.queueSize || 20),
+        maxQueueSize: gig.queueSize || 20,    // ← ADD THIS LINE
         masterPlaylist: masterSongs,
         status: 'live',
         gigDate: gig.date,
@@ -1036,7 +1038,7 @@ useEffect(() => {
       if (gig.id && typeof gig.id === 'string' && gig.id.length > 10) {
         // Gig exists - update to live
         console.log('📝 Updating existing gig to live:', gig.id);
-        gigId = await updateGigToLive(gig.id, songs.slice(0, 20), masterSongs);
+        gigId = await updateGigToLive(gig.id, songs.slice(0, gig.queueSize || 20), masterSongs);
       } else {
         // New gig - create in Firebase
         console.log('🆕 Creating new live gig');
@@ -2094,6 +2096,27 @@ const handleCheckVerification = async () => {
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* Queue Size Setting */}
+            <div>
+              <label className="text-electric font-bold mb-2 block text-sm uppercase tracking-wider">
+                Maximum Queue Size
+              </label>
+              <input
+                type="number"
+                value={editingGig.queueSize || 20}
+                onChange={(e) => setEditingGig({
+                  ...editingGig,
+                  queueSize: parseInt(e.target.value) || 20
+                })}
+                min="10"
+                max="50"
+                className="w-full px-4 py-3 rounded-lg bg-white/10 text-white border border-electric/30 focus:border-electric focus:outline-none"
+              />
+              <p className="text-gray-light text-sm mt-2">
+                Maximum number of songs in the live queue (10-50 songs)
+              </p>
             </div>
   
             {/* Action Buttons */}
