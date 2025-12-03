@@ -127,7 +127,7 @@ const SocialFollowButtons = ({ socialMedia, artistName }) => {
   );
 };
 
-const CFG = { app: 'Gigwave', fee: 0.15, jbFee: 5, tips: [5,10,20,50] };
+const CFG = { app: 'GigWave', fee: 0.15, jbFee: 5, tips: [5,10,20,50] };
 
 export default function App() {
   // Auth state
@@ -375,9 +375,9 @@ useEffect(() => {
   // Load data from localStorage on mount
   useEffect(() => {
     if (currentUser) {
-      const savedSongs = localStorage.getItem(`gigwave_songs_${currentUser.uid}`);
-      const savedPlaylists = localStorage.getItem(`gigwave_playlists_${currentUser.uid}`);
-      const savedGigs = localStorage.getItem(`gigwave_gigs_${currentUser.uid}`);
+      const savedSongs = localStorage.getItem(`GigWave_songs_${currentUser.uid}`);
+      const savedPlaylists = localStorage.getItem(`GigWave_playlists_${currentUser.uid}`);
+      const savedGigs = localStorage.getItem(`GigWave_gigs_${currentUser.uid}`);
       
       if (savedSongs) setMasterSongs(JSON.parse(savedSongs));
       if (savedPlaylists) setGigPlaylists(JSON.parse(savedPlaylists));
@@ -390,7 +390,7 @@ useEffect(() => {
   // Load live gig from localStorage
   useEffect(() => {
     if (currentUser) {
-      const savedLiveGig = localStorage.getItem(`gigwave_live_${currentUser.uid}`);
+      const savedLiveGig = localStorage.getItem(`GigWave_live_${currentUser.uid}`);
       if (savedLiveGig) {
         const liveGigData = JSON.parse(savedLiveGig);
         
@@ -421,7 +421,7 @@ useEffect(() => {
   // Load interested gigs from localStorage
   useEffect(() => {
     if (currentUser) {
-      const saved = localStorage.getItem(`gigwave_interested_${currentUser.uid}`);
+      const saved = localStorage.getItem(`GigWave_interested_${currentUser.uid}`);
       if (saved) {
         setInterestedGigs(JSON.parse(saved));
         console.log('✅ Loaded interested gigs from localStorage');
@@ -432,7 +432,7 @@ useEffect(() => {
   // Save interested gigs to localStorage
   useEffect(() => {
     if (currentUser) {
-      localStorage.setItem(`gigwave_interested_${currentUser.uid}`, JSON.stringify(interestedGigs));
+      localStorage.setItem(`GigWave_interested_${currentUser.uid}`, JSON.stringify(interestedGigs));
     }
   }, [interestedGigs, currentUser]);
 
@@ -458,10 +458,10 @@ useEffect(() => {
   useEffect(() => {
     if (currentUser) {
       if (liveGig) {
-        localStorage.setItem(`gigwave_live_${currentUser.uid}`, JSON.stringify(liveGig));
+        localStorage.setItem(`GigWave_live_${currentUser.uid}`, JSON.stringify(liveGig));
         console.log('💾 Live gig saved to localStorage');
       } else {
-        localStorage.removeItem(`gigwave_live_${currentUser.uid}`);
+        localStorage.removeItem(`GigWave_live_${currentUser.uid}`);
         console.log('🗑️ Live gig removed from localStorage');
       }
     }
@@ -470,7 +470,7 @@ useEffect(() => {
   // Save master songs to localStorage
   useEffect(() => {
     if (currentUser && masterSongs.length >= 0) {
-      localStorage.setItem(`gigwave_songs_${currentUser.uid}`, JSON.stringify(masterSongs));
+      localStorage.setItem(`GigWave_songs_${currentUser.uid}`, JSON.stringify(masterSongs));
       console.log('💾 Master songs saved:', masterSongs.length);
     }
   }, [masterSongs, currentUser]);
@@ -478,7 +478,7 @@ useEffect(() => {
   // Save gig playlists to localStorage
   useEffect(() => {
     if (currentUser && gigPlaylists.length >= 0) {
-      localStorage.setItem(`gigwave_playlists_${currentUser.uid}`, JSON.stringify(gigPlaylists));
+      localStorage.setItem(`GigWave_playlists_${currentUser.uid}`, JSON.stringify(gigPlaylists));
       console.log('💾 Playlists saved:', gigPlaylists.length);
     }
   }, [gigPlaylists, currentUser]);
@@ -486,7 +486,7 @@ useEffect(() => {
   // Save gigs to localStorage
   useEffect(() => {
     if (currentUser && gigs.length >= 0) {
-      localStorage.setItem(`gigwave_gigs_${currentUser.uid}`, JSON.stringify(gigs));
+      localStorage.setItem(`GigWave_gigs_${currentUser.uid}`, JSON.stringify(gigs));
       console.log('💾 Gigs saved:', gigs.length);
     }
   }, [gigs, currentUser]);
@@ -1088,7 +1088,7 @@ useEffect(() => {
     
     // Force save to localStorage immediately
     if (currentUser) {
-      localStorage.setItem(`gigwave_gigs_${currentUser.uid}`, JSON.stringify(updatedGigs));
+      localStorage.setItem(`GigWave_gigs_${currentUser.uid}`, JSON.stringify(updatedGigs));
       console.log('💾 Gig status updated to ended in localStorage');
     }
     
@@ -1278,9 +1278,8 @@ const handleCheckVerification = async () => {
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 flex items-center justify-center">
-        <div className="text-center text-white">
-          <Music size={80} className="mx-auto mb-4 animate-pulse" />
-          <h1 className="text-4xl font-bold">Loading Gigwave...</h1>
+        <div className="text-center text-white">          
+          <h1 className="text-4xl font-bold">Loading GigWave...</h1>
         </div>
       </div>
     );
@@ -2314,10 +2313,8 @@ const handleCheckVerification = async () => {
         <div className="max-w-4xl mx-auto pt-8 md:pt-20">
           {/* Hero Section */}
           <div className="text-center mb-8 md:mb-12">
-            <div className="relative inline-block mb-6">
-              <Music size={80} className="text-electric mx-auto animate-pulse" />
-              <div className="absolute inset-0 blur-xl opacity-50">
-                <Music size={80} className="text-electric mx-auto" />
+            <div className="relative inline-block mb-6">              
+              <div className="absolute inset-0 blur-xl opacity-50">                
               </div>
             </div>
             {/* Logo and Title */}
@@ -3886,9 +3883,8 @@ const handleCheckVerification = async () => {
   // Fallback
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 flex items-center justify-center p-4">
-      <div className="text-center text-white">
-        <Music size={80} className="mx-auto mb-6" />
-        <h1 className="text-6xl font-bold mb-4">Gigwave</h1>
+      <div className="text-center text-white">        
+        <h1 className="text-6xl font-bold mb-4">GigWave</h1>
         <p className="text-xl mb-8">Live Performance Platform</p>
         <button
           onClick={() => setMode('discover')}
