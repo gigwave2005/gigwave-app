@@ -13,6 +13,8 @@ import {
   getDoc, 
   query,
   where,
+  orderBy,     // ← ADD THIS
+  limit,       // ← ADD THIS
   getDocs,
   onSnapshot,
   serverTimestamp,
@@ -1066,6 +1068,8 @@ export {
   collection,
   query,
   where,
+  orderBy,     // ← ADD THIS
+  limit,       // ← ADD THIS
   getDocs,
   
   // Firestore Data Types & Utilities
