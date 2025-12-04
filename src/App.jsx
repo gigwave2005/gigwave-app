@@ -872,15 +872,22 @@ useEffect(() => {
       }
       
       // Prepare gig data for Firebase
-      // Get songs from assigned playlist or master
+      // ⭐ TASK 18: Get songs from assigned playlist or master (fallback)
       let queuedSongs = [];
       let masterPlaylistData = masterSongs;
       
       if (editingGig.playlistId) {
         const playlist = gigPlaylists.find(p => p.id === editingGig.playlistId);
-        if (playlist) {
+        if (playlist && playlist.songs.length > 0) {
+          // Use gig playlist
           queuedSongs = playlist.songs.map(id => masterSongs.find(s => s.id === id)).filter(Boolean);
+        } else {
+          // Playlist empty or not found - use master playlist
+          queuedSongs = masterSongs;
         }
+      } else {
+        // No playlist selected - use master playlist
+        queuedSongs = masterSongs;
       }
       
       const gigData = {
