@@ -1238,44 +1238,134 @@ const handleCheckVerification = async () => {
 
   // Handle FREE Song Request Submission (No Payment)
   const handleSongRequest = async () => {
-    if (!selectedRequestSong) {
-      alert('Please select a song first!');
-      return;
-    }
+  if (!selectedRequestSong) {
+    alert('Please select a song first!');
+    return;
+  }
 
-    if (!currentUser) {
-      alert('Please log in to request a song');
-      setShowAuthModal(true);
-      return;
-    }
+  if (!currentUser) {
+    alert('Please log in to request a song');
+    setShowAuthModal(true);
+    return;
+  }
 
-    if (requestMessage.length > 200) {
-      alert('Message must be 200 characters or less');
+  if (requestMessage.length > 200) {
+    alert('Message must be 200 characters or less');
+    return;
+  }
+  
+  // ⭐ TASK 22: Validate request limits (artist-controlled)
+  try {
+    // Get current gig data from Firebase
+    const gigRef = doc(db, 'liveGigs', String(liveGig.id));
+    const gigSnap = await getDoc(gigRef);
+    
+    if (!gigSnap.exists()) {
+      alert('❌ Gig not found');
       return;
     }
     
-    try {
-      // Submit FREE song request (no payment)
-      await submitSongRequest(
-        liveGig.id,
-        selectedRequestSong,
-        currentUser.uid,
-        currentUser.displayName || 'Anonymous',
-        requestMessage,
-        0, // No payment amount
-        false // Not paid
+    const currentGigData = gigSnap.data();
+    
+    // Get artist-defined queue size (default 20 if not set)
+    const maxQueueSize = currentGigData.maxQueueSize || 20;
+    
+    const currentQueue = currentGigData.queuedSongs || [];
+    const playedSongs = currentGigData.playedSongs || [];
+    const pendingRequests = (currentGigData.songRequests || []).filter(r => r.status === 'pending');
+    
+    // Calculate capacity
+    const totalSongsInQueue = currentQueue.length;
+    const songsAlreadyPlayed = playedSongs.length;
+    const songsLeftToPlay = currentQueue.filter(s => !playedSongs.includes(s.id)).length;
+    const pendingRequestCount = pendingRequests.length;
+    
+    // YOUR FORMULA: Max pending = Queue capacity - Songs played
+    const maxPendingRequests = Math.max(1, maxQueueSize - songsAlreadyPlayed);
+    
+    // Check 1: Queue at maximum capacity
+    if (totalSongsInQueue >= maxQueueSize) {
+      alert(
+        `❌ Queue is full!\n\n` +
+        `The queue has reached its maximum capacity of ${maxQueueSize} songs.\n\n` +
+        `Songs already played: ${songsAlreadyPlayed}\n` +
+        `Songs left to play: ${songsLeftToPlay}\n\n` +
+        `Please wait for more songs to be played before requesting.`
       );
-
-      alert(`Song requested!\n\n"${selectedRequestSong.title}"\n\nThe artist will review your request.`);
-
-      setShowRequestModal(false);
-      setSelectedRequestSong(null);
-      setRequestMessage('');
-    } catch (error) {
-      console.error('Error submitting song request:', error);
-      alert('Error: ' + error.message);
+      return;
     }
-  };
+    
+    // Check 2: Too many pending requests (based on your formula)
+    if (pendingRequestCount >= maxPendingRequests) {
+      alert(
+        `❌ Too many pending requests!\n\n` +
+        `Maximum pending requests: ${maxPendingRequests}\n` +
+        `Current pending requests: ${pendingRequestCount}\n\n` +
+        `Formula: Queue size (${maxQueueSize}) - Songs played (${songsAlreadyPlayed}) = ${maxPendingRequests}\n\n` +
+        `Please wait for the artist to accept or reject some requests.`
+      );
+      return;
+    }
+    
+    // Check 3: Calculate available slots
+    const availableSlots = maxQueueSize - totalSongsInQueue - pendingRequestCount;
+    
+    if (availableSlots <= 0) {
+      alert(
+        `❌ No room for new requests!\n\n` +
+        `Queue capacity: ${maxQueueSize}\n` +
+        `Current songs: ${totalSongsInQueue}\n` +
+        `Pending requests: ${pendingRequestCount}\n` +
+        `Available slots: ${availableSlots}`
+      );
+      return;
+    }
+    
+    // Check 4: Warn if gig is almost over
+    if (songsLeftToPlay <= 3 && pendingRequestCount > 0) {
+      const proceed = window.confirm(
+        `⚠️ Warning: Only ${songsLeftToPlay} songs left!\n\n` +
+        `There are ${pendingRequestCount} pending requests ahead of you.\n\n` +
+        `Your request may not be played at this gig.\n\n` +
+        `Do you still want to submit?`
+      );
+      
+      if (!proceed) {
+        return;
+      }
+    }
+    
+    // All checks passed - submit request
+    await submitSongRequest(
+      liveGig.id,
+      selectedRequestSong,
+      currentUser.uid,
+      currentUser.displayName || 'Anonymous',
+      requestMessage,
+      0,
+      false
+    );
+
+    alert(
+      `✅ Song requested!\n\n` +
+      `"${selectedRequestSong.title}"\n\n` +
+      `Queue Status:\n` +
+      `• Capacity: ${totalSongsInQueue + 1}/${maxQueueSize}\n` +
+      `• Songs left to play: ${songsLeftToPlay}\n` +
+      `• Pending requests: ${pendingRequestCount + 1}/${maxPendingRequests}\n` +
+      `• Available slots: ${availableSlots - 1}\n\n` +
+      `The artist will review your request.`
+    );
+
+    setShowRequestModal(false);
+    setSelectedRequestSong(null);
+    setRequestMessage('');
+    
+  } catch (error) {
+    console.error('Error submitting song request:', error);
+    alert('❌ Error: ' + error.message);
+  }
+};
      
   if (authLoading) {
     return (
@@ -3537,10 +3627,58 @@ const handleCheckVerification = async () => {
                   <div className="mt-4">
                     <button
                       onClick={() => setShowRequestModal(true)}
-                      className="btn btn-fire text-lg px-6 py-3 w-full md:w-auto"
+                      disabled={(() => {
+                        const maxQueue = liveGigData.maxQueueSize || 20;
+                        const queueLength = liveGigData.queuedSongs?.length || 0;
+                        const queueFull = queueLength >= maxQueue;
+                        const playedCount = liveGigData.playedSongs?.length || 0;
+                        const maxPending = Math.max(1, maxQueue - playedCount);
+                        const pendingCount = (liveGigData.songRequests || []).filter(r => r.status === 'pending').length;
+                        const tooManyPending = pendingCount >= maxPending;
+                        
+                        return queueFull || tooManyPending;
+                      })()}
+                      className={`btn text-lg px-6 py-3 w-full md:w-auto ${
+                        (() => {
+                          const maxQueue = liveGigData.maxQueueSize || 20;
+                          const queueLength = liveGigData.queuedSongs?.length || 0;
+                          const queueFull = queueLength >= maxQueue;
+                          const playedCount = liveGigData.playedSongs?.length || 0;
+                          const maxPending = Math.max(1, maxQueue - playedCount);
+                          const pendingCount = (liveGigData.songRequests || []).filter(r => r.status === 'pending').length;
+                          const tooManyPending = pendingCount >= maxPending;
+                          
+                          return queueFull || tooManyPending
+                            ? 'btn-ghost opacity-50 cursor-not-allowed'
+                            : 'btn-fire';
+                        })()
+                      }`}
                     >
                       <Music size={24} />
-                      <span>Request a Song</span>
+                      <span>
+                        {(() => {
+                          const maxQueue = liveGigData.maxQueueSize || 20;
+                          const queueLength = liveGigData.queuedSongs?.length || 0;
+                          const queueFull = queueLength >= maxQueue;
+                          const playedCount = liveGigData.playedSongs?.length || 0;
+                          const maxPending = Math.max(1, maxQueue - playedCount);
+                          const pendingCount = (liveGigData.songRequests || []).filter(r => r.status === 'pending').length;
+                          const tooManyPending = pendingCount >= maxPending;
+                          
+                          if (queueFull) return 'Queue Full';
+                          if (tooManyPending) return `Too Many Requests (${pendingCount}/${maxPending})`;
+                          return 'Request a Song';
+                        })()}
+                      </span>
+                      {liveGigData.queuedSongs && liveGigData.maxQueueSize && !(() => {
+                        const maxQueue = liveGigData.maxQueueSize || 20;
+                        const queueLength = liveGigData.queuedSongs?.length || 0;
+                        return queueLength >= maxQueue;
+                      })() && (
+                        <span className="ml-2 text-sm opacity-75">
+                          ({liveGigData.queuedSongs.length}/{liveGigData.maxQueueSize})
+                        </span>
+                      )}
                     </button>
                   </div>
                 )}
@@ -3802,6 +3940,72 @@ const handleCheckVerification = async () => {
                   >
                     <X size={32} />
                   </button>
+                </div>
+
+                {/* Queue Status Banner */}
+                <div className="mb-6 p-4 bg-blue-500/20 border border-blue-400 rounded-lg">
+                  <h4 className="text-blue-300 font-bold mb-3 flex items-center gap-2">
+                    <span>📊</span>
+                    <span>Queue Status</span>
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                    <div>
+                      <p className="text-gray-light">Queue Capacity</p>
+                      <p className="text-white font-bold text-lg">
+                        {liveGigData.queuedSongs?.length || 0}/{liveGigData.maxQueueSize || 20}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-light">Songs Played</p>
+                      <p className="text-white font-bold text-lg">
+                        {liveGigData.playedSongs?.length || 0}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-light">Songs Left</p>
+                      <p className="text-white font-bold text-lg">
+                        {(liveGigData.queuedSongs || []).filter(
+                          s => !liveGigData.playedSongs?.includes(s.id)
+                        ).length}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-gray-light">Pending Requests</p>
+                      <p className="text-white font-bold text-lg">
+                        {(liveGigData.songRequests || []).filter(r => r.status === 'pending').length}
+                        /{Math.max(1, (liveGigData.maxQueueSize || 20) - (liveGigData.playedSongs?.length || 0))}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {(() => {
+                    const maxQueue = liveGigData.maxQueueSize || 20;
+                    const queueLength = liveGigData.queuedSongs?.length || 0;
+                    const capacity = (queueLength / maxQueue) * 100;
+                    
+                    return (
+                      <div className="mt-3">
+                        {capacity >= 90 && capacity < 100 && (
+                          <p className="text-yellow-300 text-sm flex items-center gap-2">
+                            <span>⚠️</span>
+                            <span>Queue is {Math.round(capacity)}% full! Requests may not be played.</span>
+                          </p>
+                        )}
+                        {capacity >= 100 && (
+                          <p className="text-red-300 text-sm font-bold flex items-center gap-2">
+                            <span>❌</span>
+                            <span>Queue is completely full! No new requests accepted.</span>
+                          </p>
+                        )}
+                        {capacity < 90 && (
+                          <p className="text-green-300 text-sm flex items-center gap-2">
+                            <span>✅</span>
+                            <span>Queue has space available</span>
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
           
                 {/* Song Selection */}
