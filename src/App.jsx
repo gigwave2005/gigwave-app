@@ -6,6 +6,12 @@ import { Music, Plus, Trash2, Play, Users, Calendar, Heart, Star, Zap, X, Search
 import {
   auth,
   db,
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
+  getDocs,
   doc,
   getDoc,
   updateDoc,
