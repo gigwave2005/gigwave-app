@@ -901,7 +901,8 @@ useEffect(() => {
         gigDate: editingGig.date,
         gigTime: editingGig.time,
         playlistId: editingGig.playlistId || null,
-        queuedSongs: queuedSongs,
+        queueSize: editingGig.queueSize || 20,
+        queuedSongs: queuedSongs.slice(0, editingGig.queueSize || 20),
         masterPlaylist: masterPlaylistData,
         notes: editingGig.notes || ''
       };
