@@ -1265,49 +1265,7 @@ const handleCheckVerification = async () => {
     alert('Message must be 200 characters or less');
     return;
   }
-
-    // Task 13: Submit artist rating
-    const handleSubmitRating = async () => {
-      if (!currentUser || !liveGig || artistRating === 0) return;
-      
-      try {
-        const ratingEntry = {
-          userId: currentUser.uid,
-          userName: currentUser.displayName || 'Anonymous',
-          gigId: liveGig.id,
-          artistRating: artistRating,
-          timestamp: new Date().toISOString()
-        };
-        
-        // Save to Firebase
-        const gigRef = doc(db, 'liveGigs', String(liveGig.id));
-        const gigSnap = await getDoc(gigRef);
-        
-        if (gigSnap.exists()) {
-          const currentRatings = gigSnap.data().ratings || [];
-          await updateDoc(gigRef, {
-            ratings: [...currentRatings, ratingEntry]
-          });
-        }
-        
-        alert('✅ Thanks for rating the artist!');
-        
-        // Close modal and reset
-        setShowRatingModal(false);
-        setArtistRating(0);
-        
-      } catch (error) {
-        console.error('Error submitting rating:', error);
-        alert('❌ Error submitting rating');
-      }
-    };
     
-    // Skip rating or close modal
-    const handleCloseRating = () => {
-      setShowRatingModal(false);
-      setArtistRating(0);
-    };
-  
   // ⭐ TASK 22: Validate request limits (artist-controlled)
   try {
     // Get current gig data from Firebase
@@ -1423,6 +1381,49 @@ const handleCheckVerification = async () => {
     alert('❌ Error: ' + error.message);
   }
 };
+
+  // Task 13: Submit artist rating
+    const handleSubmitRating = async () => {
+      if (!currentUser || !liveGig || artistRating === 0) return;
+      
+      try {
+        const ratingEntry = {
+          userId: currentUser.uid,
+          userName: currentUser.displayName || 'Anonymous',
+          gigId: liveGig.id,
+          artistRating: artistRating,
+          timestamp: new Date().toISOString()
+        };
+        
+        // Save to Firebase
+        const gigRef = doc(db, 'liveGigs', String(liveGig.id));
+        const gigSnap = await getDoc(gigRef);
+        
+        if (gigSnap.exists()) {
+          const currentRatings = gigSnap.data().ratings || [];
+          await updateDoc(gigRef, {
+            ratings: [...currentRatings, ratingEntry]
+          });
+        }
+        
+        alert('✅ Thanks for rating the artist!');
+        
+        // Close modal and reset
+        setShowRatingModal(false);
+        setArtistRating(0);
+        
+      } catch (error) {
+        console.error('Error submitting rating:', error);
+        alert('❌ Error submitting rating');
+      }
+    };
+    
+    // Skip rating or close modal
+    const handleCloseRating = () => {
+      setShowRatingModal(false);
+      setArtistRating(0);
+    };
+  
      
   if (authLoading) {
     return (
