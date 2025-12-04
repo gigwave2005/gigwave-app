@@ -192,6 +192,9 @@ export default function App() {
   const [requestsEnabled, setRequestsEnabled] = useState(true); // Toggle for requests
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [artistRating, setArtistRating] = useState(0);
+  const [viewingArtistId, setViewingArtistId] = useState(null);
+  const [viewingArtistProfile, setViewingArtistProfile] = useState(null);
+  const [viewingArtistGigs, setViewingArtistGigs] = useState([]);
 
   // Profile state
 const [artistProfile, setArtistProfile] = useState(null);
@@ -1423,8 +1426,7 @@ const handleCheckVerification = async () => {
       setShowRatingModal(false);
       setArtistRating(0);
     };
-  
-     
+       
   if (authLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 flex items-center justify-center">
@@ -1434,6 +1436,52 @@ const handleCheckVerification = async () => {
       </div>
     );
   }
+
+  // Task 12: View artist public profile
+const handleViewArtistProfile = async (artistId, artistEmail) => {
+  try {
+    // Get artist profile
+    const profile = await getArtistProfile(artistId);
+    
+    if (!profile) {
+      alert('❌ Artist profile not found');
+      return;
+    }
+    
+    setViewingArtistProfile(profile);
+    setViewingArtistId(artistId);
+    
+    // Get artist's upcoming gigs
+    const gigsQuery = query(
+      collection(db, 'liveGigs'),
+      where('artistId', '==', artistId),
+      where('status', 'in', ['upcoming', 'live']),
+      orderBy('gigDate', 'asc'),
+      limit(10)
+    );
+    
+    const gigsSnapshot = await getDocs(gigsQuery);
+    const gigs = gigsSnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+    
+    setViewingArtistGigs(gigs);
+    setMode('artistProfile');
+    
+  } catch (error) {
+    console.error('Error loading artist profile:', error);
+    alert('❌ Error loading profile');
+  }
+};
+
+// Close artist profile view
+const handleCloseArtistProfile = () => {
+  setViewingArtistId(null);
+  setViewingArtistProfile(null);
+  setViewingArtistGigs([]);
+  setMode('discover');
+};
 
   // Auth Modal - Backstage Access
   if (showAuthModal) {
@@ -2633,9 +2681,12 @@ const handleCheckVerification = async () => {
                               </div>
                       
                               {/* Artist Name */}
-                              <h3 className="concert-heading text-3xl md:text-4xl text-white mb-4">
+                              <button
+                                onClick={() => handleViewArtistProfile(gig.artistId, gig.artistEmail)}
+                                className="text-electric hover:text-neon font-bold underline"
+                              >
                                 {gig.artistName}
-                              </h3>
+                              </button>
                       
                               {/* Venue Info */}
                               <div className="space-y-2 text-gray-light">
@@ -4264,6 +4315,206 @@ const handleCheckVerification = async () => {
         </div>
       </div>
    );
+  }
+
+  // Task 12: Artist Profile Page (Public View)
+  if (mode === 'artistProfile' && viewingArtistProfile) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 p-4">
+        <div className="max-w-5xl mx-auto">
+          {/* Back Button */}
+          <button
+            onClick={handleCloseArtistProfile}
+            className="btn btn-ghost mb-6"
+          >
+            <ArrowLeft size={20} />
+            <span>Back to Discovery</span>
+          </button>
+  
+          {/* Profile Header */}
+          <div className="gig-card border-2 border-electric mb-6">
+            <div className="flex flex-col md:flex-row gap-6 items-start">
+              {/* Profile Picture Placeholder */}
+              <div className="w-32 h-32 rounded-full bg-gradient-to-br from-magenta to-electric flex items-center justify-center flex-shrink-0">
+                <Music size={64} className="text-white" />
+              </div>
+  
+              {/* Artist Info */}
+              <div className="flex-1">
+                <h1 className="concert-heading text-4xl md:text-5xl text-electric mb-2">
+                  {viewingArtistProfile.artistName}
+                </h1>
+                
+                <div className="flex flex-wrap gap-3 mb-4">
+                  <span className="px-4 py-2 bg-magenta/20 text-magenta rounded-full text-sm font-bold border border-magenta">
+                    🎵 {viewingArtistProfile.genre}
+                  </span>
+                  <span className="px-4 py-2 bg-electric/20 text-electric rounded-full text-sm font-bold border border-electric">
+                    📍 {viewingArtistProfile.location}
+                  </span>
+                </div>
+  
+                <p className="text-gray-light text-lg mb-4">
+                  {viewingArtistProfile.bio}
+                </p>
+  
+                {/* Social Media Links */}
+                {viewingArtistProfile.socialMedia && (
+                  <div className="mt-4">
+                    <SocialFollowButtons 
+                      socialMedia={viewingArtistProfile.socialMedia}
+                      artistName={viewingArtistProfile.artistName}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+  
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-4 mt-6 pt-6 border-t border-white/10">
+              <div className="text-center">
+                <p className="text-3xl font-bold text-neon">{viewingArtistGigs.length}</p>
+                <p className="text-gray-light text-sm">Upcoming Gigs</p>
+              </div>
+              <div className="text-center">
+                <p className="text-3xl font-bold text-magenta">
+                  {viewingArtistProfile.totalGigs || 0}
+                </p>
+                <p className="text-gray-light text-sm">Total Gigs</p>
+              </div>
+              <div className="text-center">
+                <p className="text-3xl font-bold text-electric">
+                  {viewingArtistProfile.followers || 0}
+                </p>
+                <p className="text-gray-light text-sm">Followers</p>
+              </div>
+            </div>
+          </div>
+  
+          {/* Upcoming Gigs */}
+          <div className="gig-card border-2 border-magenta">
+            <h2 className="concert-heading text-3xl text-magenta mb-6">
+              🎸 Upcoming Performances
+            </h2>
+  
+            {viewingArtistGigs.length === 0 ? (
+              <div className="text-center py-12">
+                <Calendar size={64} className="text-gray mx-auto mb-4 opacity-50" />
+                <p className="text-gray-light text-lg">No upcoming gigs scheduled</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {viewingArtistGigs.map(gig => {
+                  const gigDate = new Date(gig.gigDate);
+                  const isLive = gig.status === 'live';
+                  
+                  return (
+                    <div
+                      key={gig.id}
+                      className={`bg-white/5 p-6 rounded-xl border-2 transition ${
+                        isLive 
+                          ? 'border-neon animate-pulse' 
+                          : 'border-white/10 hover:border-electric/50'
+                      }`}
+                    >
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-2xl font-bold text-white">
+                              {gig.venueName}
+                            </h3>
+                            {isLive && (
+                              <span className="px-3 py-1 bg-neon/20 text-neon rounded-full text-sm font-bold border border-neon animate-pulse">
+                                🔴 LIVE NOW
+                              </span>
+                            )}
+                          </div>
+                          
+                          {gig.venueAddress && (
+                            <p className="text-gray-light mb-2">
+                              📍 {gig.venueAddress}
+                            </p>
+                          )}
+                          
+                          <div className="flex flex-wrap gap-4 text-electric font-semibold">
+                            <span>
+                              📅 {gigDate.toLocaleDateString('en-US', {
+                                weekday: 'short',
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
+                            </span>
+                            <span>🕐 {gig.gigTime}</span>
+                          </div>
+  
+                          {gig.interestedCount > 0 && (
+                            <p className="text-magenta font-semibold mt-2">
+                              👥 {gig.interestedCount} interested
+                            </p>
+                          )}
+                        </div>
+  
+                        <div className="flex flex-col gap-2">
+                          {isLive ? (
+                            <button
+                              onClick={() => {
+                                setLiveGig(gig);
+                                setLiveGigData({
+                                  votes: gig.votes || {},
+                                  queuedSongs: gig.queuedSongs || [],
+                                  playedSongs: gig.playedSongs || [],
+                                  currentSong: gig.currentSong || null,
+                                  songRequests: gig.songRequests || [],
+                                  maxQueueSize: gig.maxQueueSize || 20
+                                });
+                                setMode('audience');
+                              }}
+                              className="btn btn-neon"
+                            >
+                              <Play size={20} />
+                              <span>Join Live Gig</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setSelectedUpcomingGig(gig);
+                                setShowGigDetailModal(true);
+                              }}
+                              className="btn btn-electric"
+                            >
+                              View Details
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+  
+          {/* About Section */}
+          <div className="gig-card border-2 border-electric mt-6">
+            <h2 className="concert-heading text-3xl text-electric mb-4">
+              📖 About {viewingArtistProfile.artistName}
+            </h2>
+            <p className="text-white text-lg leading-relaxed">
+              {viewingArtistProfile.bio}
+            </p>
+            
+            {viewingArtistProfile.fullName && (
+              <div className="mt-6 pt-6 border-t border-white/10">
+                <p className="text-gray-light text-sm">
+                  Artist: <span className="text-white font-semibold">{viewingArtistProfile.fullName}</span>
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   // Fallback
