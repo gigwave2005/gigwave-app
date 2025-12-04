@@ -190,6 +190,8 @@ export default function App() {
   const [selectedRequestSong, setSelectedRequestSong] = useState(null);
   const [requestMessage, setRequestMessage] = useState('');
   const [requestsEnabled, setRequestsEnabled] = useState(true); // Toggle for requests
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [artistRating, setArtistRating] = useState(0);
 
   // Profile state
 const [artistProfile, setArtistProfile] = useState(null);
@@ -1227,7 +1229,9 @@ const handleCheckVerification = async () => {
       // Record the new vote in Firebase
       await recordUserVote(liveGig.id, songId, currentUser.uid);
       
+      // ⭐ TASK 13: Show rating modal after vote
       alert('✅ Vote recorded!');
+      setShowRatingModal(true);
       
       // Refresh the vote counts from Firebase to show updated numbers
       const gigRef = doc(db, 'liveGigs', String(liveGig.id));
@@ -1261,6 +1265,48 @@ const handleCheckVerification = async () => {
     alert('Message must be 200 characters or less');
     return;
   }
+
+    // Task 13: Submit artist rating
+    const handleSubmitRating = async () => {
+      if (!currentUser || !liveGig || artistRating === 0) return;
+      
+      try {
+        const ratingEntry = {
+          userId: currentUser.uid,
+          userName: currentUser.displayName || 'Anonymous',
+          gigId: liveGig.id,
+          artistRating: artistRating,
+          timestamp: new Date().toISOString()
+        };
+        
+        // Save to Firebase
+        const gigRef = doc(db, 'liveGigs', String(liveGig.id));
+        const gigSnap = await getDoc(gigRef);
+        
+        if (gigSnap.exists()) {
+          const currentRatings = gigSnap.data().ratings || [];
+          await updateDoc(gigRef, {
+            ratings: [...currentRatings, ratingEntry]
+          });
+        }
+        
+        alert('✅ Thanks for rating the artist!');
+        
+        // Close modal and reset
+        setShowRatingModal(false);
+        setArtistRating(0);
+        
+      } catch (error) {
+        console.error('Error submitting rating:', error);
+        alert('❌ Error submitting rating');
+      }
+    };
+    
+    // Skip rating or close modal
+    const handleCloseRating = () => {
+      setShowRatingModal(false);
+      setArtistRating(0);
+    };
   
   // ⭐ TASK 22: Validate request limits (artist-controlled)
   try {
@@ -1368,6 +1414,9 @@ const handleCheckVerification = async () => {
     setShowRequestModal(false);
     setSelectedRequestSong(null);
     setRequestMessage('');
+
+    // ⭐ TASK 13: Show rating modal after request
+    setShowRatingModal(true);
     
   } catch (error) {
     console.error('Error submitting song request:', error);
@@ -3690,6 +3739,17 @@ const handleCheckVerification = async () => {
                     </button>
                   </div>
                 )}
+
+                {/* Rate Artist Button - Task 13 */}
+                <div className="mt-4">
+                  <button
+                    onClick={() => setShowRatingModal(true)}
+                    className="btn btn-electric text-lg px-6 py-3 w-full md:w-auto"
+                  >
+                    <Star size={24} />
+                    <span>Rate Artist</span>
+                  </button>
+                </div>
                 
                 {/* Social Follow Buttons */}
                 {artistProfile?.socialMedia && (
@@ -4104,6 +4164,96 @@ const handleCheckVerification = async () => {
                 <div className="mt-4 p-3 bg-blue-500/20 border border-blue-400/50 rounded-lg">
                   <p className="text-blue-300 text-sm">
                     Requests are FREE - no payment required!
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Task 13: Artist Rating Modal */}
+          {showRatingModal && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <div className="gig-card max-w-md w-full border-2 border-electric">
+                {/* Header */}
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h2 className="concert-heading text-2xl text-electric">
+                      ⭐ RATE THE ARTIST
+                    </h2>
+                    <p className="text-gray-light text-sm mt-2">
+                      How's the performance? (Optional)
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleCloseRating}
+                    className="text-white hover:text-neon transition"
+                  >
+                    <X size={32} />
+                  </button>
+                </div>
+          
+                <div className="space-y-6">
+                  {/* Artist Name */}
+                  <div className="text-center">
+                    <p className="text-white text-lg font-bold mb-4">
+                      {liveGig?.artistName || 'Artist'}
+                    </p>
+                  </div>
+          
+                  {/* Star Rating */}
+                  <div>
+                    <div className="flex gap-2 justify-center mb-2">
+                      {[1, 2, 3, 4, 5].map(star => (
+                        <button
+                          key={star}
+                          onClick={() => setArtistRating(star)}
+                          className={`text-5xl transition transform ${
+                            artistRating >= star 
+                              ? 'text-yellow-400 scale-110' 
+                              : 'text-gray-600 hover:text-yellow-300 hover:scale-105'
+                          }`}
+                        >
+                          {artistRating >= star ? '⭐' : '☆'}
+                        </button>
+                      ))}
+                    </div>
+                    
+                    {/* Rating Label */}
+                    {artistRating > 0 && (
+                      <p className="text-center text-electric font-bold text-lg">
+                        {artistRating === 1 && 'Needs Improvement'}
+                        {artistRating === 2 && 'Fair'}
+                        {artistRating === 3 && 'Good'}
+                        {artistRating === 4 && 'Great'}
+                        {artistRating === 5 && 'Amazing! 🔥'}
+                      </p>
+                    )}
+                  </div>
+          
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pt-4">
+                    <button
+                      onClick={handleSubmitRating}
+                      disabled={artistRating === 0}
+                      className={`flex-1 btn text-lg ${
+                        artistRating === 0
+                          ? 'btn-ghost opacity-50 cursor-not-allowed'
+                          : 'btn-neon'
+                      }`}
+                    >
+                      <span>✓</span>
+                      <span>Submit Rating</span>
+                    </button>
+                    <button
+                      onClick={handleCloseRating}
+                      className="btn btn-ghost"
+                    >
+                      Close
+                    </button>
+                  </div>
+          
+                  <p className="text-center text-gray-light text-sm">
+                    Your rating helps the artist improve!
                   </p>
                 </div>
               </div>
