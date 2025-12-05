@@ -1542,7 +1542,7 @@ const handleCloseArtistProfile = () => {
 
   // Auth Modal - Backstage Access
   if (showAuthModal) {
-    const handleEmailAuth = async () => {
+      const handleEmailAuth = async () => {
       setAuthError('');
       try {
         if (authTab === 'signup') {
