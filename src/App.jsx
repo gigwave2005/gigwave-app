@@ -1492,61 +1492,52 @@ const handleCloseArtistProfile = () => {
   setMode('discover');
 };
 
-  // Task 9: Auto-refresh audience data from Firebase
-useEffect(() => {
-  if (mode !== 'audience' || !liveGig) {
-    return; // Only run in audience mode with active gig
-  }
-
-  console.log('🔄 Setting up auto-refresh for gig:', liveGig.id);
-  setIsConnected(true);
-
-  // Set up real-time listener
-  const gigRef = doc(db, 'liveGigs', String(liveGig.id));
+  // Task 9: Auto-refresh audience data
+  useEffect(() => {
+    if (mode !== 'audience' || !liveGig) {
+      return;
+    }
   
-  const unsubscribe = onSnapshot(
-    gigRef,
-    (snapshot) => {
-      if (snapshot.exists()) {
-        const updatedData = snapshot.data();
-        console.log('✅ Auto-refresh: Received update from Firebase');
-        
-        // Update live gig data
-        setLiveGigData({
-          votes: updatedData.votes || {},
-          queuedSongs: updatedData.queuedSongs || [],
-          playedSongs: updatedData.playedSongs || [],
-          currentSong: updatedData.currentSong || null,
-          songRequests: updatedData.songRequests || [],
-          maxQueueSize: updatedData.maxQueueSize || 20
-        });
-
-        // Update connection status
-        setIsConnected(true);
-        setLastUpdated(new Date());
-        
-        console.log('📊 Updated data:', {
-          queueLength: updatedData.queuedSongs?.length || 0,
-          currentSong: updatedData.currentSong?.title || 'None',
-          totalVotes: Object.keys(updatedData.votes || {}).length
-        });
-      } else {
-        console.log('⚠️ Gig document no longer exists');
+    console.log('🔄 Setting up auto-refresh for gig:', liveGig.id);
+    setIsConnected(true);
+  
+    const gigRef = doc(db, 'liveGigs', String(liveGig.id));
+    
+    const unsubscribe = onSnapshot(
+      gigRef,
+      (snapshot) => {
+        if (snapshot.exists()) {
+          const updatedData = snapshot.data();
+          console.log('✅ Auto-refresh: Received update');
+          
+          setLiveGigData({
+            votes: updatedData.votes || {},
+            queuedSongs: updatedData.queuedSongs || [],
+            playedSongs: updatedData.playedSongs || [],
+            currentSong: updatedData.currentSong || null,
+            songRequests: updatedData.songRequests || [],
+            maxQueueSize: updatedData.maxQueueSize || 20
+          });
+  
+          setIsConnected(true);
+          setLastUpdated(new Date());
+        } else {
+          console.log('⚠️ Gig no longer exists');
+          setIsConnected(false);
+        }
+      },
+      (error) => {
+        console.error('❌ Auto-refresh error:', error);
         setIsConnected(false);
-      }
-    },
-    (error) => {
-      console.error('❌ Auto-refresh error:', error);
-      setIsConnected(false);
-      
-      // Show error to user
-      if (error.code === 'permission-denied') {
-        alert('❌ Connection lost: Permission denied');
-      } else {
         alert('❌ Connection lost: ' + error.message);
       }
-    }
-  );
+    );
+  
+    return () => {
+      console.log('🛑 Cleaning up auto-refresh');
+      unsubscribe();
+    };
+  }, [mode, liveGig?.id]);
 
   // Cleanup on unmount or mode change
   return () => {
