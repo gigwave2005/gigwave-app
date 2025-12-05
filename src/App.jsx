@@ -58,6 +58,7 @@ import {
   rejectSongRequest,
   updateJukeboxSettings,
   getSortedSongRequests,
+  onSnapshot,
 } from './firebase-utils';
 
 // Social Media Follow Buttons Component
@@ -201,6 +202,8 @@ export default function App() {
   const [viewingArtistId, setViewingArtistId] = useState(null);
   const [viewingArtistProfile, setViewingArtistProfile] = useState(null);
   const [viewingArtistGigs, setViewingArtistGigs] = useState([]);
+  const [isConnected, setIsConnected] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   // Profile state
 const [artistProfile, setArtistProfile] = useState(null);
@@ -1488,6 +1491,69 @@ const handleCloseArtistProfile = () => {
   setViewingArtistGigs([]);
   setMode('discover');
 };
+
+  // Task 9: Auto-refresh audience data from Firebase
+useEffect(() => {
+  if (mode !== 'audience' || !liveGig) {
+    return; // Only run in audience mode with active gig
+  }
+
+  console.log('🔄 Setting up auto-refresh for gig:', liveGig.id);
+  setIsConnected(true);
+
+  // Set up real-time listener
+  const gigRef = doc(db, 'liveGigs', String(liveGig.id));
+  
+  const unsubscribe = onSnapshot(
+    gigRef,
+    (snapshot) => {
+      if (snapshot.exists()) {
+        const updatedData = snapshot.data();
+        console.log('✅ Auto-refresh: Received update from Firebase');
+        
+        // Update live gig data
+        setLiveGigData({
+          votes: updatedData.votes || {},
+          queuedSongs: updatedData.queuedSongs || [],
+          playedSongs: updatedData.playedSongs || [],
+          currentSong: updatedData.currentSong || null,
+          songRequests: updatedData.songRequests || [],
+          maxQueueSize: updatedData.maxQueueSize || 20
+        });
+
+        // Update connection status
+        setIsConnected(true);
+        setLastUpdated(new Date());
+        
+        console.log('📊 Updated data:', {
+          queueLength: updatedData.queuedSongs?.length || 0,
+          currentSong: updatedData.currentSong?.title || 'None',
+          totalVotes: Object.keys(updatedData.votes || {}).length
+        });
+      } else {
+        console.log('⚠️ Gig document no longer exists');
+        setIsConnected(false);
+      }
+    },
+    (error) => {
+      console.error('❌ Auto-refresh error:', error);
+      setIsConnected(false);
+      
+      // Show error to user
+      if (error.code === 'permission-denied') {
+        alert('❌ Connection lost: Permission denied');
+      } else {
+        alert('❌ Connection lost: ' + error.message);
+      }
+    }
+  );
+
+  // Cleanup on unmount or mode change
+  return () => {
+    console.log('🛑 Cleaning up auto-refresh listener');
+    unsubscribe();
+  };
+}, [mode, liveGig?.id]); // Re-run when mode or gig changes
 
   // Auth Modal - Backstage Access
   if (showAuthModal) {
@@ -3825,6 +3891,31 @@ const handleCloseArtistProfile = () => {
               >
                 ← Back
               </button>
+            </div>
+          </div>
+
+          {/* Task 9: Connection Status Indicator */}
+          <div className="mb-4">
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-lg ${
+              isConnected 
+                ? 'bg-green-500/20 border border-green-400' 
+                : 'bg-red-500/20 border border-red-400'
+            }`}>
+              <div className={`w-2 h-2 rounded-full ${
+                isConnected 
+                  ? 'bg-green-400 animate-pulse' 
+                  : 'bg-red-400'
+              }`}></div>
+              <span className={`text-sm font-semibold ${
+                isConnected ? 'text-green-300' : 'text-red-300'
+              }`}>
+                {isConnected ? '🟢 Live - Auto-updating' : '🔴 Disconnected'}
+              </span>
+              {lastUpdated && isConnected && (
+                <span className="text-xs text-gray-light ml-auto">
+                  Updated {Math.floor((new Date() - lastUpdated) / 1000)}s ago
+                </span>
+              )}
             </div>
           </div>
   
