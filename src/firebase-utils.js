@@ -1071,6 +1071,7 @@ export {
   orderBy,     // ← ADD THIS
   limit,       // ← ADD THIS
   getDocs,
+  onSnapshot,
   
   // Firestore Data Types & Utilities
   arrayUnion,
