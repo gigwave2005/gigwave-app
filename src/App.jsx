@@ -1532,12 +1532,6 @@ const handleCloseArtistProfile = () => {
         alert('❌ Connection lost: ' + error.message);
       }
     );
-  
-    return () => {
-      console.log('🛑 Cleaning up auto-refresh');
-      unsubscribe();
-    };
-  }, [mode, liveGig?.id]);
 
   // Cleanup on unmount or mode change
   return () => {
