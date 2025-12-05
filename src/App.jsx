@@ -517,6 +517,47 @@ useEffect(() => {
       .catch(err => console.error('Error checking expired gigs:', err));
   }
 }, [tab, currentUser]);
+
+// Task 9: Auto-refresh audience data
+useEffect(() => {
+if (mode !== 'audience' || !liveGig) {
+  return;
+}
+
+console.log('🔄 Setting up auto-refresh for gig:', liveGig.id);
+setIsConnected(true);
+
+const gigRef = doc(db, 'liveGigs', String(liveGig.id));
+
+const unsubscribe = onSnapshot(
+  gigRef,
+  (snapshot) => {
+    if (snapshot.exists()) {
+      const updatedData = snapshot.data();
+      console.log('✅ Auto-refresh: Received update');
+      
+      setLiveGigData({
+        votes: updatedData.votes || {},
+        queuedSongs: updatedData.queuedSongs || [],
+        playedSongs: updatedData.playedSongs || [],
+        currentSong: updatedData.currentSong || null,
+        songRequests: updatedData.songRequests || [],
+        maxQueueSize: updatedData.maxQueueSize || 20
+      });
+
+      setIsConnected(true);
+      setLastUpdated(new Date());
+    } else {
+      console.log('⚠️ Gig no longer exists');
+      setIsConnected(false);
+    }
+  },
+  (error) => {
+    console.error('❌ Auto-refresh error:', error);
+    setIsConnected(false);
+    alert('❌ Connection lost: ' + error.message);
+  }
+);
   
   const handleSignIn = async (provider) => {
     try {
@@ -1491,48 +1532,7 @@ const handleCloseArtistProfile = () => {
   setViewingArtistGigs([]);
   setMode('discover');
 };
-
-  // Task 9: Auto-refresh audience data
-  useEffect(() => {
-    if (mode !== 'audience' || !liveGig) {
-      return;
-    }
   
-    console.log('🔄 Setting up auto-refresh for gig:', liveGig.id);
-    setIsConnected(true);
-  
-    const gigRef = doc(db, 'liveGigs', String(liveGig.id));
-    
-    const unsubscribe = onSnapshot(
-      gigRef,
-      (snapshot) => {
-        if (snapshot.exists()) {
-          const updatedData = snapshot.data();
-          console.log('✅ Auto-refresh: Received update');
-          
-          setLiveGigData({
-            votes: updatedData.votes || {},
-            queuedSongs: updatedData.queuedSongs || [],
-            playedSongs: updatedData.playedSongs || [],
-            currentSong: updatedData.currentSong || null,
-            songRequests: updatedData.songRequests || [],
-            maxQueueSize: updatedData.maxQueueSize || 20
-          });
-  
-          setIsConnected(true);
-          setLastUpdated(new Date());
-        } else {
-          console.log('⚠️ Gig no longer exists');
-          setIsConnected(false);
-        }
-      },
-      (error) => {
-        console.error('❌ Auto-refresh error:', error);
-        setIsConnected(false);
-        alert('❌ Connection lost: ' + error.message);
-      }
-    );
-
   // Cleanup on unmount or mode change
   return () => {
     console.log('🛑 Cleaning up auto-refresh listener');
