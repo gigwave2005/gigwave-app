@@ -204,6 +204,7 @@ export default function App() {
   const [viewingArtistGigs, setViewingArtistGigs] = useState([]);
   const [isConnected, setIsConnected] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(null);
+  const [authUserType, setAuthUserType] = useState('audience'); // 'artist' or 'audience'
 
   // Profile state
 const [artistProfile, setArtistProfile] = useState(null);
