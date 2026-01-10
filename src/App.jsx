@@ -1,6 +1,7 @@
 import './styles/rockTheme.css';
 import React, { useState, useEffect } from 'react';
 import { Music, Plus, Trash2, Play, Users, Calendar, Heart, Star, Zap, X, Search, Upload, Settings, Edit2, Check, Mail, Lock, ArrowLeft, MapPin, Navigation } from 'lucide-react';
+import AddressAutocomplete from './components/AddressAutocomplete';
 
 // Import Firebase utilities
 import {
@@ -139,6 +140,9 @@ export default function App() {
   // Auth state
   const [currentUser, setCurrentUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
+  const [signingIn, setSigningIn] = useState(false);
+  const [playlistSearchQuery, setPlaylistSearchQuery] = useState('');
+  const [masterSortBy, setMasterSortBy] = useState('default');
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authTab, setAuthTab] = useState('signin');
   const [authEmail, setAuthEmail] = useState('');
@@ -226,6 +230,52 @@ const [profileData, setProfileData] = useState({
 });
 const [emailVerified, setEmailVerified] = useState(false);
 const [showEmailVerification, setShowEmailVerification] = useState(false);
+
+// Calculate gig status based on date/time
+const calculateGigStatus = (gig) => {
+  if (gig.status === 'ended') return 'ended';
+  if (gig.manuallyEnded) return 'ended';
+  
+  const now = new Date();
+  
+  // ✅ FIX: Use gigDate and gigTime (Firebase field names)
+  const dateField = gig.gigDate || gig.date;
+  const timeField = gig.gigTime || gig.time;
+  
+  if (!dateField || !timeField) {
+    return gig.status || 'upcoming';
+  }
+  
+  const gigDateTime = new Date(`${dateField}T${timeField}`);
+  const timeDiff = now - gigDateTime;
+  const hoursPassed = timeDiff / (1000 * 60 * 60);
+  
+  // If gig is currently live
+  if (gig.status === 'live') {
+    // Auto-end after 5 hours unless extended
+    if (hoursPassed > 5 && !gig.timeExtended) {
+      return 'ended';
+    }
+    return 'live';
+  }
+  
+  // Future gig (upcoming)
+  if (now < gigDateTime) {
+    return 'upcoming';
+  }
+  
+  // Within 5 hours of start time
+  if (hoursPassed >= 0 && hoursPassed <= 5) {
+    return 'checkVenue';
+  }
+  
+  // More than 5 hours passed and never went live
+  if (hoursPassed > 5) {
+    return 'cancelled';
+  }
+  
+  return 'upcoming';
+};
 
   // Listen to auth changes and check profile
   useEffect(() => {
@@ -531,35 +581,109 @@ useEffect(() => {
         setMode('discover');
       }
     } catch (error) {
-      alert('Sign-in failed: ' + error.message);
+      console.error('Sign-in error:', error);
+      
+      // Handle specific Firebase errors
+      if (error.code === 'auth/popup-closed-by-user') {
+        alert('❌ Sign-in cancelled. Please try again.');
+      } else if (error.code === 'auth/popup-blocked') {
+        alert('❌ Popup was blocked by your browser.\n\nPlease allow popups for this site and try again.');
+      } else if (error.code === 'auth/cancelled-popup-request') {
+        // Silent - user cancelled, don't show error
+        console.log('User cancelled sign-in');
+      } else if (error.code === 'auth/network-request-failed') {
+        alert('❌ Network error. Please check your internet connection.');
+      } else {
+        alert('❌ Sign-in failed: ' + (error.message || 'Unknown error'));
+      }
     }
   };
 
+// Load artist's gigs from Firebase when entering artist mode
+useEffect(() => {
+  if (mode === 'artist' && currentUser) {
+    const loadGigsFromFirebase = async () => {
+      try {
+        console.log('📥 Loading gigs from Firebase...');
+        
+        // Query Firebase for this artist's gigs
+        const gigsQuery = query(
+          collection(db, 'liveGigs'),
+          where('artistId', '==', currentUser.uid),
+          orderBy('gigDate', 'desc')
+        );
+        
+        const gigsSnapshot = await getDocs(gigsQuery);
+        const firebaseGigs = gigsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        console.log('✅ Loaded', firebaseGigs.length, 'gigs from Firebase');
+        
+        // Merge with localStorage (keep local changes, add Firebase gigs)
+        const localGigs = JSON.parse(localStorage.getItem(`GigWave_gigs_${currentUser.uid}`) || '[]');
+        
+        // Create a map of Firebase gigs by ID
+        const firebaseGigMap = new Map(firebaseGigs.map(g => [g.id, g]));
+        
+        // Merge: Use Firebase data as source of truth, but keep local-only gigs
+        const mergedGigs = [
+          ...firebaseGigs,
+          ...localGigs.filter(localGig => 
+            !firebaseGigMap.has(localGig.id) && 
+            typeof localGig.id === 'number' // Only keep local-only gigs (with number IDs)
+          )
+        ];
+        
+        setGigs(mergedGigs);
+        
+        // Update localStorage with merged data
+        localStorage.setItem(`GigWave_gigs_${currentUser.uid}`, JSON.stringify(mergedGigs));
+        
+        console.log('🔄 Synced gigs:', mergedGigs.length, 'total');
+      } catch (error) {
+        console.error('❌ Error loading gigs from Firebase:', error);
+      }
+    };
+    
+    loadGigsFromFirebase();
+  }
+}, [mode, currentUser]);
+
   const handleSearchGigs = async () => {
-    try {
-      setLoadingGigs(true);
-      let location = userLocation;
-      
-      if (!location) {
-        location = await getUserLocation();
-        setUserLocation(location);
-      }
-      
-      const gigs = await searchNearbyGigs(location, 50);
-      setNearbyGigs(gigs);
-      setFilteredGigs(gigs);
-      
-      if (gigs.length === 0) {
-        alert('No gigs found within 50km. Try again later!');
-      } else {
-        alert(`✅ Found ${gigs.length} gig${gigs.length > 1 ? 's' : ''} nearby!`);
-      }
-    } catch (error) {
-      alert('Error finding gigs: ' + error.message);
-    } finally {
-      setLoadingGigs(false);
+  try {
+    setLoadingGigs(true);
+    let location = userLocation;
+    
+    if (!location) {
+      location = await getUserLocation();
+      setUserLocation(location);
     }
-  };
+    
+    const gigs = await searchNearbyGigs(location, 50);
+    
+    // ✅ FIX: Filter out ended/cancelled gigs BEFORE showing alert
+    const activeGigs = gigs.filter(gig => {
+      const status = calculateGigStatus(gig);
+      return ['live', 'checkVenue', 'upcoming'].includes(status);
+    });
+    
+    setNearbyGigs(gigs); // Store all gigs (for reference)
+    setFilteredGigs(gigs); // This will be filtered again in the display
+    
+    // ✅ Show alert with ACTIVE gig count only
+    if (activeGigs.length === 0) {
+      alert('No active gigs found within 50km. Try again later!');
+    } else {
+      alert(`✅ Found ${activeGigs.length} active gig${activeGigs.length > 1 ? 's' : ''} nearby!`);
+    }
+  } catch (error) {
+    alert('Error finding gigs: ' + error.message);
+  } finally {
+    setLoadingGigs(false);
+  }
+};
 
   const handleJoinGig = async (gig) => {
   try {
@@ -706,7 +830,7 @@ useEffect(() => {
   }
   
   const cleanSong = {
-    id: Math.floor(song.id), // Convert to integer HERE
+    id: Math.floor(song.id),
     title: song.title,
     artist: song.artist,
     duration: song.duration,
@@ -715,7 +839,7 @@ useEffect(() => {
   };
   
   setMasterSongs([...masterSongs, cleanSong]);
-  alert(`✅ Added "${song.title}" to master playlist!`);
+  // ✅ Song added silently - no alert popup
   
   setItunesResults(itunesResults.filter(s => s.id !== song.id));
 };
@@ -869,81 +993,132 @@ useEffect(() => {
 };
 
   const saveGig = async () => {
-    if (!editingGig.venueName || !editingGig.date || !editingGig.time) {
-      alert('Please fill in venue name, date, and time!');
+  if (!editingGig.venueName || !editingGig.date || !editingGig.time) {
+    alert('Please fill in venue name, date, and time!');
+    return;
+  }
+  
+  try {
+    let location = editingGig.location;
+    
+    // If no location, ask for it
+    if (!location) {
+      const useCurrentLocation = window.confirm('No venue location set. Use your current location?');
+      if (useCurrentLocation) {
+        location = await getUserLocation();
+      } else {
+        alert('Please set a venue location to save the gig!');
+        return;
+      }
+    }
+    
+    // ✅ FIX 1: Check for duplicate gigs within 6 hours on same date
+    const gigDateTime = new Date(`${editingGig.date}T${editingGig.time}`);
+    const sixHoursMs = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
+    
+    const hasConflict = gigs.some(existingGig => {
+      // Skip if we're editing this same gig
+      if (existingGig.id === editingGig.id) return false;
+      
+      const existingDateTime = new Date(`${existingGig.date}T${existingGig.time}`);
+      const timeDiff = Math.abs(gigDateTime - existingDateTime);
+      
+      // Check if within 6 hours
+      return timeDiff < sixHoursMs;
+    });
+    
+    if (hasConflict) {
+      alert('⚠️ You already have a gig scheduled within 6 hours of this time!\n\nPlease choose a different date or time.');
       return;
     }
     
-    try {
-      let location = editingGig.location;
-      
-      // If no location, ask for it
-      if (!location) {
-        const useCurrentLocation = window.confirm('No venue location set. Use your current location?');
-        if (useCurrentLocation) {
-          location = await getUserLocation();
-        } else {
-          alert('Please set a venue location to save the gig!');
-          return;
-        }
-      }
-      
-      // Prepare gig data for Firebase
-      // ⭐ TASK 18: Get songs from assigned playlist or master (fallback)
-      let queuedSongs = [];
-      let masterPlaylistData = masterSongs;
-      
-      if (editingGig.playlistId) {
-        const playlist = gigPlaylists.find(p => p.id === editingGig.playlistId);
-        if (playlist && playlist.songs.length > 0) {
-          // Use gig playlist
-          queuedSongs = playlist.songs.map(id => masterSongs.find(s => s.id === id)).filter(Boolean);
-        } else {
-          // Playlist empty or not found - use master playlist
-          queuedSongs = masterSongs;
-        }
+    // Prepare gig data for Firebase
+    let queuedSongs = [];
+    let masterPlaylistData = masterSongs;
+    
+    if (editingGig.playlistId) {
+      const playlist = gigPlaylists.find(p => p.id === editingGig.playlistId);
+      if (playlist && playlist.songs.length > 0) {
+        // Use gig playlist
+        queuedSongs = playlist.songs.map(id => masterSongs.find(s => s.id === id)).filter(Boolean);
       } else {
-        // No playlist selected - use master playlist
+        // Playlist empty or not found - use master playlist
         queuedSongs = masterSongs;
       }
-      
-      const gigData = {
-        artistId: currentUser.uid,
-        artistName: currentUser.displayName || 'Artist',
-        artistProfile: artistProfile,  // ← ADD THIS LINE
-        venueName: editingGig.venueName,
-        venueAddress: editingGig.address || '',
-        location: location,
-        status: 'upcoming',
-        gigDate: editingGig.date,
-        gigTime: editingGig.time,
-        playlistId: editingGig.playlistId || null,
-        queueSize: editingGig.queueSize || 20,
-        queuedSongs: queuedSongs.slice(0, editingGig.queueSize || 20),
-        masterPlaylist: masterPlaylistData,
-        notes: editingGig.notes || ''
-      };
-
-      // Save to Firebase
-      const gigId = await createLiveGig(gigData, currentUser.uid);
-      
-      // Update local state
-      const savedGig = { ...editingGig, id: gigId, location, status: 'upcoming' };
-      
-      if (gigs.find(g => g.id === editingGig.id)) {
-        setGigs(gigs.map(g => g.id === editingGig.id ? savedGig : g));
-      } else {
-        setGigs([...gigs, savedGig]);
-      }
-      
-      setShowGigModal(false);
-      setEditingGig(null);
-      
-      alert('✅ Gig saved! Audience can now find this upcoming gig.');
-    } catch (error) {
-      alert('Error saving gig: ' + error.message);
+    } else {
+      // No playlist selected - use master playlist
+      queuedSongs = masterSongs;
     }
-  };
+    
+    const gigData = {
+      artistId: currentUser.uid,
+      artistName: currentUser.displayName || 'Artist',
+      artistProfile: artistProfile,
+      venueName: editingGig.venueName,
+      venueAddress: editingGig.address || '',
+      location: location,
+      status: 'upcoming',
+      gigDate: editingGig.date,
+      gigTime: editingGig.time,
+      playlistId: editingGig.playlistId || null,
+      queueSize: editingGig.queueSize || 20,
+      queuedSongs: queuedSongs.slice(0, editingGig.queueSize || 20),
+      masterPlaylist: masterPlaylistData,
+      notes: editingGig.notes || ''
+    };
+
+    let gigId;
+    let isEditingExisting = false;
+    
+    // ✅ FIX 2: Properly detect if we're editing or creating new
+    // Check if gig exists in local state AND has a Firebase ID
+    const existingGig = gigs.find(g => g.id === editingGig.id);
+    
+    if (existingGig && typeof editingGig.id === 'string' && editingGig.id.length > 10) {
+      // EDITING existing Firebase gig
+      console.log('📝 Updating existing gig:', editingGig.id);
+      isEditingExisting = true;
+      gigId = editingGig.id;
+      
+      // Update in Firebase
+      const gigRef = doc(db, 'liveGigs', gigId);
+      await updateDoc(gigRef, gigData);
+      
+    } else {
+      // CREATING new gig
+      console.log('🆕 Creating new gig');
+      gigId = await createLiveGig(gigData, currentUser.uid);
+    }
+    
+    // Update local state
+    const savedGig = { 
+      ...editingGig, 
+      id: gigId, 
+      location, 
+      status: 'upcoming',
+      date: editingGig.date,
+      time: editingGig.time
+    };
+    
+    if (isEditingExisting) {
+      // Update existing gig in local state
+      setGigs(gigs.map(g => g.id === editingGig.id ? savedGig : g));
+      console.log('✅ Gig updated in local state');
+    } else {
+      // Add new gig to local state
+      setGigs([...gigs, savedGig]);
+      console.log('✅ New gig added to local state');
+    }
+    
+    setShowGigModal(false);
+    setEditingGig(null);
+    
+    alert(isEditingExisting ? '✅ Gig updated!' : '✅ Gig saved! Audience can now find this upcoming gig.');
+  } catch (error) {
+    console.error('Error saving gig:', error);
+    alert('Error saving gig: ' + error.message);
+  }
+};
 
   const deleteGig = async (gigId) => {
     if (window.confirm('Delete this gig permanently?')) {
@@ -1219,49 +1394,54 @@ const handleCheckVerification = async () => {
   
   // Task 20: Handle voting with duplicate prevention
   const handleVote = async (songId) => {
-    // Check if user is logged in
-    if (!currentUser) {
-      alert('Please sign in to vote!');
-      setShowAuthModal(true);
+  // Check if user is logged in
+  if (!currentUser) {
+    alert('Please sign in to vote!');
+    setShowAuthModal(true);
+    return;
+  }
+  
+  // ✅ FIX 4: Check if song is already played
+  if (liveGigData.playedSongs?.includes(songId)) {
+    alert('⚠️ This song has already been played!\n\nYou can only vote for upcoming songs.');
+    return;
+  }
+  
+  // Make sure we're in a live gig
+  if (!liveGig) {
+    alert('⚠️ No active live gig!');
+    return;
+  }
+  
+  try {
+    // Check if already voted
+    const alreadyVoted = await hasUserVoted(liveGig.id, songId, currentUser.uid);
+    
+    if (alreadyVoted) {
+      alert('⚠️ You already voted for this song!');
       return;
     }
     
-    // Make sure we're in a live gig
-    if (!liveGig) {
-      alert('⚠️ No active live gig!');
-      return;
-    }
+    // Record the vote
+    await recordUserVote(liveGig.id, songId, currentUser.uid);
     
-    try {
-      // ⭐ TASK 20: Check if this user already voted for this song
-      const alreadyVoted = await hasUserVoted(liveGig.id, songId, currentUser.uid);
-      
-      if (alreadyVoted) {
-        alert('⚠️ You already voted for this song!');
-        return;  // Stop here - no duplicate votes allowed
-      }
-      
-      // Record the new vote in Firebase
-      await recordUserVote(liveGig.id, songId, currentUser.uid);
-      
-      // ⭐ TASK 13: Show rating modal after vote
-      alert('✅ Vote recorded!');
-      setShowRatingModal(true);
-      
-      // Refresh the vote counts from Firebase to show updated numbers
-      const gigRef = doc(db, 'liveGigs', String(liveGig.id));
-      const gigSnap = await getDoc(gigRef);
-      if (gigSnap.exists()) {
-        setLiveGigData(prev => ({
-          ...prev,
-          votes: gigSnap.data().votes || {}
-        }));
-      }
-    } catch (error) {
-      console.error('Error voting:', error);
-      alert('❌ Error recording vote: ' + error.message);
+    alert('✅ Vote recorded!');
+    setShowRatingModal(true);
+    
+    // Refresh vote counts
+    const gigRef = doc(db, 'liveGigs', String(liveGig.id));
+    const gigSnap = await getDoc(gigRef);
+    if (gigSnap.exists()) {
+      setLiveGigData(prev => ({
+        ...prev,
+        votes: gigSnap.data().votes || {}
+      }));
     }
-  };
+  } catch (error) {
+    console.error('Error voting:', error);
+    alert('❌ Error recording vote: ' + error.message);
+  }
+};
 
   // Handle FREE Song Request Submission (No Payment)
   const handleSongRequest = async () => {
@@ -1273,6 +1453,12 @@ const handleCheckVerification = async () => {
   if (!currentUser) {
     alert('Please log in to request a song');
     setShowAuthModal(true);
+    return;
+  }
+
+  // ✅ FIX 4: Check if song is already played
+  if (liveGigData.playedSongs?.includes(selectedRequestSong.id)) {
+    alert('⚠️ This song has already been played!\n\nYou can only request upcoming songs.');
     return;
   }
 
@@ -1499,12 +1685,29 @@ const handleCloseArtistProfile = () => {
   if (showAuthModal) {
     const handleEmailAuth = async () => {
       setAuthError('');
+      
+      // Basic validation
+      if (!authEmail || !authPassword) {
+        setAuthError('Please enter both email and password');
+        return;
+      }
+      
+      if (authPassword.length < 6) {
+        setAuthError('Password must be at least 6 characters');
+        return;
+      }
+      
       try {
         if (authTab === 'signup') {
+          console.log('📝 Attempting sign-up...');
           await signUpWithEmail(authEmail, authPassword);
+          alert('✅ Account created successfully!\n\nPlease check your email to verify your account.');
         } else {
+          console.log('🔐 Attempting sign-in...');
           await signInWithEmail(authEmail, authPassword);
+          alert('✅ Signed in successfully!');
         }
+        
         setShowAuthModal(false);
         
         if (authUserType === 'artist') {
@@ -1513,9 +1716,49 @@ const handleCloseArtistProfile = () => {
           setMode('discover');
         }
         
-        alert(`✅ ${authTab === 'signup' ? 'Account created' : 'Signed in'} successfully!`);
       } catch (error) {
-        setAuthError(error.message);
+        console.error('❌ Auth error:', error);
+        
+        // ✅ Better error messages
+        let errorMessage = '';
+        
+        switch (error.code) {
+          case 'auth/email-already-in-use':
+            errorMessage = '❌ This email is already registered!\n\nPlease sign in instead, or use a different email.';
+            setAuthTab('signin'); // Switch to sign-in tab
+            break;
+            
+          case 'auth/invalid-email':
+            errorMessage = '❌ Invalid email address format';
+            break;
+            
+          case 'auth/weak-password':
+            errorMessage = '❌ Password is too weak. Use at least 6 characters.';
+            break;
+            
+          case 'auth/user-not-found':
+            errorMessage = '❌ No account found with this email.\n\nPlease sign up first!';
+            setAuthTab('signup'); // Switch to sign-up tab
+            break;
+            
+          case 'auth/wrong-password':
+            errorMessage = '❌ Incorrect password. Please try again.';
+            break;
+            
+          case 'auth/too-many-requests':
+            errorMessage = '❌ Too many failed attempts.\n\nPlease try again later or reset your password.';
+            break;
+            
+          case 'auth/network-request-failed':
+            errorMessage = '❌ Network error. Please check your internet connection.';
+            break;
+            
+          default:
+            errorMessage = error.message || 'Authentication failed';
+        }
+        
+        setAuthError(errorMessage);
+        alert(errorMessage);
       }
     };
   
@@ -1993,72 +2236,98 @@ const handleCloseArtistProfile = () => {
 
   // Playlist Editor Modal - Setlist Builder
   if (showPlaylistModal && editingPlaylist) {
+    
+    const filteredMasterSongs = masterSongs.filter(song => 
+      !editingPlaylist.songs.includes(song.id) &&
+      (song.title.toLowerCase().includes(playlistSearchQuery.toLowerCase()) ||
+      song.artist.toLowerCase().includes(playlistSearchQuery.toLowerCase()))
+    );
+    
+    const moveSongUp = (index) => {
+      if (index === 0) return;
+      const newSongs = [...editingPlaylist.songs];
+      [newSongs[index - 1], newSongs[index]] = [newSongs[index], newSongs[index - 1]];
+      setEditingPlaylist({...editingPlaylist, songs: newSongs});
+    };
+    
+    const moveSongDown = (index) => {
+      if (index === editingPlaylist.songs.length - 1) return;
+      const newSongs = [...editingPlaylist.songs];
+      [newSongs[index], newSongs[index + 1]] = [newSongs[index + 1], newSongs[index]];
+      setEditingPlaylist({...editingPlaylist, songs: newSongs});
+    };
+    
     return (
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div className="rock-background gig-card border-2 border-magenta max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-          <div className="flex justify-between items-center mb-6">
+        <div className="rock-background gig-card border-2 border-magenta max-w-4xl w-full h-[90vh] flex flex-col">
+          
+          {/* HEADER - Fixed */}
+          <div className="flex justify-between items-center p-6 pb-4 border-b border-white/10 flex-shrink-0">
             <h2 className="concert-heading text-3xl md:text-4xl text-magenta">
               🎸 SETLIST BUILDER
             </h2>
             <button 
-              onClick={() => {
+              onClick={() => {                
                 setShowPlaylistModal(false);
                 setEditingPlaylist(null);
-              }} 
+                setPlaylistSearchQuery('');
+              }}
               className="text-white hover:text-red-400 p-2 touch-target"
             >
               <X size={32}/>
             </button>
           </div>
   
-          {/* Playlist Info */}
-          <div className="space-y-4 mb-6">
-            <div>
-              <label className="text-electric font-bold mb-2 block text-sm uppercase tracking-wider">
-                Playlist Name *
-              </label>
-              <input
-                type="text"
-                value={editingPlaylist.name}
-                onChange={(e) => setEditingPlaylist({...editingPlaylist, name: e.target.value})}
-                className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
-                placeholder="e.g., Friday Night Rock"
-              />
-            </div>
-            
-            <div>
-              <label className="text-electric font-bold mb-2 block text-sm uppercase tracking-wider">
-                Description
-              </label>
-              <textarea
-                value={editingPlaylist.description}
-                onChange={(e) => setEditingPlaylist({...editingPlaylist, description: e.target.value})}
-                className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
-                rows={2}
-                placeholder="Optional description..."
-              />
-            </div>
-          </div>
-  
-          {/* Songs in Playlist */}
-          <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
-            <h3 className="concert-heading text-2xl text-neon mb-4">
-              🎵 SONGS IN SETLIST ({editingPlaylist.songs.length})
-            </h3>
-            {editingPlaylist.songs.length === 0 ? (
-              <div className="bg-white/5 rounded-lg p-8 text-center border border-electric/30">
-                <p className="text-gray-light">No songs yet. Add from master playlist below. 🎸</p>
+          {/* BODY - Scrollable */}
+          <div className="flex-1 overflow-y-auto p-6">
+            {/* Playlist Info */}
+            <div className="space-y-4 mb-6">
+              <div>
+                <label className="text-electric font-bold mb-2 block text-sm uppercase tracking-wider">
+                  Playlist Name *
+                </label>
+                <input
+                  type="text"
+                  value={editingPlaylist.name}
+                  onChange={(e) => setEditingPlaylist({...editingPlaylist, name: e.target.value})}
+                  className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
+                  placeholder="e.g., Friday Night Rock"
+                />
               </div>
-            ) : (
-              <div className="space-y-2">
-                {editingPlaylist.songs.map((songId, index) => {
-                  const song = masterSongs.find(s => s.id === songId);
-                  return song ? (
-                    <div 
-                      key={songId} 
-                      className="bg-white/5 p-3 rounded-lg flex flex-col md:flex-row md:justify-between md:items-center gap-3 border border-white/10 hover:border-electric/50 transition"
-                    >
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
+              
+              <div>
+                <label className="text-electric font-bold mb-2 block text-sm uppercase tracking-wider">
+                  Description
+                </label>
+                <textarea
+                  value={editingPlaylist.description}
+                  onChange={(e) => setEditingPlaylist({...editingPlaylist, description: e.target.value})}
+                  className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
+                  rows={2}
+                  placeholder="Optional description..."
+                />
+              </div>
+            </div>
+    
+            {/* Songs in Playlist */}
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
+              <h3 className="concert-heading text-2xl text-neon mb-4">
+                🎵 SONGS IN SETLIST ({editingPlaylist.songs.length})
+              </h3>
+              
+              {editingPlaylist.songs.length === 0 ? (
+                <div className="bg-white/5 rounded-lg p-8 text-center border border-electric/30">
+                  <p className="text-gray-light">No songs yet. Add from master playlist below. 🎸</p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {editingPlaylist.songs.map((songId, index) => {
+                    const song = masterSongs.find(s => s.id === songId);
+                    return song ? (
+                      <div 
+                        key={songId} 
+                        className="bg-white/5 p-3 rounded-lg flex items-center gap-3 border border-white/10 hover:border-electric/50 transition"
+                      >
                         <span className="concert-heading text-electric text-xl min-w-[40px]">
                           {index + 1}
                         </span>
@@ -2066,39 +2335,73 @@ const handleCloseArtistProfile = () => {
                           <div className="text-white font-bold truncate">{song.title}</div>
                           <div className="text-gray-light text-sm truncate">{song.artist}</div>
                         </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => moveSongUp(index)}
+                            disabled={index === 0}
+                            className="text-neon hover:text-electric p-2 disabled:opacity-30 disabled:cursor-not-allowed"
+                            title="Move up"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            onClick={() => moveSongDown(index)}
+                            disabled={index === editingPlaylist.songs.length - 1}
+                            className="text-neon hover:text-electric p-2 disabled:opacity-30 disabled:cursor-not-allowed"
+                            title="Move down"
+                          >
+                            ▼
+                          </button>
+                          <button
+                            onClick={() => removeSongFromGigPlaylist(songId)}
+                            className="text-red-400 hover:text-red-300 p-2"
+                            title="Remove"
+                          >
+                            <Trash2 size={20}/>
+                          </button>
+                        </div>
                       </div>
-                      <button
-                        onClick={() => removeSongFromGigPlaylist(songId)}
-                        className="text-red-400 hover:text-red-300 p-2 touch-target self-end md:self-center"
-                      >
-                        <Trash2 size={20}/>
-                      </button>
-                    </div>
-                  ) : null;
-                })}
+                    ) : null;
+                  })}
+                </div>
+              )}
+            </div>
+    
+            {/* Add Songs Section */}
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
+              <h3 className="concert-heading text-2xl text-electric mb-4">
+                📚 ADD FROM MASTER PLAYLIST
+              </h3>
+              
+              {/* Search Bar */}
+              <div className="mb-4">
+                <input
+                  type="text"
+                  value={playlistSearchQuery}
+                  onChange={(e) => setPlaylistSearchQuery(e.target.value)}
+                  placeholder="🔍 Search by song or artist name..."
+                  className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
+                />
               </div>
-            )}
-          </div>
-  
-          {/* Add Songs Section */}
-          <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
-            <h3 className="concert-heading text-2xl text-electric mb-4">
-              📚 ADD FROM MASTER PLAYLIST
-            </h3>
-            {masterSongs.length === 0 ? (
-              <div className="bg-white/5 rounded-lg p-8 text-center border border-electric/30">
-                <p className="text-gray-light">
-                  No songs in master playlist. Add songs in the Master Playlist tab first! 🎵
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-2 max-h-80 overflow-y-auto">
-                {masterSongs
-                  .filter(song => !editingPlaylist.songs.includes(song.id))
-                  .map(song => (
+              
+              {masterSongs.length === 0 ? (
+                <div className="bg-white/5 rounded-lg p-8 text-center border border-electric/30">
+                  <p className="text-gray-light">
+                    No songs in master playlist. Add songs in the Master Playlist tab first! 🎵
+                  </p>
+                </div>
+              ) : filteredMasterSongs.length === 0 ? (
+                <div className="bg-white/5 rounded-lg p-6 text-center border border-neon/30">
+                  <p className="text-neon font-bold">
+                  {playlistSearchQuery ? `No songs found for "${playlistSearchQuery}"` : '✅ All master songs added to setlist!'}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {filteredMasterSongs.map(song => (
                     <div 
                       key={song.id} 
-                      className="bg-white/5 p-3 rounded-lg flex flex-col md:flex-row md:justify-between md:items-center gap-3 border border-white/10 hover:bg-white/10 transition"
+                      className="bg-white/5 p-3 rounded-lg flex items-center gap-3 border border-white/10 hover:bg-white/10 transition"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="text-white font-bold truncate">{song.title}</div>
@@ -2106,42 +2409,39 @@ const handleCloseArtistProfile = () => {
                       </div>
                       <button
                         onClick={() => addSongToGigPlaylist(song.id)}
-                        className="btn btn-neon text-sm self-end md:self-center"
+                        className="btn btn-neon text-sm"
                       >
                         <Plus size={18}/>
                         <span>Add</span>
                       </button>
                     </div>
                   ))}
-                {masterSongs.filter(song => !editingPlaylist.songs.includes(song.id)).length === 0 && (
-                  <div className="bg-white/5 rounded-lg p-6 text-center border border-neon/30">
-                    <p className="text-neon font-bold">
-                      ✅ All master songs have been added to this setlist!
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
+                </div>
+              )}
+            </div>
           </div>
           
-          {/* Action Buttons */}
-          <div className="flex flex-col md:flex-row gap-3">
-            <button
-              onClick={saveGigPlaylist}
-              className="flex-1 btn btn-neon text-lg"
-            >
-              <Check size={20}/>
-              <span>Save Setlist</span>
-            </button>
-            <button
-              onClick={() => {
-                setShowPlaylistModal(false);
-                setEditingPlaylist(null);
-              }}
-              className="btn btn-ghost"
-            >
-              Cancel
-            </button>
+          {/* FOOTER - Fixed */}
+          <div className="p-6 pt-4 border-t border-white/10 flex-shrink-0">
+            <div className="flex flex-col md:flex-row gap-3">
+              <button
+                onClick={saveGigPlaylist}
+                className="flex-1 btn btn-neon text-lg"
+              >
+                <Check size={20}/>
+                <span>Save Setlist</span>
+              </button>
+              <button
+                onClick={() => {
+                  setShowPlaylistModal(false);
+                  setEditingPlaylist(null);
+                  setPlaylistSearchQuery('');
+                }}
+                className="btn btn-ghost"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -2152,8 +2452,10 @@ const handleCloseArtistProfile = () => {
   if (showGigModal && editingGig) {
     return (
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div className="rock-background gig-card border-2 border-orange max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-          <div className="flex justify-between items-center mb-6">
+        <div className="rock-background gig-card border-2 border-orange max-w-2xl w-full h-[90vh] flex flex-col">
+          
+          {/* HEADER - Fixed */}
+          <div className="flex justify-between items-center p-6 pb-4 border-b border-white/10 flex-shrink-0">
             <h2 className="concert-heading text-3xl md:text-4xl text-orange">
               {gigs.find(g => g.id === editingGig.id) ? '🎸 EDIT SHOW' : '⚡ CREATE SHOW'}
             </h2>
@@ -2168,172 +2470,166 @@ const handleCloseArtistProfile = () => {
             </button>
           </div>
   
-          <div className="space-y-6">
-            {/* Venue Name */}
-            <div>
-              <label className="text-electric font-bold mb-2 block text-sm uppercase tracking-wider">
-                Venue Name *
-              </label>
-              <input
-                type="text"
-                value={editingGig.venueName}
-                onChange={(e) => setEditingGig({...editingGig, venueName: e.target.value})}
-                className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
-                placeholder="e.g. The Blue Note Jazz Club"
-              />
-            </div>
-  
-            {/* Venue Location Section */}
-            <div className="bg-white/5 border border-white/10 rounded-xl p-6 space-y-4">
-              <h3 className="concert-heading text-xl text-neon flex items-center">
-                <MapPin className="mr-2" size={24}/>
-                VENUE LOCATION
-              </h3>
-              
-              {/* GPS Capture Button */}
-              <button
-                onClick={captureGPSLocation}
-                disabled={capturingGPS}
-                className="btn btn-electric w-full disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {capturingGPS ? (
-                  <>
-                    <span className="loading-pulse">📍</span>
-                    <span>Capturing...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>📍</span>
-                    <span>Use My Current Location</span>
-                  </>
-                )}
-              </button>
-  
-              {/* Manual Address Entry */}
+          {/* BODY - Scrollable */}
+          <div className="flex-1 overflow-y-auto p-6">
+            <div className="space-y-6">
+              {/* Venue Name */}
               <div>
-                <label className="text-gray-light font-semibold mb-2 block text-sm">
-                  Or Enter Address:
+                <label className="text-electric font-bold mb-2 block text-sm uppercase tracking-wider">
+                  Venue Name *
                 </label>
-                <div className="flex flex-col md:flex-row gap-3">
-                  <input
-                    type="text"
-                    value={editingGig.address || ''}
-                    onChange={(e) => setEditingGig({...editingGig, address: e.target.value})}
-                    className="flex-1 px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-white/30 focus:border-electric focus:outline-none"
-                    placeholder="e.g. 131 W 3rd St, New York, NY"
-                  />
+                <input
+                  type="text"
+                  value={editingGig.venueName}
+                  onChange={(e) => setEditingGig({...editingGig, venueName: e.target.value})}
+                  className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
+                  placeholder="e.g. The Blue Note Jazz Club"
+                />
+              </div>
+    
+              {/* Venue Location Section */}
+              <div className="bg-white/5 border border-white/10 rounded-xl p-6">
+                <h3 className="concert-heading text-xl text-neon flex items-center mb-4">
+                  <MapPin className="mr-2" size={24}/>
+                  VENUE LOCATION
+                </h3>
+                
+                <div className="space-y-4">
+                  {/* GPS Capture Button */}
                   <button
-                    onClick={searchVenueAddress}
-                    disabled={searchingAddress}
-                    className="btn btn-neon disabled:opacity-50 whitespace-nowrap"
+                    onClick={captureGPSLocation}
+                    disabled={capturingGPS}
+                    className="btn btn-electric w-full disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {searchingAddress ? (
+                    {capturingGPS ? (
                       <>
-                        <span className="loading-pulse">🔍</span>
-                        <span>Searching...</span>
+                        <span className="loading-pulse">📍</span>
+                        <span>Capturing...</span>
                       </>
                     ) : (
                       <>
-                        <span>🔍</span>
-                        <span>Search</span>
+                        <span>📍</span>
+                        <span>Use My Current Location</span>
                       </>
                     )}
                   </button>
-                </div>
-              </div>
-  
-              {/* Display Coordinates if captured */}
-              {editingGig.location && (
-                <div className="bg-neon/20 border border-neon rounded-lg p-4">
-                  <p className="text-neon font-bold mb-2 flex items-center gap-2">
-                    <span>✅</span>
-                    <span>Location Captured:</span>
-                  </p>
-                  <p className="text-white text-sm font-mono">
-                    📍 {editingGig.location.lat.toFixed(6)}°N, {editingGig.location.lng.toFixed(6)}°W
-                  </p>
-                  {editingGig.address && (
-                    <p className="text-gray-light text-sm mt-2">
-                      📌 {editingGig.address}
-                    </p>
+    
+                  {/* Address Autocomplete */}
+                  <div>
+                    <label className="text-gray-light font-semibold mb-2 block text-sm">
+                      Or Search Address:
+                    </label>
+                    <AddressAutocomplete
+                      value={editingGig.address || ''}
+                      onChange={(val) => setEditingGig({...editingGig, address: val})}
+                      onSelect={(data) => {
+                        setEditingGig({
+                          ...editingGig,
+                          address: data.address,
+                          location: data.location,
+                          venueName: editingGig.venueName || data.name
+                        });
+                      }}
+                      placeholder="Type venue or address..."
+                    />
+                  </div>
+    
+                  {/* Display Coordinates if captured */}
+                  {editingGig.location && (
+                    <div className="bg-neon/20 border border-neon rounded-lg p-4">
+                      <p className="text-neon font-bold mb-2 flex items-center gap-2">
+                        <span>✅</span>
+                        <span>Location Captured:</span>
+                      </p>
+                      <p className="text-white text-sm font-mono">
+                        📍 {editingGig.location.lat.toFixed(6)}°N, {editingGig.location.lng.toFixed(6)}°W
+                      </p>
+                      {editingGig.address && (
+                        <p className="text-gray-light text-sm mt-2">
+                          📌 {editingGig.address}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
-              )}
-            </div>
-  
-            {/* Date & Time */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              </div>
+    
+              {/* Date & Time */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-electric font-bold mb-2 block text-sm uppercase tracking-wider">
+                    Date *
+                  </label>
+                  <input
+                    type="date"
+                    value={editingGig.date}
+                    onChange={(e) => setEditingGig({...editingGig, date: e.target.value})}
+                    className="w-full px-4 py-3 rounded-lg bg-white/10 text-white border border-electric/30 focus:border-electric focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-electric font-bold mb-2 block text-sm uppercase tracking-wider">
+                    Time *
+                  </label>
+                  <input
+                    type="time"
+                    value={editingGig.time}
+                    onChange={(e) => setEditingGig({...editingGig, time: e.target.value})}
+                    className="w-full px-4 py-3 rounded-lg bg-white/10 text-white border border-electric/30 focus:border-electric focus:outline-none"
+                  />
+                </div>
+              </div>
+    
+              {/* Playlist Selector */}
               <div>
                 <label className="text-electric font-bold mb-2 block text-sm uppercase tracking-wider">
-                  Date *
+                  Assign Setlist (Optional)
                 </label>
-                <input
-                  type="date"
-                  value={editingGig.date}
-                  onChange={(e) => setEditingGig({...editingGig, date: e.target.value})}
+                <select
+                  value={editingGig.playlistId || ''}
+                  onChange={(e) => setEditingGig({
+                    ...editingGig,
+                    playlistId: e.target.value ? parseInt(e.target.value) : null
+                  })}
                   className="w-full px-4 py-3 rounded-lg bg-white/10 text-white border border-electric/30 focus:border-electric focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="text-electric font-bold mb-2 block text-sm uppercase tracking-wider">
-                  Time *
-                </label>
-                <input
-                  type="time"
-                  value={editingGig.time}
-                  onChange={(e) => setEditingGig({...editingGig, time: e.target.value})}
-                  className="w-full px-4 py-3 rounded-lg bg-white/10 text-white border border-electric/30 focus:border-electric focus:outline-none"
-                />
-              </div>
-            </div>
-  
-            {/* Playlist Selector */}
-            <div>
-              <label className="text-electric font-bold mb-2 block text-sm uppercase tracking-wider">
-                Assign Setlist (Optional)
-              </label>
-              <select
-                value={editingGig.playlistId || ''}
-                onChange={(e) => setEditingGig({
-                  ...editingGig,
-                  playlistId: e.target.value ? parseInt(e.target.value) : null
-                })}
-                className="w-full px-4 py-3 rounded-lg bg-white/10 text-white border border-electric/30 focus:border-electric focus:outline-none"
-              >
-                <option value="" className="bg-gray-900 text-white">
-                  No setlist (use master playlist)
-                </option>
-                {gigPlaylists.map(p => (
-                  <option key={p.id} value={p.id} className="bg-gray-900 text-white">
-                    {p.name} ({p.songs.length} songs)
+                >
+                  <option value="" className="bg-gray-900 text-white">
+                    No setlist (use master playlist)
                   </option>
-                ))}
-              </select>
-            </div>
+                  {gigPlaylists.map(p => (
+                    <option key={p.id} value={p.id} className="bg-gray-900 text-white">
+                      {p.name} ({p.songs.length} songs)
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            {/* Queue Size Setting */}
-            <div>
-              <label className="text-electric font-bold mb-2 block text-sm uppercase tracking-wider">
-                Maximum Queue Size
-              </label>
-              <input
-                type="number"
-                value={editingGig.queueSize || 20}
-                onChange={(e) => setEditingGig({
-                  ...editingGig,
-                  queueSize: parseInt(e.target.value) || 20
-                })}
-                min="10"
-                max="50"
-                className="w-full px-4 py-3 rounded-lg bg-white/10 text-white border border-electric/30 focus:border-electric focus:outline-none"
-              />
-              <p className="text-gray-light text-sm mt-2">
-                Maximum number of songs in the live queue (10-50 songs)
-              </p>
+              {/* Queue Size Setting */}
+              <div>
+                <label className="text-electric font-bold mb-2 block text-sm uppercase tracking-wider">
+                  Maximum Queue Size
+                </label>
+                <input
+                  type="number"
+                  value={editingGig.queueSize || 20}
+                  onChange={(e) => setEditingGig({
+                    ...editingGig,
+                    queueSize: parseInt(e.target.value) || 20
+                  })}
+                  min="10"
+                  max="50"
+                  className="w-full px-4 py-3 rounded-lg bg-white/10 text-white border border-electric/30 focus:border-electric focus:outline-none"
+                />
+                <p className="text-gray-light text-sm mt-2">
+                  Maximum number of songs in the live queue (10-50 songs)
+                </p>
+              </div>
             </div>
+          </div>
   
-            {/* Action Buttons */}
-            <div className="flex flex-col md:flex-row gap-3 pt-4">
+          {/* FOOTER - Fixed */}
+          <div className="p-6 pt-4 border-t border-white/10 flex-shrink-0">
+            <div className="flex flex-col md:flex-row gap-3">
               <button
                 onClick={saveGig}
                 className="flex-1 btn btn-neon text-lg"
@@ -2361,8 +2657,10 @@ const handleCloseArtistProfile = () => {
   if (showGigDetailModal && selectedUpcomingGig) {
     return (
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-        <div className="rock-background gig-card border-2 border-electric max-w-3xl w-full max-h-[90vh] overflow-y-auto">
-          <div className="flex justify-between items-center mb-6">
+        <div className="rock-background gig-card border-2 border-electric max-w-3xl w-full h-[90vh] flex flex-col">
+          
+          {/* HEADER - Fixed */}
+          <div className="flex justify-between items-center p-6 pb-4 border-b border-white/10 flex-shrink-0">
             <h2 className="concert-heading text-3xl md:text-4xl text-electric">
               🎸 BACKSTAGE PASS
             </h2>
@@ -2377,172 +2675,198 @@ const handleCloseArtistProfile = () => {
             </button>
           </div>
   
-          {/* Artist Header */}
-          <div className="bg-gradient-to-r from-magenta/20 to-electric/20 border border-electric/50 rounded-xl p-6 mb-6">
-            <h3 className="concert-heading text-3xl md:text-4xl text-white mb-4">
-              {selectedUpcomingGig.artistName}
-            </h3>
-            <div className="space-y-3">
-              <div className="flex items-start gap-3 text-gray-light">
-                <span className="text-electric text-xl">📍</span>
-                <div>
-                  <p className="font-bold text-white">{selectedUpcomingGig.venueName}</p>
-                  {selectedUpcomingGig.venueAddress && (
-                    <p className="text-sm text-gray">{selectedUpcomingGig.venueAddress}</p>
-                  )}
+          {/* BODY - Scrollable */}
+          <div className="flex-1 overflow-y-auto p-6">
+            {/* Artist Header */}
+            <div className="bg-gradient-to-r from-magenta/20 to-electric/20 border border-electric/50 rounded-xl p-6 mb-6">
+              <h3 className="concert-heading text-3xl md:text-4xl text-white mb-4">
+                {selectedUpcomingGig.artistName}
+              </h3>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3 text-gray-light">
+                  <span className="text-electric text-xl">📍</span>
+                  <div>
+                    <p className="font-bold text-white">{selectedUpcomingGig.venueName}</p>
+                    {selectedUpcomingGig.venueAddress && (
+                      <p className="text-sm text-gray">{selectedUpcomingGig.venueAddress}</p>
+                    )}
+                  </div>
                 </div>
-              </div>
-              
-              {selectedUpcomingGig.gigDate && (
+                
+                {selectedUpcomingGig.gigDate && (
+                  <p className="flex items-center gap-3">
+                    <span className="text-magenta text-xl">📅</span>
+                    <span className="font-bold text-white">
+                      {new Date(selectedUpcomingGig.gigDate).toLocaleDateString('en-US', {
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric'
+                      })}
+                    </span>
+                  </p>
+                )}
+                
+                {selectedUpcomingGig.gigTime && (
+                  <p className="flex items-center gap-3">
+                    <span className="text-neon text-xl">🕐</span>
+                    <span className="font-bold text-white">{selectedUpcomingGig.gigTime}</span>
+                  </p>
+                )}
+                
                 <p className="flex items-center gap-3">
-                  <span className="text-magenta text-xl">📅</span>
-                  <span className="font-bold text-white">
-                    {new Date(selectedUpcomingGig.gigDate).toLocaleDateString('en-US', {
-                      weekday: 'long', 
-                      year: 'numeric', 
-                      month: 'long', 
-                      day: 'numeric'
-                    })}
+                  <span className="text-electric text-xl">📏</span>
+                  <span className="font-bold text-electric">
+                    {selectedUpcomingGig.distance < 1000 
+                      ? `${selectedUpcomingGig.distance}m away` 
+                      : `${(selectedUpcomingGig.distance/1000).toFixed(1)}km away`
+                    }
                   </span>
                 </p>
-              )}
-              
-              {selectedUpcomingGig.gigTime && (
-                <p className="flex items-center gap-3">
-                  <span className="text-neon text-xl">🕐</span>
-                  <span className="font-bold text-white">{selectedUpcomingGig.gigTime}</span>
-                </p>
-              )}
-              
-              <p className="flex items-center gap-3">
-                <span className="text-electric text-xl">📏</span>
-                <span className="font-bold text-electric">
-                  {selectedUpcomingGig.distance < 1000 
-                    ? `${selectedUpcomingGig.distance}m away` 
-                    : `${(selectedUpcomingGig.distance/1000).toFixed(1)}km away`
-                  }
-                </span>
-              </p>
 
-              {/* Social Follow Buttons */}
-              {selectedUpcomingGig.artistProfile?.socialMedia && (
-                <div className="mt-6 pt-4 border-t border-electric/30">
-                  <SocialFollowButtons 
-                    socialMedia={selectedUpcomingGig.artistProfile.socialMedia}
-                    artistName={selectedUpcomingGig.artistName}
-                  />
-                </div>
-              )}
+                {/* Social Follow Buttons */}
+                {selectedUpcomingGig.artistProfile?.socialMedia && (
+                  <div className="mt-6 pt-4 border-t border-electric/30">
+                    <SocialFollowButtons 
+                      socialMedia={selectedUpcomingGig.artistProfile.socialMedia}
+                      artistName={selectedUpcomingGig.artistName}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+    
+            {/* Setlist Preview */}
+            <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
+              <h3 className="concert-heading text-2xl text-magenta mb-4">
+                🎵 EXPECTED SETLIST
+              </h3>
+              {(() => {
+                let displaySongs = [];
+                const queueSize = selectedUpcomingGig.maxQueueSize || selectedUpcomingGig.queueSize || 20;
+                const gigPlaylist = selectedUpcomingGig.queuedSongs || [];
+                const masterPlaylist = selectedUpcomingGig.masterPlaylist || [];
+                
+                // Rule 1: Gig playlist has MORE songs than limit
+                if (gigPlaylist.length > queueSize) {
+                  const shuffled = [...gigPlaylist].sort(() => Math.random() - 0.5);
+                  displaySongs = shuffled.slice(0, queueSize);
+                }
+                // Rule 2: Gig playlist has LESS songs than limit
+                else if (gigPlaylist.length > 0 && gigPlaylist.length < queueSize) {
+                  displaySongs = [...gigPlaylist];
+                  const needed = queueSize - gigPlaylist.length;
+                  const available = masterPlaylist.filter(m => !gigPlaylist.find(g => g.id === m.id));
+                  const shuffled = [...available].sort(() => Math.random() - 0.5);
+                  displaySongs = [...displaySongs, ...shuffled.slice(0, needed)];
+                }
+                // Rule 3 & 4: No gig playlist OR not selected
+                else if (gigPlaylist.length === 0) {
+                  const shuffled = [...masterPlaylist].sort(() => Math.random() - 0.5);
+                  displaySongs = shuffled.slice(0, queueSize);
+                }
+                // Exactly at limit
+                else {
+                  displaySongs = gigPlaylist;
+                }
+                
+                const playlistType = gigPlaylist.length > 0 ? 'Curated Queue' : 'Master Playlist';
+                
+                return displaySongs.length > 0 ? (
+                  <>
+                    <p className="text-electric text-sm mb-4 font-semibold">
+                      Showing: {playlistType} ({displaySongs.length}/{queueSize} songs)
+                    </p>
+                    <div className="space-y-2">
+                      {displaySongs.map((song, index) => (
+                        <div 
+                          key={song.id || index} 
+                          className="bg-white/5 p-3 rounded-lg flex items-center gap-3 hover:bg-white/10 transition border border-white/10"
+                        >
+                          <span className="concert-heading text-electric text-xl min-w-[40px]">
+                            {index + 1}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <div className="text-white font-bold truncate">{song.title}</div>
+                            <div className="text-gray-light text-sm truncate">{song.artist}</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-gray text-sm mt-4 italic text-center">
+                      {displaySongs.length} song{displaySongs.length !== 1 ? 's' : ''} • Final setlist may vary
+                    </p>
+                  </>
+                ) : (
+                  <div className="bg-white/5 rounded-lg p-8 text-center border border-electric/30">
+                    <p className="text-gray-light">
+                      Setlist not available yet. Check back closer to showtime! 🎸
+                    </p>
+                  </div>
+                );
+              })()}
             </div>
           </div>
   
-          {/* Setlist Preview */}
-          <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
-            <h3 className="concert-heading text-2xl text-magenta mb-4">
-              🎵 EXPECTED SETLIST
-            </h3>
-            {(() => {
-              const songs = selectedUpcomingGig.queuedSongs && selectedUpcomingGig.queuedSongs.length > 0
-                ? selectedUpcomingGig.queuedSongs
-                : selectedUpcomingGig.masterPlaylist || [];
-              
-              const playlistType = selectedUpcomingGig.queuedSongs && selectedUpcomingGig.queuedSongs.length > 0
-                ? 'Curated Queue'
-                : 'Master Playlist';
-              
-              return songs.length > 0 ? (
-                <>
-                  <p className="text-electric text-sm mb-4 font-semibold">
-                    Showing: {playlistType}
-                  </p>
-                  <div className="space-y-2 max-h-80 overflow-y-auto">
-                    {songs.map((song, index) => (
-                      <div 
-                        key={song.id || index} 
-                        className="bg-white/5 p-3 rounded-lg flex items-center gap-3 hover:bg-white/10 transition border border-white/10"
-                      >
-                        <span className="concert-heading text-electric text-xl min-w-[40px]">
-                          {index + 1}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-white font-bold truncate">{song.title}</div>
-                          <div className="text-gray-light text-sm truncate">{song.artist}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <p className="text-gray text-sm mt-4 italic text-center">
-                    {songs.length} song{songs.length !== 1 ? 's' : ''} • Final setlist may vary
-                  </p>
-                </>
-              ) : (
-                <div className="bg-white/5 rounded-lg p-8 text-center border border-electric/30">
-                  <p className="text-gray-light">
-                    Setlist not available yet. Check back closer to showtime! 🎸
-                  </p>
-                </div>
-              );
-            })()}
-          </div>
-  
-          {/* Action Buttons */}
-          <div className="flex flex-col md:flex-row gap-3">
-            <button
-              onClick={async () => {
-                // Check if user is logged in
-                if (!currentUser) {
-                  setShowAuthModal(true);
-                  return;
-                }
-                
-                const isCurrentlyInterested = interestedGigs.includes(selectedUpcomingGig.id);
-                
-                try {
-                  if (isCurrentlyInterested) {
-                    await unmarkAsInterested(selectedUpcomingGig.id, currentUser.uid);
-                    setInterestedGigs(interestedGigs.filter(id => id !== selectedUpcomingGig.id));
-                  } else {
-                    await markAsInterested(selectedUpcomingGig.id, currentUser.uid);
-                    setInterestedGigs([...interestedGigs, selectedUpcomingGig.id]);
+          {/* FOOTER - Fixed */}
+          <div className="p-6 pt-4 border-t border-white/10 flex-shrink-0">
+            <div className="flex flex-col md:flex-row gap-3">
+              <button
+                onClick={async () => {
+                  if (!currentUser) {
+                    setShowAuthModal(true);
+                    return;
                   }
-                } catch (error) {
-                  alert('Error updating interest: ' + error.message);
-                }
-              }}
-              className={`flex-1 btn text-lg ${
-                interestedGigs.includes(selectedUpcomingGig.id)
-                  ? 'btn-neon'
-                  : 'btn-electric'
-              }`}
-            >
-              {interestedGigs.includes(selectedUpcomingGig.id) ? (
-                <>
-                  <span>⭐</span>
-                  <span>Interested!</span>
-                </>
-              ) : (
-                <>
-                  <span>⭐</span>
-                  <span>Mark as Interested</span>
-                </>
-              )}
-            </button>
-            <button
-              onClick={() => {
-                setShowGigDetailModal(false);
-                setSelectedUpcomingGig(null);
-              }}
-              className="btn btn-ghost"
-            >
-              Close
-            </button>
+                  
+                  const isCurrentlyInterested = interestedGigs.includes(selectedUpcomingGig.id);
+                  
+                  try {
+                    if (isCurrentlyInterested) {
+                      await unmarkAsInterested(selectedUpcomingGig.id, currentUser.uid);
+                      setInterestedGigs(interestedGigs.filter(id => id !== selectedUpcomingGig.id));
+                    } else {
+                      await markAsInterested(selectedUpcomingGig.id, currentUser.uid);
+                      setInterestedGigs([...interestedGigs, selectedUpcomingGig.id]);
+                    }
+                  } catch (error) {
+                    alert('Error updating interest: ' + error.message);
+                  }
+                }}
+                className={`flex-1 btn text-lg ${
+                  interestedGigs.includes(selectedUpcomingGig.id)
+                    ? 'btn-neon'
+                    : 'btn-electric'
+                }`}
+              >
+                {interestedGigs.includes(selectedUpcomingGig.id) ? (
+                  <>
+                    <span>⭐</span>
+                    <span>Interested!</span>
+                  </>
+                ) : (
+                  <>
+                    <span>⭐</span>
+                    <span>Mark as Interested</span>
+                  </>
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  setShowGigDetailModal(false);
+                  setSelectedUpcomingGig(null);
+                }}
+                className="btn btn-ghost"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  // Discovery Page
+// Discovery Page
   if (mode === 'discover') {
     return (
       <div className="rock-background min-h-screen p-4 pb-24 md:pb-4">
@@ -2554,349 +2878,383 @@ const handleCloseArtistProfile = () => {
               </div>
             </div>
             {/* Logo and Title */}
-  <div className="flex items-center justify-center gap-4 mb-4">
-    {/* Soundwave Logo */}
-    <div className="relative">
-      <svg width="80" height="80" viewBox="0 0 100 100" className="text-electric">
-        {/* Soundwave bars */}
-        <rect x="10" y="30" width="8" height="40" fill="currentColor" rx="4">
-          <animate attributeName="height" values="40;60;40" dur="1s" repeatCount="indefinite" />
-          <animate attributeName="y" values="30;20;30" dur="1s" repeatCount="indefinite" />
-        </rect>
-        <rect x="25" y="20" width="8" height="60" fill="currentColor" rx="4">
-          <animate attributeName="height" values="60;80;60" dur="1.2s" repeatCount="indefinite" />
-          <animate attributeName="y" values="20;10;20" dur="1.2s" repeatCount="indefinite" />
-        </rect>
-        <rect x="40" y="15" width="8" height="70" fill="#FF1B6D" rx="4">
-          <animate attributeName="height" values="70;90;70" dur="0.8s" repeatCount="indefinite" />
-          <animate attributeName="y" values="15;5;15" dur="0.8s" repeatCount="indefinite" />
-        </rect>
-        <rect x="55" y="20" width="8" height="60" fill="currentColor" rx="4">
-          <animate attributeName="height" values="60;80;60" dur="1.2s" repeatCount="indefinite" />
-          <animate attributeName="y" values="20;10;20" dur="1.2s" repeatCount="indefinite" />
-        </rect>
-        <rect x="70" y="30" width="8" height="40" fill="currentColor" rx="4">
-          <animate attributeName="height" values="40;60;40" dur="1s" repeatCount="indefinite" />
-          <animate attributeName="y" values="30;20;30" dur="1s" repeatCount="indefinite" />
-        </rect>
-      </svg>
-      {/* Glow effect */}
-      <div className="absolute inset-0 blur-xl opacity-50">
-        <svg width="80" height="80" viewBox="0 0 100 100" className="text-electric">
-          <rect x="40" y="15" width="8" height="70" fill="currentColor" rx="4" />
-        </svg>
-      </div>
-    </div>
-    
-    {/* App Name */}
-    <h1 className="text-6xl md:text-7xl font-bold text-white drop-shadow-lg">
-      GigWave
-    </h1>
-  </div>
-  
-  {/* Tagline */}
-  <p className="text-lg md:text-xl text-electric font-bold tracking-widest uppercase mb-12">
-    Ride the wave of live music
-  </p>
-          <p className="text-xl md:text-2xl text-electric font-semibold tracking-wide uppercase">
-            ⚡ Discover Live Music Near You ⚡
-          </p>
-        </div>
-
-        {/* Search Button */}
-        <div className="gig-card mb-8 hover:scale-105 transition-transform">
-          <button
-            onClick={handleSearchGigs}
-            disabled={loadingGigs}
-            className="btn btn-electric w-full text-xl md:text-2xl py-6 md:py-8"
-          >
-            {loadingGigs ? (
-              <>
-                <span className="loading-pulse">🔍</span>
-                <span>SEARCHING...</span>
-              </>
-            ) : (
-              <>
-                <span>📍</span>
-                <span>FIND LIVE GIGS</span>
-              </>
-            )}
-          </button>
-        </div>
-
-        {/* Results Section */}
-        {nearbyGigs.length > 0 && (
-          <div className="space-y-6">
-            {/* Date Filter */}
-            <div className="gig-card">
-              <h3 className="concert-heading text-2xl text-electric mb-4">
-                📅 FILTER BY DATE
-              </h3>
-              <div className="grid grid-cols-2 md:flex gap-3">
-                <button
-                  onClick={() => filterGigsByDate('all')}
-                  className={`btn ${dateFilter === 'all' ? 'btn-electric' : 'btn-ghost'} flex-1`}
-                >
-                  All Dates
-                </button>
-                <button
-                  onClick={() => filterGigsByDate('today')}
-                  className={`btn ${dateFilter === 'today' ? 'btn-electric' : 'btn-ghost'} flex-1`}
-                >
-                  Today
-                </button>
-                <button
-                  onClick={() => filterGigsByDate('tomorrow')}
-                  className={`btn ${dateFilter === 'tomorrow' ? 'btn-electric' : 'btn-ghost'} flex-1`}
-                >
-                  Tomorrow
-                </button>
-                <button
-                  onClick={() => filterGigsByDate('week')}
-                  className={`btn ${dateFilter === 'week' ? 'btn-electric' : 'btn-ghost'} flex-1`}
-                >
-                  This Week
-                </button>
+            <div className="flex items-center justify-center gap-4 mb-4">
+              {/* Soundwave Logo */}
+              <div className="relative">
+                <svg width="80" height="80" viewBox="0 0 100 100" className="text-electric">
+                  {/* Soundwave bars */}
+                  <rect x="10" y="30" width="8" height="40" fill="currentColor" rx="4">
+                    <animate attributeName="height" values="40;60;40" dur="1s" repeatCount="indefinite" />
+                    <animate attributeName="y" values="30;20;30" dur="1s" repeatCount="indefinite" />
+                  </rect>
+                  <rect x="25" y="20" width="8" height="60" fill="currentColor" rx="4">
+                    <animate attributeName="height" values="60;80;60" dur="1.2s" repeatCount="indefinite" />
+                    <animate attributeName="y" values="20;10;20" dur="1.2s" repeatCount="indefinite" />
+                  </rect>
+                  <rect x="40" y="15" width="8" height="70" fill="#FF1B6D" rx="4">
+                    <animate attributeName="height" values="70;90;70" dur="0.8s" repeatCount="indefinite" />
+                    <animate attributeName="y" values="15;5;15" dur="0.8s" repeatCount="indefinite" />
+                  </rect>
+                  <rect x="55" y="20" width="8" height="60" fill="currentColor" rx="4">
+                    <animate attributeName="height" values="60;80;60" dur="1.2s" repeatCount="indefinite" />
+                    <animate attributeName="y" values="20;10;20" dur="1.2s" repeatCount="indefinite" />
+                  </rect>
+                  <rect x="70" y="30" width="8" height="40" fill="currentColor" rx="4">
+                    <animate attributeName="height" values="40;60;40" dur="1s" repeatCount="indefinite" />
+                    <animate attributeName="y" values="30;20;30" dur="1s" repeatCount="indefinite" />
+                  </rect>
+                </svg>
+                {/* Glow effect */}
+                <div className="absolute inset-0 blur-xl opacity-50">
+                  <svg width="80" height="80" viewBox="0 0 100 100" className="text-electric">
+                    <rect x="40" y="15" width="8" height="70" fill="currentColor" rx="4" />
+                  </svg>
+                </div>
               </div>
-              <p className="text-gray-light text-sm mt-4 text-center">
-                🎵 Showing <span className="text-electric font-bold">{filteredGigs.length}</span> of <span className="text-electric font-bold">{nearbyGigs.length}</span> gigs
-              </p>
+              
+              {/* App Name */}
+              <h1 className="text-6xl md:text-7xl font-bold text-white drop-shadow-lg">
+                GigWave
+              </h1>
             </div>
+            
+            {/* Tagline */}
+            <p className="text-lg md:text-xl text-electric font-bold tracking-widest uppercase mb-12">
+              Ride the wave of live music
+            </p>
+            <p className="text-xl md:text-2xl text-electric font-semibold tracking-wide uppercase">
+              ⚡ Discover Live Music Near You ⚡
+            </p>
+          </div>
+
+          {/* Search Button */}
+          <div className="gig-card mb-8 hover:scale-105 transition-transform">
+            <button
+              onClick={handleSearchGigs}
+              disabled={loadingGigs}
+              className="btn btn-electric w-full text-xl md:text-2xl py-6 md:py-8"
+            >
+              {loadingGigs ? (
+                <>
+                  <span className="loading-pulse">🔍</span>
+                  <span>SEARCHING...</span>
+                </>
+              ) : (
+                <>
+                  <span>📍</span>
+                  <span>FIND LIVE GIGS</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Results Section */}
+          {nearbyGigs.length > 0 && (
+            <div className="space-y-6">
+              {/* Date Filter */}
+              <div className="gig-card">
+                <h3 className="concert-heading text-2xl text-electric mb-4">
+                  📅 FILTER BY DATE
+                </h3>
+                <div className="grid grid-cols-2 md:flex gap-3">
+                  <button
+                    onClick={() => filterGigsByDate('all')}
+                    className={`btn ${dateFilter === 'all' ? 'btn-electric' : 'btn-ghost'} flex-1`}
+                  >
+                    All Dates
+                  </button>
+                  <button
+                    onClick={() => filterGigsByDate('today')}
+                    className={`btn ${dateFilter === 'today' ? 'btn-electric' : 'btn-ghost'} flex-1`}
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={() => filterGigsByDate('tomorrow')}
+                    className={`btn ${dateFilter === 'tomorrow' ? 'btn-electric' : 'btn-ghost'} flex-1`}
+                  >
+                    Tomorrow
+                  </button>
+                  <button
+                    onClick={() => filterGigsByDate('week')}
+                    className={`btn ${dateFilter === 'week' ? 'btn-electric' : 'btn-ghost'} flex-1`}
+                  >
+                    This Week
+                  </button>
+                </div>
+                <p className="text-gray-light text-sm mt-4 text-center">
+                  🎵 Showing <span className="text-electric font-bold">
+                    {(() => {
+                      const activeCount = filteredGigs.filter(gig => {
+                        const status = calculateGigStatus(gig);
+                        return ['live', 'checkVenue', 'upcoming'].includes(status);
+                      }).length;
+                      const totalActiveCount = nearbyGigs.filter(gig => {
+                        const status = calculateGigStatus(gig);
+                        return ['live', 'checkVenue', 'upcoming'].includes(status);
+                      }).length;
+                      return activeCount;
+                    })()}
+                  </span> of <span className="text-electric font-bold">
+                    {(() => {
+                      return nearbyGigs.filter(gig => {
+                        const status = calculateGigStatus(gig);
+                        return ['live', 'checkVenue', 'upcoming'].includes(status);
+                      }).length;
+                    })()}
+                  </span> active gigs
+                </p>
+              </div>
 
               {/* Gig Results */}
               <div className="space-y-4">
-                {/* Live Gigs Section */}
-                {filteredGigs.filter(g => g.status === 'live').length > 0 && (
-                  <div className="space-y-4 mb-8">
-                    <h2 className="text-3xl font-bold text-white">🔴 Live Now</h2>
-                    
-                    {filteredGigs.filter(g => g.status === 'live').map(gig => {
-                      const gigDateTime = gig.gigDate && gig.gigTime 
-                        ? `${new Date(gig.gigDate).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})} at ${gig.gigTime}`
-                        : 'Time TBD';
+                {(() => {
+                  // Filter and sort gigs
+                  const displayGigs = filteredGigs
+                    .map(gig => ({
+                      ...gig,
+                      calculatedStatus: calculateGigStatus(gig)
+                    }))
+                    .filter(gig => {
+                      // Only show: live, checkVenue, upcoming
+                      return ['live', 'checkVenue', 'upcoming'].includes(gig.calculatedStatus);
+                    })
+                    .sort((a, b) => {
+                      // Sort: Live → Check With Venue → Upcoming
+                      const statusOrder = { live: 0, checkVenue: 1, upcoming: 2 };
                       
-                      return (
-                        <div 
-                          key={gig.id} 
-                          className="gig-card gig-card-live hover:scale-[1.02] transition-all cursor-pointer"
-                          onClick={() => {
-                            setLiveGig(gig);
-                            setMode('audience');
-                          }}
-                        >
-                          <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
-                            <div className="flex-1">
-                              {/* Live Indicator */}
-                              <div className="flex items-center gap-3 mb-3">
-                                <div className="relative">
-                                  <div className="w-4 h-4 bg-neon rounded-full animate-pulse"></div>
-                                  <div className="absolute inset-0 w-4 h-4 bg-neon rounded-full animate-ping"></div>
+                      if (a.calculatedStatus !== b.calculatedStatus) {
+                        return statusOrder[a.calculatedStatus] - statusOrder[b.calculatedStatus];
+                      }
+                      
+                      // Within same status, sort by date/time
+                      const dateA = new Date(`${a.gigDate}T${a.gigTime}`);
+                      const dateB = new Date(`${b.gigDate}T${b.gigTime}`);
+                      return dateA - dateB;
+                    });
+
+                  if (displayGigs.length === 0) {
+                    return (
+                      <div className="bg-yellow-500/20 border border-yellow-400 rounded-xl p-6 text-center">
+                        <p className="text-yellow-200 text-lg">No active gigs found for selected date filter.</p>
+                      </div>
+                    );
+                  }
+
+                  // Separate gigs by status
+                  const liveGigs = displayGigs.filter(g => g.calculatedStatus === 'live');
+                  const upcomingGigs = displayGigs.filter(g => g.calculatedStatus === 'upcoming' || g.calculatedStatus === 'checkVenue');
+
+                  return (
+                    <>
+                      {/* Live Gigs Section */}
+                      {liveGigs.length > 0 && (
+                        <div className="space-y-4 mb-8">
+                          <h2 className="concert-heading text-4xl text-neon mb-6">
+                            🔴 LIVE NOW
+                          </h2>
+                    
+                          {liveGigs.map(gig => (
+                            <div 
+                              key={gig.id} 
+                              className="gig-card gig-card-live hover:scale-[1.02] transition-all cursor-pointer"
+                              onClick={() => {
+                                setLiveGig(gig);
+                                setMode('audience');
+                              }}
+                            >
+                              <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+                                <div className="flex-1">
+                                  {/* Live Indicator */}
+                                  <div className="flex items-center gap-3 mb-3">
+                                    <div className="relative">
+                                      <div className="w-4 h-4 bg-neon rounded-full animate-pulse"></div>
+                                      <div className="absolute inset-0 w-4 h-4 bg-neon rounded-full animate-ping"></div>
+                                    </div>
+                                    <span className="concert-heading text-neon text-xl tracking-wider">
+                                      🔴 LIVE NOW
+                                    </span>
+                                  </div>
+                            
+                                  {/* Artist Name */}
+                                  <h3 className="concert-heading text-3xl text-white mb-2">
+                                    {gig.artistName}
+                                  </h3>
+                            
+                                  {/* Venue Info */}
+                                  <div className="space-y-2 text-gray-light">
+                                    <p className="flex items-center gap-2 text-lg">
+                                      <span className="text-electric">📍</span>
+                                      <span className="font-semibold">{gig.venueName}</span>
+                                    </p>
+                                    
+                                    {gig.venueAddress && (
+                                      <p className="flex items-center gap-2 text-sm text-gray">
+                                        <span className="text-electric">🗺️</span>
+                                        <span>{gig.venueAddress}</span>
+                                      </p>
+                                    )}
+                                    
+                                    <p className="flex items-center gap-2 text-electric font-bold">
+                                      <span>📏</span>
+                                      <span>
+                                        {gig.distance < 1000 
+                                          ? `${gig.distance}m away` 
+                                          : `${(gig.distance/1000).toFixed(1)}km away`
+                                        }
+                                      </span>
+                                    </p>
+                                  </div>
                                 </div>
-                                <span className="concert-heading text-neon text-xl tracking-wider">
-                                  🔴 LIVE NOW
-                                </span>
-                              </div>
-                      
-                              {/* Artist Name */}
-                              <button
-                                onClick={() => handleViewArtistProfile(gig.artistId, gig.artistEmail)}
-                                className="text-electric hover:text-neon font-bold underline"
-                              >
-                                {gig.artistName}
-                              </button>
-                      
-                              {/* Venue Info */}
-                              <div className="space-y-2 text-gray-light">
-                                <p className="flex items-center gap-2 text-lg">
-                                  <span className="text-electric">📍</span>
-                                  <span className="font-semibold">{gig.venueName}</span>
-                                </p>
-                                
-                                {gig.venueAddress && (
-                                  <p className="flex items-center gap-2 text-sm text-gray">
-                                    <span className="text-electric">🗺️</span>
-                                    <span>{gig.venueAddress}</span>
-                                  </p>
+
+                                {/* Social Follow Buttons */}
+                                {gig.artistProfile?.socialMedia && (
+                                  <div className="mt-4 pt-4 border-t border-white/20">
+                                    <SocialFollowButtons 
+                                      socialMedia={gig.artistProfile.socialMedia}
+                                      artistName={gig.artistName}
+                                    />
+                                  </div>
                                 )}
-                                
-                                <p className="flex items-center gap-2 text-electric font-bold">
-                                  <span>📏</span>
-                                  <span>
-                                    {gig.distance < 1000 
-                                      ? `${gig.distance}m away` 
-                                      : `${(gig.distance/1000).toFixed(1)}km away`
-                                    }
-                                  </span>
-                                </p>
-                      
-                                {/* Interested Status */}
-                                {interestedGigs.includes(gig.id) && (
-                                  <p className="flex items-center gap-2 text-neon font-semibold mt-3">
-                                    <span>⭐</span>
-                                    <span>You're interested!</span>
-                                  </p>
-                                )}
-                      
-                                {/* Interested Count */}
-                                {gig.interestedCount > 0 && (
-                                  <p className="flex items-center gap-2 text-magenta font-semibold">
-                                    <span>👥</span>
-                                    <span>
-                                      {gig.interestedCount} {gig.interestedCount === 1 ? 'person' : 'people'} interested
-                                    </span>
-                                  </p>
-                                )}
+                          
+                                {/* Join Button */}
+                                <button 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleJoinGig(gig);
+                                  }}
+                                  className="btn btn-neon text-lg md:text-xl whitespace-nowrap self-start md:self-center touch-target"
+                                >
+                                  <span>🎵</span>
+                                  <span>JOIN LIVE</span>
+                                </button>
                               </div>
                             </div>
-
-                            {/* Social Follow Buttons */}
-                            {gig.artistProfile?.socialMedia && (
-                              <div className="mt-4 pt-4 border-t border-white/20">
-                                <SocialFollowButtons 
-                                  socialMedia={gig.artistProfile.socialMedia}
-                                  artistName={gig.artistName}
-                                />
-                              </div>
-                            )}
-                      
-                            {/* Join Button */}
-                            <button 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleJoinGig(gig);
-                              }}
-                              className="btn btn-neon text-lg md:text-xl whitespace-nowrap self-start md:self-center touch-target"
-                            >
-                              <span>🎵</span>
-                              <span>JOIN LIVE</span>
-                            </button>
-                          </div>
+                          ))}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Upcoming Gigs Section */}
-                {filteredGigs.filter(g => g.status === 'upcoming').length > 0 && (
-                  <div className="space-y-4">
-                    <h2 className="concert-heading text-4xl text-electric mb-6">
-                      📅 UPCOMING GIGS
-                    </h2>
+                      )}
                     
-                    {filteredGigs.filter(g => g.status === 'upcoming').map(gig => {
-                      const gigDateTime = gig.gigDate && gig.gigTime 
-                        ? `${new Date(gig.gigDate).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})} at ${gig.gigTime}`
-                        : 'Time TBD';
+                      {/* Upcoming Gigs Section */}
+                      {upcomingGigs.length > 0 && (
+                        <div className="space-y-4">
+                          <h2 className="concert-heading text-4xl text-electric mb-6">
+                            📅 UPCOMING GIGS
+                          </h2>
+                          
+                          {upcomingGigs.map(gig => {
+                            const gigDateTime = gig.gigDate && gig.gigTime 
+                              ? `${new Date(gig.gigDate).toLocaleDateString('en-US', {month: 'short', day: 'numeric'})} at ${gig.gigTime}`
+                              : 'Time TBD';
+                            
+                            return (
+                              <div 
+                                key={gig.id} 
+                                className="gig-card hover:scale-[1.02] transition-all"
+                              >
+                                <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+                                  <div className="flex-1">
+                                    {/* Status Indicator */}
+                                    <div className="flex items-center gap-3 mb-3">
+                                      <div className={`w-3 h-3 rounded-full ${
+                                        gig.calculatedStatus === 'checkVenue' ? 'bg-orange-500' : 'bg-electric'
+                                      }`}></div>
+                                      <span className={`font-bold text-sm uppercase tracking-wider ${
+                                        gig.calculatedStatus === 'checkVenue' ? 'text-orange-400' : 'text-electric'
+                                      }`}>
+                                        {gig.calculatedStatus === 'checkVenue' ? 'Check With Venue' : 'Upcoming'}
+                                      </span>
+                                    </div>
                       
-                      return (
-                        <div 
-                          key={gig.id} 
-                          className="gig-card hover:scale-[1.02] transition-all"
-                        >
-                          <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
-                            <div className="flex-1">
-                              {/* Status Indicator */}
-                              <div className="flex items-center gap-3 mb-3">
-                                <div className="w-3 h-3 bg-electric rounded-full"></div>
-                                <span className="text-electric font-bold text-sm uppercase tracking-wider">
-                                  Upcoming
-                                </span>
+                                    {/* Artist Name */}
+                                    <h3 className="concert-heading text-2xl md:text-3xl text-white mb-2">
+                                      {gig.artistName}
+                                    </h3>
+                      
+                                    {/* Date/Time */}
+                                    <p className="text-magenta font-bold text-lg mb-4">
+                                      🎸 {gigDateTime}
+                                    </p>
+                      
+                                    {/* Venue Info */}
+                                    <div className="space-y-2 text-gray-light">
+                                      <p className="flex items-center gap-2">
+                                        <span className="text-electric">📍</span>
+                                        <span className="font-semibold">{gig.venueName}</span>
+                                      </p>
+                                      
+                                      {gig.venueAddress && (
+                                        <p className="flex items-center gap-2 text-sm text-gray">
+                                          <span className="text-electric">🗺️</span>
+                                          <span>{gig.venueAddress}</span>
+                                        </p>
+                                      )}
+                                      
+                                      <p className="flex items-center gap-2 text-electric font-bold">
+                                        <span>📏</span>
+                                        <span>
+                                          {gig.distance < 1000 
+                                            ? `${gig.distance}m away` 
+                                            : `${(gig.distance/1000).toFixed(1)}km away`
+                                          }
+                                        </span>
+                                      </p>
+                      
+                                      {/* Interested Status */}
+                                      {interestedGigs.includes(gig.id) && (
+                                        <p className="flex items-center gap-2 text-neon font-semibold mt-3">
+                                          <span>⭐</span>
+                                          <span>You're interested!</span>
+                                        </p>
+                                      )}
+                      
+                                      {/* Interested Count */}
+                                      {gig.interestedCount > 0 && (
+                                        <p className="flex items-center gap-2 text-magenta font-semibold">
+                                          <span>👥</span>
+                                          <span>
+                                            {gig.interestedCount} {gig.interestedCount === 1 ? 'person' : 'people'} interested
+                                          </span>
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                      
+                                  {/* View Details Button */}
+                                  <button 
+                                    onClick={async () => {
+                                      try {
+                                        // Get full gig data from Firebase
+                                        const gigRef = doc(db, 'liveGigs', gig.id);
+                                        const gigSnap = await getDoc(gigRef);
+                                        
+                                        if (gigSnap.exists()) {
+                                          const fullGigData = { id: gigSnap.id, ...gigSnap.data(), distance: gig.distance };
+                                          setSelectedUpcomingGig(fullGigData);
+                                        } else {
+                                          setSelectedUpcomingGig(gig);
+                                        }
+                                        
+                                        setShowGigDetailModal(true);
+                                      } catch (error) {
+                                        console.error('Error fetching gig details:', error);
+                                        setSelectedUpcomingGig(gig);
+                                        setShowGigDetailModal(true);
+                                      }
+                                    }}
+                                    className="btn btn-electric text-lg md:text-xl whitespace-nowrap self-start md:self-center touch-target"
+                                  >
+                                    <span>🎫</span>
+                                    <span>VIEW DETAILS</span>
+                                  </button>
+                                </div>
                               </div>
-                
-                              {/* Artist Name */}
-                              <h3 className="concert-heading text-2xl md:text-3xl text-white mb-2">
-                                {gig.artistName}
-                              </h3>
-                
-                              {/* Date/Time */}
-                              <p className="text-magenta font-bold text-lg mb-4">
-                                🎸 {gigDateTime}
-                              </p>
-                
-                              {/* Venue Info */}
-                              <div className="space-y-2 text-gray-light">
-                                <p className="flex items-center gap-2">
-                                  <span className="text-electric">📍</span>
-                                  <span className="font-semibold">{gig.venueName}</span>
-                                </p>
-                                
-                                {gig.venueAddress && (
-                                  <p className="flex items-center gap-2 text-sm text-gray">
-                                    <span className="text-electric">🗺️</span>
-                                    <span>{gig.venueAddress}</span>
-                                  </p>
-                                )}
-                                
-                                <p className="flex items-center gap-2 text-electric font-bold">
-                                  <span>📏</span>
-                                  <span>
-                                    {gig.distance < 1000 
-                                      ? `${gig.distance}m away` 
-                                      : `${(gig.distance/1000).toFixed(1)}km away`
-                                    }
-                                  </span>
-                                </p>
-                
-                                {/* Interested Status */}
-                                {interestedGigs.includes(gig.id) && (
-                                  <p className="flex items-center gap-2 text-neon font-semibold mt-3">
-                                    <span>⭐</span>
-                                    <span>You're interested!</span>
-                                  </p>
-                                )}
-                
-                                {/* Interested Count */}
-                                {gig.interestedCount > 0 && (
-                                  <p className="flex items-center gap-2 text-magenta font-semibold">
-                                    <span>👥</span>
-                                    <span>
-                                      {gig.interestedCount} {gig.interestedCount === 1 ? 'person' : 'people'} interested
-                                    </span>
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                
-                            {/* View Details Button */}
-                            <button 
-                              onClick={async () => {
-                                try {
-                                  // Get full gig data from Firebase
-                                  const gigRef = doc(db, 'liveGigs', gig.id);
-                                  const gigSnap = await getDoc(gigRef);
-                                  
-                                  if (gigSnap.exists()) {
-                                    const fullGigData = { id: gigSnap.id, ...gigSnap.data(), distance: gig.distance };
-                                    setSelectedUpcomingGig(fullGigData);
-                                  } else {
-                                    setSelectedUpcomingGig(gig);
-                                  }
-                                  
-                                  setShowGigDetailModal(true);
-                                } catch (error) {
-                                  console.error('Error fetching gig details:', error);
-                                  setSelectedUpcomingGig(gig);
-                                  setShowGigDetailModal(true);
-                                }
-                              }}
-                              className="btn btn-electric text-lg md:text-xl whitespace-nowrap self-start md:self-center touch-target"
-                            >
-                              <span>🎫</span>
-                              <span>VIEW DETAILS</span>
-                            </button>
-                          </div>
+                            );
+                          })}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {filteredGigs.length === 0 && (
-                  <div className="bg-yellow-500/20 border border-yellow-400 rounded-xl p-6 text-center">
-                    <p className="text-yellow-200 text-lg">No gigs found for selected date filter.</p>
-                  </div>
-                )}
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -2951,8 +3309,8 @@ const handleCloseArtistProfile = () => {
       </div>
     );
   }
-
-  // Artist Mode  
+  
+// Artist Mode  
   if (mode === 'artist') {
     return (
       <div className="rock-background min-h-screen p-4 pb-24 md:pb-4">
@@ -3088,16 +3446,29 @@ const handleCloseArtistProfile = () => {
   
               {/* Master Playlist Card */}
               <div className="gig-card">
-                <h2 className="concert-heading text-3xl text-magenta mb-4">
-                  🎵 MASTER PLAYLIST
-                </h2>
-                <button 
-                  onClick={addToMaster} 
-                  className="btn btn-electric mb-4"
-                >
-                  <Plus size={20}/>
-                  <span>Add Song</span>
-                </button>
+                <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-4">
+                  <h2 className="concert-heading text-3xl text-magenta">
+                    🎵 MASTER PLAYLIST
+                  </h2>
+                  <div className="flex gap-3">
+                    <select
+                      value={masterSortBy}
+                      onChange={(e) => setMasterSortBy(e.target.value)}
+                      className="px-4 py-2 rounded-lg bg-white/10 text-white border border-electric/30 focus:border-electric focus:outline-none"
+                    >
+                      <option value="default" className="bg-gray-900 text-white">Default Order</option>
+                      <option value="song" className="bg-gray-900 text-white">Sort by Song (A-Z)</option>
+                      <option value="artist" className="bg-gray-900 text-white">Sort by Artist (A-Z)</option>
+                    </select>
+                    <button 
+                      onClick={addToMaster} 
+                      className="btn btn-electric"
+                    >
+                      <Plus size={20}/>
+                      <span>Add Song</span>
+                    </button>
+                  </div>
+                </div>
                 
                 {masterSongs.length === 0 ? (
                   <div className="bg-white/5 rounded-lg p-8 text-center border border-electric/30">
@@ -3105,29 +3476,36 @@ const handleCloseArtistProfile = () => {
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {masterSongs.map(song => (
-                      <div 
-                        key={song.id} 
-                        className="bg-white/5 p-4 rounded-lg flex justify-between items-center hover:bg-white/10 transition border border-white/10"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="text-white font-bold text-lg truncate">{song.title}</div>
-                          <div className="text-electric text-sm">{song.artist}</div>
-                        </div>
-                        <button 
-                          onClick={() => removeFromMaster(song.id)} 
-                          className="text-red-400 hover:text-red-300 p-2 touch-target"
+                    {masterSongs
+                      .slice()
+                      .sort((a, b) => {
+                        if (masterSortBy === 'song') return a.title.localeCompare(b.title);
+                        if (masterSortBy === 'artist') return a.artist.localeCompare(b.artist);
+                        return 0;
+                      })
+                      .map(song => (                    
+                        <div 
+                          key={song.id} 
+                          className="bg-white/5 p-4 rounded-lg flex justify-between items-center hover:bg-white/10 transition border border-white/10"
                         >
-                          <Trash2 size={20}/>
-                        </button>
-                      </div>
-                    ))}
+                          <div className="flex-1 min-w-0">
+                            <div className="text-white font-bold text-lg truncate">{song.title}</div>
+                            <div className="text-electric text-sm">{song.artist}</div>
+                          </div>
+                          <button 
+                            onClick={() => removeFromMaster(song.id)} 
+                            className="text-red-400 hover:text-red-300 p-2 touch-target"
+                          >
+                            <Trash2 size={20}/>
+                          </button>
+                        </div>
+                      ))}
                   </div>
                 )}
-              </div>              
+              </div>
             </div>
-          )}
-
+          )}   
+          
           {tab === 'playlists' && (
             <div className="space-y-6">
               <div className="gig-card">
@@ -3206,7 +3584,7 @@ const handleCloseArtistProfile = () => {
               </div>
             </div>
           )}
-          
+
           {tab === 'gigs' && (
             <div className="space-y-6">
               <div className="gig-card">
@@ -3227,123 +3605,134 @@ const handleCloseArtistProfile = () => {
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {gigs.map(gig => {
-                      const playlist = gigPlaylists.find(p => p.id === gig.playlistId);
-                      const isEnded = gig.status === 'ended';
+                    {(() => {
                       const statusColors = {
-                        upcoming: 'bg-electric/20 border-electric text-electric',
-                        live: 'bg-neon/20 border-neon text-neon',
-                        ended: 'bg-gray-500/20 border-gray-400 text-gray-300'
+                        upcoming: 'bg-electric/30 border-electric text-electric shadow-[0_0_10px_rgba(0,191,255,0.5)]',
+                        checkVenue: 'bg-orange-500/30 border-orange-500 text-orange-400 shadow-[0_0_10px_rgba(255,140,0,0.6)]',
+                        live: 'bg-neon/30 border-neon text-neon shadow-[0_0_10px_rgba(0,255,127,0.6)]',
+                        ended: 'bg-gray-500/20 border-gray-400 text-gray-300',
+                        cancelled: 'bg-red-600/30 border-red-500 text-red-400 shadow-[0_0_10px_rgba(220,20,60,0.6)]'
                       };
                       const statusLabel = {
                         upcoming: '🔵 Upcoming',
+                        checkVenue: '🟠 Check With Venue',
                         live: '🟢 Live',
-                        ended: '⚫ Ended'
+                        ended: '⚫ Ended',
+                        cancelled: '🔴 Cancelled'
                       };
                       
-                      return (
-                        <div key={gig.id} className="bg-white/5 p-6 rounded-xl border border-white/10 hover:border-electric/50 transition">
-                          <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-4">
-                            <div className="flex-1">
-                              <div className="flex flex-wrap items-center gap-3 mb-3">
-                                <h3 className="concert-heading text-2xl text-white">{gig.venueName}</h3>
-                                <span className={`px-3 py-1 rounded-full text-xs font-bold border ${statusColors[gig.status || 'upcoming']}`}>
-                                  {statusLabel[gig.status || 'upcoming']}
-                                </span>
+                      return gigs.map(gig => {
+                        const playlist = gigPlaylists.find(p => p.id === gig.playlistId);
+                        const currentStatus = calculateGigStatus(gig);
+                        const isEnded = currentStatus === 'ended' || currentStatus === 'cancelled';
+                        const isCancelled = currentStatus === 'cancelled';
+                        
+                        return (
+                          <div key={gig.id} className="bg-white/5 p-6 rounded-xl border border-white/10 hover:border-electric/50 transition">
+                            <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4 mb-4">
+                              <div className="flex-1">
+                                <div className="flex flex-wrap items-center gap-3 mb-3">
+                                  <h3 className="concert-heading text-2xl text-white">{gig.venueName}</h3>
+                                  <span className={`px-3 py-1 rounded-full text-xs font-bold border ${statusColors[currentStatus]}`}>
+                                    {statusLabel[currentStatus]}
+                                  </span>
+                                </div>
+                                
+                                <div className="space-y-1 text-sm">
+                                  <p className="text-electric font-bold">📅 {gig.date} at {gig.time}</p>
+                                  {gig.address && (
+                                    <p className="text-gray-light">📍 {gig.address}</p>
+                                  )}
+                                  {gig.location && (
+                                    <p className="text-neon text-xs">
+                                      ✅ Location: {gig.location.lat.toFixed(4)}°, {gig.location.lng.toFixed(4)}°
+                                    </p>
+                                  )}
+                                  {playlist && (
+                                    <p className="text-magenta font-semibold">
+                                      🎵 Playlist: {playlist.name} ({playlist.songs.length} songs)
+                                    </p>
+                                  )}
+                                  {gig.interestedCount > 0 && (
+                                    <p className="text-magenta font-semibold">
+                                      👥 {gig.interestedCount} {gig.interestedCount === 1 ? 'person' : 'people'} interested
+                                    </p>
+                                  )}
+                                  {isEnded && (
+                                    <p className="text-red-400 font-bold mt-2">
+                                      {isCancelled ? '⚠️ This gig was cancelled' : '⚠️ This gig has ended'}
+                                    </p>
+                                  )}
+                                </div>
                               </div>
+
+                              {/* Social Follow Buttons */}
+                              {gig.artistProfile?.socialMedia && (
+                                <div className="mt-4 pt-4 border-t border-white/20">
+                                  <SocialFollowButtons 
+                                    socialMedia={gig.artistProfile.socialMedia}
+                                    artistName={gig.artistName}
+                                  />
+                                </div>
+                              )}
                               
-                              <div className="space-y-1 text-sm">
-                                <p className="text-electric font-bold">📅 {gig.date} at {gig.time}</p>
-                                {gig.address && (
-                                  <p className="text-gray-light">📍 {gig.address}</p>
-                                )}
-                                {gig.location && (
-                                  <p className="text-neon text-xs">
-                                    ✅ Location: {gig.location.lat.toFixed(4)}°, {gig.location.lng.toFixed(4)}°
-                                  </p>
-                                )}
-                                {playlist && (
-                                  <p className="text-magenta font-semibold">
-                                    🎵 Playlist: {playlist.name} ({playlist.songs.length} songs)
-                                  </p>
-                                )}
-                                {gig.interestedCount > 0 && (
-                                  <p className="text-magenta font-semibold">
-                                    👥 {gig.interestedCount} {gig.interestedCount === 1 ? 'person' : 'people'} interested
-                                  </p>
+                              <div className="flex flex-wrap gap-2">
+                                {!isEnded && (
+                                  <>
+                                    <button
+                                      onClick={() => {
+                                        setEditingGig(gig);
+                                        setShowGigModal(true);
+                                      }}
+                                      className="btn btn-electric text-sm"
+                                      title="Edit gig details"
+                                    >
+                                      <Edit2 size={16}/>
+                                      <span>Edit</span>
+                                    </button>
+                                    <button
+                                      onClick={() => deleteGig(gig.id)}
+                                      className="btn btn-fire text-sm"
+                                      title="Delete this gig"
+                                    >
+                                      <Trash2 size={16}/>
+                                    </button>
+                                  </>
                                 )}
                                 {isEnded && (
-                                  <p className="text-red-400 font-bold mt-2">⚠️ This gig has ended</p>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Social Follow Buttons */}
-                            {gig.artistProfile?.socialMedia && (
-                              <div className="mt-4 pt-4 border-t border-white/20">
-                                <SocialFollowButtons 
-                                  socialMedia={gig.artistProfile.socialMedia}
-                                  artistName={gig.artistName}
-                                />
-                              </div>
-                            )}
-                            
-                            <div className="flex flex-wrap gap-2">
-                              {!isEnded && (
-                                <>
-                                  <button
-                                    onClick={() => {
-                                      setEditingGig(gig);
-                                      setShowGigModal(true);
-                                    }}
-                                    className="btn btn-electric text-sm"
-                                    title="Edit gig details"
-                                  >
-                                    <Edit2 size={16}/>
-                                    <span>Edit</span>
-                                  </button>
                                   <button
                                     onClick={() => deleteGig(gig.id)}
                                     className="btn btn-fire text-sm"
                                     title="Delete this gig"
                                   >
                                     <Trash2 size={16}/>
+                                    <span>Delete</span>
                                   </button>
-                                </>
-                              )}
-                              {isEnded && (
+                                )}
                                 <button
-                                  onClick={() => deleteGig(gig.id)}
-                                  className="btn btn-fire text-sm"
-                                  title="Delete this gig"
+                                  onClick={() => handleGoLive(gig)}
+                                  disabled={isEnded || isCancelled}
+                                  className={`btn ${isEnded ? 'bg-gray-500 cursor-not-allowed' : 'btn-neon'} text-sm md:text-base`}
+                                  title={isEnded ? 'Cannot go live - gig has ended' : 'Go live with this gig'}
                                 >
-                                  <Trash2 size={16}/>
-                                  <span>Delete</span>
+                                  <Play size={18}/>
+                                  <span>{isEnded ? 'Ended' : 'Go Live'}</span>
                                 </button>
-                              )}
-                              <button
-                                onClick={() => handleGoLive(gig)}
-                                disabled={isEnded}
-                                className={`btn ${isEnded ? 'bg-gray-500 cursor-not-allowed' : 'btn-neon'} text-sm md:text-base`}
-                                title={isEnded ? 'Cannot go live - gig has ended' : 'Go live with this gig'}
-                              >
-                                <Play size={18}/>
-                                <span>{isEnded ? 'Ended' : 'Go Live'}</span>
-                              </button>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      });
+                    })()}
                   </div>
                 )}
               </div>
             </div>
           )}
-                </div>
-              </div>
-            );
-          }
+        </div>
+      </div>
+    );
+  }
 
   // Live Mode & Audience Mode remain the same as before
   // (keeping existing code for these modes)
@@ -3477,37 +3866,77 @@ const handleCloseArtistProfile = () => {
                 <div className="flex justify-between items-center">
                   <div>
                     <h3 className="text-2xl font-bold text-white">
-                      SONG REQUESTS
+                      🎤 SONG REQUESTS
                     </h3>
                     <p className="text-gray-400 text-sm mt-1">
-                      Allow audience to request songs (FREE)
+                      Allow audience to request songs from your playlist (FREE)
+                    </p>
+                    <p className={`text-sm font-bold mt-2 ${
+                      liveGigData?.requestsEnabled !== false ? 'text-green-400' : 'text-gray-400'
+                    }`}>
+                      Status: {liveGigData?.requestsEnabled !== false ? '✅ ENABLED' : '❌ DISABLED'}
                     </p>
                   </div>
                   <button
                     onClick={async () => {
-                      const newStatus = !(liveGigData?.requestsEnabled !== false);
+                      const currentStatus = liveGigData?.requestsEnabled !== false;
+                      const newStatus = !currentStatus;
+                      
                       try {
+                        console.log('🔄 Toggling requests from', currentStatus, 'to', newStatus);
+                        
+                        // Update Firebase
                         await updateJukeboxSettings(liveGig.id, {
                           requestsEnabled: newStatus,
-                          jukeboxMode: false, // Disable paid mode
+                          jukeboxMode: false,
                           jukeboxPrice: 0
                         });
-                        alert(newStatus ? 'Song requests ENABLED' : 'Song requests DISABLED');
+                        
+                        console.log('✅ Firebase updated');
+                        
+                        // ✅ FIX: Manually update local state immediately
+                        setLiveGigData(prev => ({
+                          ...prev,
+                          requestsEnabled: newStatus
+                        }));
+                        
+                        console.log('✅ Local state updated to:', newStatus);
+                        
+                        // ✅ Also fetch fresh data from Firebase to confirm
+                        const gigRef = doc(db, 'liveGigs', String(liveGig.id));
+                        const gigSnap = await getDoc(gigRef);
+                        
+                        if (gigSnap.exists()) {
+                          const freshData = gigSnap.data();
+                          console.log('📥 Fresh data from Firebase:', freshData.requestsEnabled);
+                          
+                          setLiveGigData(prev => ({
+                            ...prev,
+                            requestsEnabled: freshData.requestsEnabled
+                          }));
+                        }
+                        
+                        // Show confirmation
+                        alert(newStatus 
+                          ? '✅ Song requests are now ENABLED\n\nAudience can request songs for free!' 
+                          : '❌ Song requests are now DISABLED\n\nAudience cannot request songs.'
+                        );
                       } catch (error) {
+                        console.error('❌ Toggle error:', error);
                         alert('Error: ' + error.message);
                       }
                     }}
-                    className={`px-8 py-4 rounded-lg font-bold text-xl transition ${
+                    className={`px-12 py-4 rounded-lg font-bold text-2xl transition-all transform hover:scale-105 ${
                       liveGigData?.requestsEnabled !== false
-                        ? 'bg-green-500 hover:bg-green-600' 
-                        : 'bg-gray-500 hover:bg-gray-600'
+                        ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 shadow-lg shadow-green-500/50' 
+                        : 'bg-gradient-to-r from-gray-600 to-gray-700 hover:from-gray-700 hover:to-gray-800'
                     } text-white`}
                   >
-                    {liveGigData?.requestsEnabled !== false ? 'ON' : 'OFF'}
+                    {liveGigData?.requestsEnabled !== false ? '🟢 ON' : '⚫ OFF'}
                   </button>
                 </div>
                 
-                {/* Request Stats - Simple Version */}
+                {/* Request Stats */}
                 <div className="grid grid-cols-2 gap-3 mt-4">
                   <div className="bg-blue-500/20 border border-blue-400 rounded-lg p-3 text-center">
                     <div className="text-2xl font-bold text-white">
@@ -3829,7 +4258,14 @@ const handleCloseArtistProfile = () => {
                 {/* Rate Artist Button - Task 13 */}
                 <div className="mt-4">
                   <button
-                    onClick={() => setShowRatingModal(true)}
+                    onClick={() => {
+                      if (!currentUser) {
+                        alert('Please sign in to rate the artist!');
+                        setShowAuthModal(true);
+                        return;
+                      }
+                      setShowRatingModal(true);
+                    }}
                     className="btn btn-electric text-lg px-6 py-3 w-full md:w-auto"
                   >
                     <Star size={24} />
@@ -3975,14 +4411,120 @@ const handleCloseArtistProfile = () => {
             )}
           </div>
   
-          {/* Master Playlist - All Available Songs */}
+          {/* GIG PLAYLIST - Songs in Tonight's Setlist */}
+          <div className="gig-card border-2 border-magenta/50 mb-6">
+            <h3 className="concert-heading text-3xl text-magenta mb-2">
+              🎸 TONIGHT'S SETLIST
+            </h3>
+            <p className="text-gray-light text-sm mb-4">
+              Vote for songs in tonight's performance! Top voted songs move up the queue.
+            </p>
+            
+            {/* Search Bar */}
+            <div className="mb-4">
+              <input
+                type="text"
+                placeholder="🔍 Search setlist by song or artist..."
+                value={playlistSearchQuery}
+                onChange={(e) => setPlaylistSearchQuery(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-magenta/30 focus:border-magenta focus:outline-none"
+              />
+            </div>
+            
+            {!liveGigData.queuedSongs || liveGigData.queuedSongs.length === 0 ? (
+              <div className="bg-white/5 rounded-lg p-8 text-center border border-magenta/30">
+                <p className="text-gray-light">No songs in tonight's setlist</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-96 overflow-y-auto">
+                {(() => {
+                  const filteredSetlist = liveGigData.queuedSongs
+                    .filter(song => 
+                      song.title.toLowerCase().includes(playlistSearchQuery.toLowerCase()) ||
+                      song.artist.toLowerCase().includes(playlistSearchQuery.toLowerCase())
+                    )
+                    .sort((a, b) => {
+                      const votesA = liveGigData.votes[Math.floor(a.id)] || 0;
+                      const votesB = liveGigData.votes[Math.floor(b.id)] || 0;
+                      return votesB - votesA;
+                    });
+                  
+                  if (filteredSetlist.length === 0) {
+                    return (
+                      <div className="bg-white/5 rounded-lg p-4 text-center">
+                        <p className="text-gray-light">No songs found for "{playlistSearchQuery}"</p>
+                      </div>
+                    );
+                  }
+                  
+                  return filteredSetlist.map((song) => {
+                    const voteCount = liveGigData.votes[Math.floor(song.id)] || 0;
+                    const isPlayed = liveGigData.playedSongs?.includes(song.id);
+                    
+                    return (
+                      <div 
+                        key={song.id} 
+                        className={`p-3 rounded-lg flex flex-col md:flex-row md:justify-between md:items-center gap-3 transition border ${
+                          isPlayed 
+                            ? 'bg-gray-500/10 opacity-50 border-gray-600/50' 
+                            : 'bg-white/5 hover:bg-white/10 border-white/10'
+                        }`}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <div className={`font-bold truncate ${isPlayed ? 'text-gray-400 line-through' : 'text-white'}`}>
+                            {song.title}
+                          </div>
+                          <div className={`text-sm truncate ${isPlayed ? 'text-gray-500' : 'text-magenta'}`}>
+                            {song.artist}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {voteCount > 0 && (
+                            <span className={`font-bold whitespace-nowrap ${isPlayed ? 'text-gray-400' : 'text-magenta'}`}>
+                              ⚡ {voteCount}
+                            </span>
+                          )}
+                          {isPlayed ? (
+                            <span className="px-3 py-1 bg-gray-600 text-gray-300 rounded-lg text-sm cursor-not-allowed">
+                              ✅ Played
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => handleVote(song.id)}
+                              className="btn btn-electric text-sm"
+                            >
+                              <span>⚡</span>
+                              <span>Vote</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
+            )}
+          </div>
+
+          {/* MASTER PLAYLIST - Other Available Songs (NOT in gig playlist) */}
           <div className="gig-card border-2 border-electric/50 mb-6">
             <h3 className="concert-heading text-3xl text-electric mb-2">
-              📚 ALL AVAILABLE SONGS
+              📚 MORE SONGS AVAILABLE
             </h3>
             <p className="text-gray-light text-sm mb-4">
               Vote for songs not in tonight's setlist! Highly voted songs may get added to the gig.
             </p>
+            
+            {/* Search Bar */}
+            <div className="mb-4">
+              <input
+                type="text"
+                placeholder="🔍 Search more songs by title or artist..."
+                value={itunesSearch}
+                onChange={(e) => setItunesSearch(e.target.value)}
+                className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
+              />
+            </div>
             
             {!liveGig.masterPlaylist || liveGig.masterPlaylist.length === 0 ? (
               <div className="bg-white/5 rounded-lg p-8 text-center border border-electric/30">
@@ -3993,7 +4535,11 @@ const handleCloseArtistProfile = () => {
                 {(() => {
                   const gigSongIds = (liveGigData.queuedSongs || []).map(s => s.id);
                   const availableSongs = liveGig.masterPlaylist
-                    .filter(song => !gigSongIds.includes(song.id))
+                    .filter(song => 
+                      !gigSongIds.includes(song.id) && // Not in gig playlist
+                      (song.title.toLowerCase().includes(itunesSearch.toLowerCase()) ||
+                       song.artist.toLowerCase().includes(itunesSearch.toLowerCase()))
+                    )
                     .sort((a, b) => {
                       const votesA = liveGigData.votes[Math.floor(a.id)] || 0;
                       const votesB = liveGigData.votes[Math.floor(b.id)] || 0;
@@ -4003,7 +4549,11 @@ const handleCloseArtistProfile = () => {
                   if (availableSongs.length === 0) {
                     return (
                       <div className="bg-white/5 rounded-lg p-4 text-center">
-                        <p className="text-gray-light">All songs are in the gig playlist!</p>
+                        <p className="text-gray-light">
+                          {itunesSearch 
+                            ? `No songs found for "${itunesSearch}"` 
+                            : 'All songs are in the gig playlist!'}
+                        </p>
                       </div>
                     );
                   }

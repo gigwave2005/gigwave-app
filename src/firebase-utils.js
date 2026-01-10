@@ -176,26 +176,24 @@ export const searchNearbyGigs = async (userLocation, radiusKm = 50, statusFilter
 // ============================================
 
 export const signInWithGoogle = async () => {
-  const provider = new GoogleAuthProvider();
   try {
+    const provider = new GoogleAuthProvider();
     const result = await signInWithPopup(auth, provider);
-    await createOrUpdateUser(result.user);
     return result.user;
   } catch (error) {
     console.error('Google sign-in error:', error);
-    throw error;
+    throw error; // Re-throw so App.jsx can handle it
   }
 };
 
 export const signInWithFacebook = async () => {
-  const provider = new FacebookAuthProvider();
   try {
+    const provider = new FacebookAuthProvider();
     const result = await signInWithPopup(auth, provider);
-    await createOrUpdateUser(result.user);
     return result.user;
   } catch (error) {
     console.error('Facebook sign-in error:', error);
-    throw error;
+    throw error; // Re-throw so App.jsx can handle it
   }
 };
 
@@ -895,45 +893,46 @@ export const checkEmailVerified = async () => {
 // Insert it BEFORE the final export block (before line 897)
 // ========================================
 
-// Submit a song request (FREE - no payment)
-export const submitSongRequest = async (gigId, song, userId, userName, message = '', amount = 0, isPaid = false) => {
+// 🎵 Submit a song request (FREE or PAID)
+export const submitSongRequest = async (gigId, song, userId, userName, message, amount, isPaid) => {
   try {
     const gigRef = doc(db, 'liveGigs', String(gigId));
-    const gigSnap = await getDoc(gigRef);
     
-    if (!gigSnap.exists()) {
-      throw new Error('Live gig not found');
-    }
-
-    const gigData = gigSnap.data();
-    
-    // Check if requests are enabled
-    if (gigData.requestsEnabled === false) {
-      throw new Error('Song requests are currently disabled');
-    }
-
-    // Create the request object
-    const request = {
-      id: Date.now().toString(),
+    // ✅ FIX: Use regular Date instead of serverTimestamp() in arrayUnion
+    const requestData = {
+      id: `request_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       songId: song.id,
       songTitle: song.title,
       songArtist: song.artist,
       requesterId: userId,
       requesterName: userName,
       message: message || '',
-      amount: amount,
-      isPaid: isPaid,
+      amount: amount || 0,
+      isPaid: isPaid || false,
       status: 'pending',
-      timestamp: serverTimestamp()
+      timestamp: new Date().toISOString(), // ✅ Use regular Date string instead of serverTimestamp()
+      createdAt: new Date() // ✅ Add this for sorting
     };
-
-    // Add the request to the songRequests array
+    
+    // Get current song requests
+    const gigSnap = await getDoc(gigRef);
+    if (!gigSnap.exists()) {
+      throw new Error('Gig not found');
+    }
+    
+    const currentRequests = gigSnap.data().songRequests || [];
+    
+    // Add new request to the array
+    const updatedRequests = [...currentRequests, requestData];
+    
+    // Update Firebase with the new array
     await updateDoc(gigRef, {
-      songRequests: arrayUnion(request)
+      songRequests: updatedRequests
     });
-
-    console.log('✅ Song request submitted:', request);
-    return request;
+    
+    console.log('✅ Song request submitted:', requestData);
+    return requestData;
+    
   } catch (error) {
     console.error('❌ Error submitting song request:', error);
     throw error;
