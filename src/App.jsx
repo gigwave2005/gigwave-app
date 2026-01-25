@@ -5436,22 +5436,14 @@ const sortArtistQueue = (songs) => {
             {/* STANDALONE: View Gig Playlist - NO ICONS */}
             <button
               onClick={() => setShowGigPlaylistModal(true)}
-              className="w-full mb-6 relative group"
+              className="w-3/4 mx-auto block bg-gradient-to-r from-cyan-500 via-purple-600 to-magenta-600 text-white py-3 md:py-4 px-8 rounded-xl font-bold text-lg md:text-xl hover:scale-105 transition-transform duration-200 mb-10 mt-12"
               style={{
-                background: 'linear-gradient(135deg, #FF1493 0%, #00FF00 25%, #00FFFF 50%, #FF1493 75%, #00FF00 100%)',
-                backgroundSize: '400% 400%',
-                animation: 'gradient 3s ease infinite',
-                boxShadow: '0 0 30px rgba(255,20,147,0.8), 0 0 60px rgba(0,255,0,0.6), 0 0 90px rgba(0,255,255,0.4)',
-                filter: 'brightness(1.2)'
+                boxShadow: '0 0 15px rgba(0, 255, 255, 0.4), 0 0 30px rgba(255, 0, 255, 0.3)',
+                textShadow: '0 0 10px rgba(0, 0, 0, 0.8), 0 2px 4px rgba(0, 0, 0, 0.6)',
+                letterSpacing: '1px'
               }}
             >
-              <div className="bg-black/40 backdrop-blur-sm p-6 rounded-2xl transition-all duration-300 group-hover:bg-black/20 group-hover:scale-105">
-                <span className="text-white font-black text-2xl md:text-3xl tracking-wider drop-shadow-2xl block text-center" style={{
-                  textShadow: '0 0 20px #fff, 0 0 40px #fff, 0 0 60px #fff'
-                }}>
-                  🎵 VIEW GIG PLAYLIST
-                </span>
-              </div>
+              View Gig Playlist
             </button>
 
             {/* ROW 1: Request Song, Vote, Rate Artist - ALL IMAGE ICONS */}
@@ -5666,10 +5658,17 @@ const sortArtistQueue = (songs) => {
               {/* Header */}
               <div className="sticky top-0 bg-black/95 p-6 border-b border-white/10 z-10">
                 <div className="flex justify-between items-center">
-                  <h2 className="concert-heading text-3xl text-electric">🎵 GIG PLAYLIST</h2>
+                  <div className="flex-1">
+                    <h2 className="concert-heading text-2xl md:text-3xl text-electric text-center">
+                      Gig Playlist
+                    </h2>
+                    <p className="text-white/80 text-xs md:text-sm text-center mt-2 font-semibold">
+                      Click Song Name To Vote And Prioritize
+                    </p>
+                  </div>
                   <button
                     onClick={() => setShowGigPlaylistModal(false)}
-                    className="text-white hover:text-neon transition"
+                    className="text-white hover:text-neon transition ml-2"
                   >
                     <X size={32} />
                   </button>
@@ -5679,71 +5678,46 @@ const sortArtistQueue = (songs) => {
               <div className="p-6">
                 {/* Gig Playlist Songs */}
                 <div className="mb-8">
-                  <h3 className="text-2xl font-bold text-white mb-4">📋 Tonight's Setlist</h3>
                   {liveGigData.queuedSongs && liveGigData.queuedSongs.length > 0 ? (
                     <div className="space-y-2">
                       {liveGigData.queuedSongs
                         .filter(song => !liveGigData.playedSongs?.includes(song.id))
                         .map((song, index) => {
                           const voteCount = liveGigData.votes[Math.floor(song.id)] || 0;
-                          const hasRequested = liveGigData.songRequests?.some(
-                            r => r.songId === song.id && r.requesterId === currentUser?.uid
-                          );
+                          
+                          // Truncate functions
+                          const truncateSong = (title) => {
+                            return title.length > 30 ? title.substring(0, 30) + '...' : title;
+                          };
+                          
+                          const truncateArtist = (artist) => {
+                            return artist.length > 20 ? artist.substring(0, 20) + '...' : artist;
+                          };
                           
                           return (
-                            <div 
-                              key={song.id} 
-                              className="bg-white/5 p-4 rounded-lg border border-white/10 hover:border-electric/50 transition"
+                            <button
+                              key={song.id}
+                              onClick={() => handleVote(song.id)}
+                              className="w-full bg-white/5 p-3 md:p-4 rounded-lg border border-white/10 hover:border-electric/50 transition hover:bg-white/10"
                             >
                               <div className="flex items-center justify-between gap-3">
-                                <div className="flex items-center gap-3 flex-1 min-w-0">
-                                  <span className="concert-heading text-electric text-xl min-w-[40px]">
-                                    {index + 1}
-                                  </span>
-                                  <div className="flex-1 min-w-0">
-                                    <div className="text-white font-bold truncate">{song.title}</div>
-                                    <div className="text-gray-light text-sm truncate">{song.artist}</div>
-                                  </div>
-                                  {voteCount > 0 && (
-                                    <span className="text-magenta font-bold whitespace-nowrap">
+                                {/* Song Number + Title + Artist - LEFT ALIGNED */}
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-white text-sm md:text-base font-bold truncate text-left">
+                                    {index + 1}. {truncateSong(song.title)} - {truncateArtist(song.artist)}
+                                  </p>
+                                </div>
+                                
+                                {/* Vote Count Badge - RIGHT SIDE */}
+                                {voteCount > 0 && (
+                                  <div className="flex-shrink-0 bg-magenta/30 border border-magenta px-2 md:px-3 py-1 rounded-full">
+                                    <span className="text-magenta font-bold text-xs md:text-sm whitespace-nowrap">
                                       ⚡ {voteCount}
                                     </span>
-                                  )}
-                                </div>
-                                <div className="flex gap-2">
-                                  {hasRequested ? (
-                                    <button
-                                      disabled
-                                      className="px-3 py-2 bg-neon/20 border border-neon text-neon rounded-lg text-xs font-bold cursor-not-allowed"
-                                    >
-                                      ✓ Requested
-                                    </button>
-                                  ) : (
-                                    <button
-                                      onClick={() => {
-                                        if (!currentUser) {
-                                          alert('Please sign in to request!');
-                                          setShowAuthModal(true);
-                                          return;
-                                        }
-                                        setSelectedRequestSong(song);
-                                        setShowGigPlaylistModal(false);
-                                        setShowRequestModal(true);
-                                      }}
-                                      className="px-3 py-2 bg-electric/20 border border-electric text-electric hover:bg-electric hover:text-black rounded-lg text-xs font-bold transition"
-                                    >
-                                      Request
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={() => handleVote(song.id)}
-                                    className="px-3 py-2 bg-magenta/20 border border-magenta text-magenta hover:bg-magenta hover:text-white rounded-lg text-xs font-bold transition"
-                                  >
-                                    Vote
-                                  </button>
-                                </div>
+                                  </div>
+                                )}
                               </div>
-                            </div>
+                            </button>
                           );
                         })}
                     </div>
@@ -5751,88 +5725,10 @@ const sortArtistQueue = (songs) => {
                     <p className="text-gray-light text-center py-8">No songs in gig playlist</p>
                   )}
                 </div>
-
-                {/* Master Playlist Songs */}
-                <div>
-                  <h3 className="text-2xl font-bold text-white mb-4">📚 More Songs Available</h3>
-                  <p className="text-gray-light text-sm mb-4">
-                    Request songs not in tonight's setlist!
-                  </p>
-                  {liveGig.masterPlaylist && liveGig.masterPlaylist.length > 0 ? (
-                    <div className="space-y-2">
-                      {liveGig.masterPlaylist
-                        .filter(song => {
-                          const isInGigPlaylist = liveGigData.queuedSongs?.some(q => q.id === song.id);
-                          const isPlayed = liveGigData.playedSongs?.includes(song.id);
-                          return !isInGigPlaylist && !isPlayed;
-                        })
-                        .slice(0, 20)
-                        .map((song) => {
-                          const voteCount = liveGigData.votes[Math.floor(song.id)] || 0;
-                          const hasRequested = liveGigData.songRequests?.some(
-                            r => r.songId === song.id && r.requesterId === currentUser?.uid
-                          );
-                          
-                          return (
-                            <div 
-                              key={song.id} 
-                              className="bg-white/5 p-3 rounded-lg border border-white/10 hover:border-electric/50 transition"
-                            >
-                              <div className="flex items-center justify-between gap-3">
-                                <div className="flex-1 min-w-0">
-                                  <div className="text-white font-bold truncate">{song.title}</div>
-                                  <div className="text-electric text-sm truncate">{song.artist}</div>
-                                </div>
-                                {voteCount > 0 && (
-                                  <span className="text-magenta font-bold whitespace-nowrap">
-                                    ⚡ {voteCount}
-                                  </span>
-                                )}
-                                <div className="flex gap-2">
-                                  {hasRequested ? (
-                                    <button
-                                      disabled
-                                      className="px-3 py-2 bg-neon/20 border border-neon text-neon rounded-lg text-xs font-bold cursor-not-allowed"
-                                    >
-                                      ✓ Requested
-                                    </button>
-                                  ) : (
-                                    <button
-                                      onClick={() => {
-                                        if (!currentUser) {
-                                          alert('Please sign in to request!');
-                                          setShowAuthModal(true);
-                                          return;
-                                        }
-                                        setSelectedRequestSong(song);
-                                        setShowGigPlaylistModal(false);
-                                        setShowRequestModal(true);
-                                      }}
-                                      className="px-3 py-2 bg-electric/20 border border-electric text-electric hover:bg-electric hover:text-black rounded-lg text-xs font-bold transition"
-                                    >
-                                      Request
-                                    </button>
-                                  )}
-                                  <button
-                                    onClick={() => handleVote(song.id)}
-                                    className="px-3 py-2 bg-magenta/20 border border-magenta text-magenta hover:bg-magenta hover:text-white rounded-lg text-xs font-bold transition"
-                                  >
-                                    Vote
-                                  </button>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  ) : (
-                    <p className="text-gray-light text-center py-8">No additional songs available</p>
-                  )}
-                </div>
               </div>
             </div>
           </div>
-        )}
+        )}                
 
         {/* MODAL: Vote (shows gig + master playlist with vote buttons only) */}
         {showVoteModal && (
@@ -6011,8 +5907,7 @@ const sortArtistQueue = (songs) => {
             </div>
           </div>
         )}
-
-        {/* Existing modals remain unchanged: Request Modal, Rating Modal */}
+        
         {/* FREE SONG REQUEST MODAL */}
         {showRequestModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
