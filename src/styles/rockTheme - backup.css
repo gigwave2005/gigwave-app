@@ -1,0 +1,430 @@
+/* ============================================
+   GIGWAVE ROCK CONCERT THEME
+   Mobile-First Design
+   ============================================ */
+
+:root {
+  /* Color Palette */
+  --color-black: #0a0a0a;
+  --color-dark: #1a1a1a;
+  --color-darker: #121212;
+  
+  --color-electric: #00d9ff;
+  --color-magenta: #ff006e;
+  --color-neon: #39ff14;
+  --color-orange: #ff6b35;
+  --color-purple: #b084ff;
+  
+  --color-white: #ffffff;
+  --color-gray-light: #e0e0e0;
+  --color-gray: #9ca3af;
+  --color-gray-dark: #4b5563;
+  
+  /* Gradients */
+  --gradient-stage: linear-gradient(135deg, #1a0033 0%, #330066 50%, #0a0a0a 100%);
+  --gradient-electric: linear-gradient(135deg, #00d9ff 0%, #b084ff 100%);
+  --gradient-fire: linear-gradient(135deg, #ff006e 0%, #ff6b35 100%);
+  --gradient-neon: linear-gradient(135deg, #39ff14 0%, #00d9ff 100%);
+  
+  /* Shadows & Glows */
+  --glow-electric: 0 0 20px rgba(0, 217, 255, 0.5);
+  --glow-magenta: 0 0 20px rgba(255, 0, 110, 0.5);
+  --glow-neon: 0 0 20px rgba(57, 255, 20, 0.5);
+  
+  /* Spacing (Mobile-first) */
+  --space-xs: 0.5rem;
+  --space-sm: 1rem;
+  --space-md: 1.5rem;
+  --space-lg: 2rem;
+  --space-xl: 3rem;
+  
+  /* Border Radius */
+  --radius-sm: 0.5rem;
+  --radius-md: 1rem;
+  --radius-lg: 1.5rem;
+  --radius-xl: 2rem;
+  
+  /* Typography */
+  --font-concert: 'Bebas Neue', 'Impact', sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* ============================================
+   GLOBAL STYLES
+   ============================================ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--color-black);
+  color: var(--color-white);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Animated Background with Concert Photos */
+.rock-background {
+  background: var(--gradient-stage);
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Concert photo mega collage - multiple layers */
+.rock-background::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: 
+    /* Layer 1: Top section - Stadium crowd */
+    url('https://images.unsplash.com/photo-1506157786151-b8491531f063?w=1600&q=80'),
+    /* Layer 2: Middle-left - Guitarist */
+    url('https://images.unsplash.com/photo-1519892300165-cb5542fb47c7?w=1600&q=80'),
+    /* Layer 3: Middle-right - DJ/Electronic */
+    url('https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=1600&q=80'),
+    /* Layer 4: Bottom - Drummer */
+    url('https://images.unsplash.com/photo-1519139270028-ab664cf42264?w=1600&q=80'),
+    /* Layer 5: Festival sunset */
+    url('https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?w=1600&q=80'),
+    /* Layer 6: Stage lights */
+    url('https://images.unsplash.com/photo-1514320291840-2e0a9bf2a9ae?w=1600&q=80');
+  background-size: 
+    cover,
+    50% auto,
+    50% auto,
+    cover,
+    cover,
+    cover;
+  background-position: 
+    top center,
+    left 20% center,
+    right 20% center,
+    bottom center,
+    center center,
+    center center;
+  background-repeat: no-repeat;
+  background-blend-mode: overlay, overlay, overlay, overlay, soft-light, screen;
+  opacity: 0.45;
+  filter: blur(4px) grayscale(15%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Pulsing glow effect on top */
+.rock-background::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle, rgba(0, 217, 255, 0.15) 0%, transparent 70%);
+  animation: pulse 8s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Ensure content is above backgrounds */
+.rock-background > * {
+  position: relative;
+  z-index: 2;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.6; transform: scale(1.1); }
+}
+
+/* ============================================
+   TYPOGRAPHY
+   ============================================ */
+
+.concert-heading {
+  font-family: var(--font-concert);  
+  letter-spacing: 0.05em;
+  line-height: 1.2;
+}
+
+h1.concert-heading {
+  font-size: clamp(2rem, 8vw, 4rem);
+  background: var(--gradient-electric);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 0 40px rgba(0, 217, 255, 0.5);
+}
+
+h2.concert-heading {
+  font-size: clamp(1.5rem, 5vw, 2.5rem);
+}
+
+h3.concert-heading {
+  font-size: clamp(1.25rem, 4vw, 2rem);
+}
+
+/* ============================================
+   BUTTONS (Mobile-Optimized)
+   ============================================ */
+
+.btn {
+  font-family: var(--font-concert);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 1rem 2rem;
+  border-radius: var(--radius-md);
+  border: none;
+  font-size: 1rem;
+  min-height: 48px; /* Touch-friendly */
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.btn-electric {
+  background: var(--gradient-electric);
+  color: var(--color-black);
+  box-shadow: var(--glow-electric);
+}
+
+.btn-electric:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 30px rgba(0, 217, 255, 0.8);
+}
+
+.btn-fire {
+  background: var(--gradient-fire);
+  color: var(--color-white);
+  box-shadow: var(--glow-magenta);
+}
+
+.btn-fire:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 30px rgba(255, 0, 110, 0.8);
+}
+
+.btn-neon {
+  background: var(--gradient-neon);
+  color: var(--color-black);
+  box-shadow: var(--glow-neon);
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 2px solid var(--color-electric);
+  color: var(--color-electric);
+}
+
+.btn-ghost:hover {
+  background: var(--color-electric);
+  color: var(--color-black);
+}
+
+/* ============================================
+   CARDS (Mobile-Optimized)
+   ============================================ */
+
+.gig-card {
+  background: rgba(26, 26, 26, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 217, 255, 0.2);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+  transition: all 0.3s ease;
+}
+
+.gig-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--color-electric);
+  box-shadow: var(--glow-electric);
+}
+
+.gig-card-live {
+  border-color: var(--color-neon);
+  animation: live-pulse 2s ease-in-out infinite;
+}
+
+@keyframes live-pulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(57, 255, 20, 0.5); }
+  50% { box-shadow: 0 0 40px rgba(57, 255, 20, 0.8); }
+}
+
+/* ============================================
+   MOBILE NAVIGATION
+   ============================================ */
+
+.mobile-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: rgba(26, 26, 26, 0.95);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(0, 217, 255, 0.3);
+  padding: var(--space-sm);
+  display: flex;
+  justify-content: space-around;
+  z-index: 1000;
+  box-shadow: 0 -5px 30px rgba(0, 0, 0, 0.5);
+}
+
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  color: var(--color-gray);
+  text-decoration: none;
+  font-size: 0.75rem;
+  min-width: 60px;
+  transition: all 0.2s ease;
+}
+
+.mobile-nav-item.active {
+  color: var(--color-electric);
+}
+
+.mobile-nav-item svg {
+  width: 24px;
+  height: 24px;
+}
+
+/* ============================================
+   RESPONSIVE BREAKPOINTS
+   ============================================ */
+
+/* Mobile First - Base styles above are mobile */
+
+/* Tablet */
+@media (min-width: 768px) {
+  :root {
+    --space-xs: 0.75rem;
+    --space-sm: 1.25rem;
+    --space-md: 2rem;
+    --space-lg: 3rem;
+    --space-xl: 4rem;
+  }
+  
+  .mobile-nav {
+    display: none;
+  }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+  .gig-card {
+    padding: var(--space-lg);
+  }
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+.text-electric { color: var(--color-electric); }
+.text-magenta { color: var(--color-magenta); }
+.text-neon { color: var(--color-neon); }
+.text-orange { color: var(--color-orange); }
+
+.bg-dark { background: var(--color-dark); }
+.bg-darker { background: var(--color-darker); }
+
+.glow-electric { box-shadow: var(--glow-electric); }
+.glow-magenta { box-shadow: var(--glow-magenta); }
+.glow-neon { box-shadow: var(--glow-neon); }
+
+/* Touch-friendly spacing */
+.touch-target {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Loading Animation */
+.loading-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* ================================
+   MOBILE BOTTOM NAVIGATION
+   ================================ */
+
+.mobile-nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: linear-gradient(to top, var(--dark), rgba(10, 10, 20, 0.95));
+  border-top: 2px solid var(--electric);
+  box-shadow: 0 -4px 20px rgba(0, 217, 255, 0.3);
+  padding: 0.75rem 1rem;
+  z-index: 40;
+  backdrop-filter: blur(10px);
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .mobile-nav {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+  }
+}
+
+.mobile-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.75rem;
+  background: transparent;
+  border: none;
+  color: var(--gray-light);
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  min-width: 60px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-nav-item:active {
+  transform: scale(0.95);
+}
+
+.mobile-nav-item.active {
+  background: var(--electric);
+  color: var(--dark);
+  box-shadow: 0 0 20px rgba(0, 217, 255, 0.5);
+}
+
+.mobile-nav-item:not(.active):hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--electric);
+}
+
+.mobile-nav-icon {
+  font-size: 1.5rem;
+}
+
+/* Add bottom padding to main content on mobile to prevent nav overlap */
+@media (max-width: 768px) {
+  .rock-background {
+    padding-bottom: 5rem !important;
+  }
+}

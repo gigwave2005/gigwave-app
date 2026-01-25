@@ -1,0 +1,14 @@
+{
+  "files": {
+    "main.css": "/static/css/main.babf40fa.css",
+    "main.js": "/static/js/main.4c12aaf3.js",
+    "static/media/bg-gig-collage.jpg": "/static/media/bg-gig-collage.6e3c98f0e5074c71cff0.jpg",
+    "index.html": "/index.html",
+    "main.babf40fa.css.map": "/static/css/main.babf40fa.css.map",
+    "main.4c12aaf3.js.map": "/static/js/main.4c12aaf3.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.babf40fa.css",
+    "static/js/main.4c12aaf3.js"
+  ]
+}
