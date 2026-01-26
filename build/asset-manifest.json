@@ -1,21 +1,21 @@
 {
   "files": {
     "main.css": "/static/css/main.d94bf7a4.css",
-    "main.js": "/static/js/main.a7ccbb9d.js",
-    "static/media/tip-jar-icon.png": "/static/media/tip-jar-icon.ab9222be05852f1d39a4.png",
-    "static/media/support-icon.png": "/static/media/support-icon.dc25eb2792bb3b3dc3ae.png",
-    "static/media/rate-artist-icon.png": "/static/media/rate-artist-icon.0d8ea0c7a471c6c7465d.png",
+    "main.js": "/static/js/main.2735f293.js",
+    "static/media/rate-artist-icon.png": "/static/media/rate-artist-icon.4bd05b0bcef7e481cf86.png",
+    "static/media/tip-jar-icon.png": "/static/media/tip-jar-icon.d7a4c7a3fb6345e02682.png",
+    "static/media/artist-profile-icon.png": "/static/media/artist-profile-icon.ff343ba9a1fc19d77baf.png",
     "static/media/cassette-icon.png": "/static/media/cassette-icon.2a4409f40eaf36d90cc0.png",
-    "static/media/artist-profile-icon.png": "/static/media/artist-profile-icon.70477707ca5f816ba06f.png",
-    "static/media/vote-icon.png": "/static/media/vote-icon.6d5d3a9213bff3a284a6.png",
+    "static/media/support-icon.png": "/static/media/support-icon.a28befe5bcf940126124.png",
+    "static/media/vote-icon.png": "/static/media/vote-icon.eff71fb5640d76a9c0d9.png",
     "static/media/bg-gig-collage.jpg": "/static/media/bg-gig-collage.6e3c98f0e5074c71cff0.jpg",
     "static/media/support-artist-icon.png": "/static/media/support-artist-icon.3fe55c6960ec987bf2c2.png",
     "index.html": "/index.html",
     "main.d94bf7a4.css.map": "/static/css/main.d94bf7a4.css.map",
-    "main.a7ccbb9d.js.map": "/static/js/main.a7ccbb9d.js.map"
+    "main.2735f293.js.map": "/static/js/main.2735f293.js.map"
   },
   "entrypoints": [
     "static/css/main.d94bf7a4.css",
-    "static/js/main.a7ccbb9d.js"
+    "static/js/main.2735f293.js"
   ]
 }

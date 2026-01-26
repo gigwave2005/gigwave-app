@@ -1727,8 +1727,16 @@ useEffect(() => {
     console.log('📍 location:', editingGig.location);
     console.log('🏢 address:', editingGig.address);
 
+    // Validation checks
     if (!editingGig.venueName || !editingGig.date || !editingGig.time) {
       alert('Please fill in venue name, date, and time!');
+      return;
+    }
+
+    // ✅ NEW: Validate queue size
+    const queueSize = editingGig.queueSize || 20;
+    if (queueSize < 20 || queueSize > 50) {
+      alert('⚠️ Queue size must be between 20 and 50 songs!');
       return;
     }
 
@@ -2210,58 +2218,59 @@ const handleCheckVerification = async () => {
   
   // Task 20: Handle voting with duplicate prevention
   const handleVote = async (songId) => {
-  // Check if user is logged in
-  if (!currentUser) {
-    alert('Please sign in to vote!');
-    setShowAuthModal(true);
-    return;
-  }
-  
-  // ✅ FIX 4: Check if song is already played
-  if (liveGigData.playedSongs?.includes(songId)) {
-    alert('⚠️ This song has already been played!\n\nYou can only vote for upcoming songs.');
-    return;
-  }
-  
-  // Make sure we're in a live gig
-  if (!liveGig) {
-    alert('⚠️ No active live gig!');
-    return;
-  }
-  
-  try {
-    // Check if already voted
-    const alreadyVoted = await hasUserVoted(liveGig.id, songId, currentUser.uid);
-    
-    if (alreadyVoted) {
-      alert('⚠️ You already voted for this song!');
+    // Check if user is logged in
+    if (!currentUser) {
+      alert('Please sign in to vote!');
+      setShowAuthModal(true);
       return;
     }
     
-    // Record the vote
-    await recordUserVote(liveGig.id, songId, currentUser.uid);
+    // ✅ FIX 4: Check if song is already played
+    if (liveGigData.playedSongs?.includes(songId)) {
+      alert('⚠️ This song has already been played!\n\nYou can only vote for upcoming songs.');
+      return;
+    }
     
-    alert('✅ Vote recorded!');
+    // Make sure we're in a live gig
+    if (!liveGig) {
+      alert('⚠️ No active live gig!');
+      return;
+    }
+    
+    try {
+      // Check if already voted
+      const alreadyVoted = await hasUserVoted(liveGig.id, songId, currentUser.uid);
+      
+      if (alreadyVoted) {
+        alert('⚠️ You already voted for this song!');
+        return;
+      }
+      
+      // Record the vote
+      await recordUserVote(liveGig.id, songId, currentUser.uid);
+      
+      // ✅ REMOVED: alert('✅ Vote recorded!');
+      // Vote recorded silently - no alert
 
-    // ✅ Only show rating modal if user hasn't rated yet
-    if (!hasRatedArtist) {
-      setShowRatingModal(true);
+      // ✅ Only show rating modal if user hasn't rated yet
+      if (!hasRatedArtist) {
+        setShowRatingModal(true);
+      }
+      
+      // Refresh vote counts
+      const gigRef = doc(db, 'liveGigs', String(liveGig.id));
+      const gigSnap = await getDoc(gigRef);
+      if (gigSnap.exists()) {
+        setLiveGigData(prev => ({
+          ...prev,
+          votes: gigSnap.data().votes || {}
+        }));
+      }
+    } catch (error) {
+      console.error('Error voting:', error);
+      alert('❌ Error recording vote: ' + error.message);
     }
-    
-    // Refresh vote counts
-    const gigRef = doc(db, 'liveGigs', String(liveGig.id));
-    const gigSnap = await getDoc(gigRef);
-    if (gigSnap.exists()) {
-      setLiveGigData(prev => ({
-        ...prev,
-        votes: gigSnap.data().votes || {}
-      }));
-    }
-  } catch (error) {
-    console.error('Error voting:', error);
-    alert('❌ Error recording vote: ' + error.message);
-  }
-};
+  };
 
   // Handle FREE Song Request Submission (No Payment)
   const handleSongRequest = async () => {
@@ -3548,17 +3557,41 @@ const handleArtistSearch = async (searchTerm) => {
                 <input
                   type="number"
                   value={editingGig.queueSize || 20}
-                  onChange={(e) => setEditingGig({
-                    ...editingGig,
-                    queueSize: parseInt(e.target.value) || 20
-                  })}
-                  min="10"
-                  max="50"
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '') {
+                      setEditingGig({
+                        ...editingGig,
+                        queueSize: ''
+                      });
+                    } else {
+                      const num = parseInt(value);
+                      setEditingGig({
+                        ...editingGig,
+                        queueSize: num
+                      });
+                    }
+                  }}
                   className="w-full px-4 py-3 rounded-lg bg-white/10 text-white border border-electric/30 focus:border-electric focus:outline-none"
                 />
-                <p className="text-gray-light text-sm mt-2">
-                  Maximum number of songs in the live queue (10-50 songs)
-                </p>
+                
+                {editingGig.queueSize !== '' && editingGig.queueSize < 20 && (
+                  <p className="text-red-400 text-sm mt-2 font-bold">
+                    ⚠️ Minimum queue size is 20 songs
+                  </p>
+                )}
+                
+                {editingGig.queueSize > 50 && (
+                  <p className="text-red-400 text-sm mt-2 font-bold">
+                    ⚠️ Maximum queue size is 50 songs
+                  </p>
+                )}
+                
+                {(!editingGig.queueSize || (editingGig.queueSize >= 20 && editingGig.queueSize <= 50)) && (
+                  <p className="text-gray-light text-sm mt-2">
+                    Maximum number of songs in the live queue (20-50 songs)
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -5679,13 +5712,12 @@ const sortArtistQueue = (songs) => {
                 {/* Gig Playlist Songs */}
                 <div className="mb-8">
                   {liveGigData.queuedSongs && liveGigData.queuedSongs.length > 0 ? (
-                    <div className="space-y-2">
+                    <div className="space-y-2" style={{ textAlign: 'left' }}>
                       {liveGigData.queuedSongs
                         .filter(song => !liveGigData.playedSongs?.includes(song.id))
                         .map((song, index) => {
                           const voteCount = liveGigData.votes[Math.floor(song.id)] || 0;
                           
-                          // Truncate functions
                           const truncateSong = (title) => {
                             return title.length > 30 ? title.substring(0, 30) + '...' : title;
                           };
@@ -5699,19 +5731,48 @@ const sortArtistQueue = (songs) => {
                               key={song.id}
                               onClick={() => handleVote(song.id)}
                               className="w-full bg-white/5 p-3 md:p-4 rounded-lg border border-white/10 hover:border-electric/50 transition hover:bg-white/10"
+                              style={{ textAlign: 'left', display: 'flex', justifyContent: 'flex-start' }}
                             >
-                              <div className="flex items-center justify-between gap-3">
-                                {/* Song Number + Title + Artist - LEFT ALIGNED */}
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-white text-sm md:text-base font-bold truncate text-left">
+                              <div style={{ 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: '12px', 
+                                width: '100%',
+                                justifyContent: 'flex-start',
+                                textAlign: 'left'
+                              }}>
+                                <div style={{ 
+                                  flex: '1', 
+                                  minWidth: '0',
+                                  textAlign: 'left'
+                                }}>
+                                  <p style={{
+                                    color: 'white',
+                                    fontSize: '0.875rem',
+                                    fontWeight: 'bold',
+                                    textAlign: 'left',
+                                    margin: 0,
+                                    lineHeight: '1.25'
+                                  }}>
                                     {index + 1}. {truncateSong(song.title)} - {truncateArtist(song.artist)}
                                   </p>
                                 </div>
                                 
-                                {/* Vote Count Badge - RIGHT SIDE */}
                                 {voteCount > 0 && (
-                                  <div className="flex-shrink-0 bg-magenta/30 border border-magenta px-2 md:px-3 py-1 rounded-full">
-                                    <span className="text-magenta font-bold text-xs md:text-sm whitespace-nowrap">
+                                  <div style={{
+                                    flexShrink: 0,
+                                    backgroundColor: 'rgba(255, 27, 109, 0.3)',
+                                    border: '1px solid rgb(255, 27, 109)',
+                                    padding: '4px 12px',
+                                    borderRadius: '9999px',
+                                    marginLeft: 'auto'
+                                  }}>
+                                    <span style={{
+                                      color: 'rgb(255, 27, 109)',
+                                      fontWeight: 'bold',
+                                      fontSize: '0.75rem',
+                                      whiteSpace: 'nowrap'
+                                    }}>
                                       ⚡ {voteCount}
                                     </span>
                                   </div>
@@ -5737,7 +5798,9 @@ const sortArtistQueue = (songs) => {
               {/* Header */}
               <div className="sticky top-0 bg-black/95 p-6 border-b border-white/10 z-10">
                 <div className="flex justify-between items-center">
-                  <h2 className="concert-heading text-3xl text-magenta">⚡ VOTE FOR SONGS</h2>
+                  <h2 className="concert-heading text-3xl text-magenta text-center flex-1">
+                    ⚡ Vote For Songs
+                  </h2>
                   <button
                     onClick={() => setShowVoteModal(false)}
                     className="text-white hover:text-neon transition"
@@ -5750,13 +5813,43 @@ const sortArtistQueue = (songs) => {
               <div className="p-6">
                 {/* Gig Playlist */}
                 <div className="mb-8">
-                  <h3 className="text-2xl font-bold text-white mb-4">📋 Tonight's Setlist</h3>
+                  <div className="text-center mb-4">
+                    <h3 className="text-2xl font-bold text-white mb-1">📋 Tonight's Setlist</h3>
+                    <p className="text-gray-light text-sm">Vote To Prioritize The Song</p>
+                  </div>
+                  
+                  {/* Search Bar */}
+                  <div className="mb-4">
+                    <input
+                      type="text"
+                      placeholder="🔍 Search by song or artist name..."
+                      value={playlistSearchQuery}
+                      onChange={(e) => setPlaylistSearchQuery(e.target.value)}
+                      className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-magenta/30 focus:border-magenta focus:outline-none"
+                    />
+                  </div>
+                  
                   {liveGigData.queuedSongs && liveGigData.queuedSongs.length > 0 ? (
                     <div className="space-y-2">
                       {liveGigData.queuedSongs
-                        .filter(song => !liveGigData.playedSongs?.includes(song.id))
+                        .filter(song => {
+                          if (!liveGigData.playedSongs?.includes(song.id)) {
+                            if (!playlistSearchQuery) return true;
+                            const search = playlistSearchQuery.toLowerCase();
+                            return song.title.toLowerCase().includes(search) || 
+                                  song.artist.toLowerCase().includes(search);
+                          }
+                          return false;
+                        })
                         .map((song, index) => {
                           const voteCount = liveGigData.votes[Math.floor(song.id)] || 0;
+                          
+                          // Truncate to first 5 words
+                          const truncateTitle = (title) => {
+                            const words = title.split(' ');
+                            if (words.length <= 5) return title;
+                            return words.slice(0, 5).join(' ') + '...';
+                          };
                           
                           return (
                             <div 
@@ -5764,23 +5857,24 @@ const sortArtistQueue = (songs) => {
                               className="bg-white/5 p-4 rounded-lg border border-white/10 hover:border-magenta/50 transition"
                             >
                               <div className="flex items-center justify-between gap-3">
-                                <div className="flex items-center gap-3 flex-1">
-                                  <span className="concert-heading text-electric text-xl min-w-[40px]">
+                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                  <span className="concert-heading text-electric text-xl min-w-[40px] flex-shrink-0">
                                     {index + 1}
                                   </span>
                                   <div className="flex-1 min-w-0">
-                                    <div className="text-white font-bold truncate">{song.title}</div>
-                                    <div className="text-gray-light text-sm truncate">{song.artist}</div>
+                                    <div className="text-white font-bold truncate">
+                                      {truncateTitle(song.title)} - {song.artist}
+                                    </div>
                                   </div>
                                   {voteCount > 0 && (
-                                    <span className="text-magenta font-bold whitespace-nowrap">
+                                    <span className="text-magenta font-bold whitespace-nowrap flex-shrink-0">
                                       ⚡ {voteCount}
                                     </span>
                                   )}
                                 </div>
                                 <button
                                   onClick={() => handleVote(song.id)}
-                                  className="btn btn-fire text-sm"
+                                  className="btn btn-fire text-sm flex-shrink-0"
                                 >
                                   <Zap size={18} />
                                   <span>Vote</span>
@@ -5804,11 +5898,21 @@ const sortArtistQueue = (songs) => {
                         .filter(song => {
                           const isInGigPlaylist = liveGigData.queuedSongs?.some(q => q.id === song.id);
                           const isPlayed = liveGigData.playedSongs?.includes(song.id);
-                          return !isInGigPlaylist && !isPlayed;
+                          const matchesSearch = !playlistSearchQuery || 
+                            song.title.toLowerCase().includes(playlistSearchQuery.toLowerCase()) ||
+                            song.artist.toLowerCase().includes(playlistSearchQuery.toLowerCase());
+                          return !isInGigPlaylist && !isPlayed && matchesSearch;
                         })
                         .slice(0, 20)
                         .map((song) => {
                           const voteCount = liveGigData.votes[Math.floor(song.id)] || 0;
+                          
+                          // Truncate to first 5 words
+                          const truncateTitle = (title) => {
+                            const words = title.split(' ');
+                            if (words.length <= 5) return title;
+                            return words.slice(0, 5).join(' ') + '...';
+                          };
                           
                           return (
                             <div 
@@ -5817,17 +5921,18 @@ const sortArtistQueue = (songs) => {
                             >
                               <div className="flex items-center justify-between gap-3">
                                 <div className="flex-1 min-w-0">
-                                  <div className="text-white font-bold truncate">{song.title}</div>
-                                  <div className="text-electric text-sm truncate">{song.artist}</div>
+                                  <div className="text-white font-bold truncate">
+                                    {truncateTitle(song.title)} - {song.artist}
+                                  </div>
                                 </div>
                                 {voteCount > 0 && (
-                                  <span className="text-magenta font-bold whitespace-nowrap">
+                                  <span className="text-magenta font-bold whitespace-nowrap flex-shrink-0">
                                     ⚡ {voteCount}
                                   </span>
                                 )}
                                 <button
                                   onClick={() => handleVote(song.id)}
-                                  className="btn btn-electric text-sm"
+                                  className="btn btn-electric text-sm flex-shrink-0"
                                 >
                                   <Zap size={18} />
                                   <span>Vote</span>
@@ -5850,23 +5955,30 @@ const sortArtistQueue = (songs) => {
         {showArtistProfileModal && artistProfile && (
           <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
             <div className="rock-background gig-card border-2 border-electric max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              {/* Header */}
-              <div className="sticky top-0 bg-black/95 p-6 border-b border-white/10 z-10">
-                <div className="flex justify-between items-center">
-                  <h2 className="concert-heading text-3xl text-electric">🎸 ARTIST PROFILE</h2>
+              
+              {/* Close Button - SEPARATE ROW AT TOP */}
+              <div className="sticky top-0 bg-black/95 px-6 pt-4 pb-2 border-b border-white/10 z-10">
+                <div className="flex justify-end mb-2">
                   <button
                     onClick={() => setShowArtistProfileModal(false)}
-                    className="text-white hover:text-neon transition"
+                    className="text-white hover:text-neon transition font-bold text-3xl leading-none"
+                    style={{ fontWeight: '900' }}
                   >
-                    <X size={32} />
+                    ×
                   </button>
                 </div>
+                
+                {/* Header - MOBILE OPTIMIZED, ONE LINE */}
+                <h2 className="concert-heading text-base sm:text-2xl text-electric text-center whitespace-nowrap flex items-center justify-center gap-2 pb-3">
+                  <span className="text-2xl sm:text-3xl">🎸</span>
+                  <span>Artist Profile</span>
+                </h2>
               </div>
 
               <div className="p-6">
-                {/* Artist Name & Genre */}
+                {/* Artist Name & Genre - REDUCED GAP */}
                 <div className="text-center mb-6">
-                  <h1 className="concert-heading text-4xl text-white mb-3">
+                  <h1 className="concert-heading text-2xl sm:text-4xl text-white mb-3">
                     {artistProfile.artistName}
                   </h1>
                   <div className="flex flex-wrap justify-center gap-3">
@@ -5879,10 +5991,14 @@ const sortArtistQueue = (songs) => {
                   </div>
                 </div>
 
-                {/* Bio */}
+                {/* Bio - CENTER ALIGNED HEADING ONLY */}
                 <div className="mb-6">
-                  <h3 className="text-xl font-bold text-electric mb-3">About</h3>
-                  <p className="text-gray-light leading-relaxed">{artistProfile.bio}</p>
+                  <h3 className="text-lg sm:text-xl font-bold text-electric mb-3 text-center">
+                    About
+                  </h3>
+                  <p className="text-gray-light leading-relaxed text-left">
+                    {artistProfile.bio}
+                  </p>
                 </div>
 
                 {/* Social Media */}
@@ -5914,9 +6030,9 @@ const sortArtistQueue = (songs) => {
             <div className="gig-card max-w-2xl w-full max-h-[90vh] overflow-y-auto border-2 border-magenta">
               {/* Modal Header */}
               <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h2 className="concert-heading text-3xl text-magenta">REQUEST A SONG</h2>
-                  <p className="text-gray-light text-sm mt-2">Send your song request to the artist</p>
+                <div className="flex-1 text-center">
+                  <h2 className="concert-heading text-3xl text-magenta">Request A Song</h2>
+                  <p className="text-gray-light text-sm mt-2">Send Your Song Request To The Artist</p>
                 </div>
                 <button
                   onClick={() => {
@@ -5965,7 +6081,7 @@ const sortArtistQueue = (songs) => {
                   </div>
                 </div>
                 
-                {/* ✅ NEW: Always show positive message */}
+                {/* Status message */}
                 <div className="mt-3">
                   {(() => {
                     const maxQueue = liveGigData.maxQueueSize || 20;
@@ -6000,44 +6116,70 @@ const sortArtistQueue = (songs) => {
                 </div>
               </div>
               
+              {/* Search Bar */}
+              <div className="mb-4">
+                <input
+                  type="text"
+                  placeholder="🔍 Search by song or artist name..."
+                  value={playlistSearchQuery}
+                  onChange={(e) => setPlaylistSearchQuery(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-magenta/30 focus:border-magenta focus:outline-none"
+                />
+              </div>
+              
               {/* Song Selection */}
               <div className="mb-6">
-                <h3 className="text-white font-bold text-xl mb-3">Select a Song</h3>
+                <h3 className="text-white font-bold text-xl mb-3">Select A Song</h3>
                 <div className="space-y-2 max-h-64 overflow-y-auto bg-black/30 rounded-lg p-3 border border-white/10">
                   {liveGig.masterPlaylist && liveGig.masterPlaylist.length > 0 ? (
                     liveGig.masterPlaylist
                       .filter(song => {
-                        // ✅ Filter out played songs
+                        // Filter out played songs
                         if (liveGigData.playedSongs?.includes(song.id)) return false;
                         
-                        // ✅ NEW: Filter out songs already in gig playlist (queuedSongs)
+                        // Filter out songs already in gig playlist
                         const isInGigPlaylist = (liveGigData.queuedSongs || []).some(
                           queuedSong => queuedSong.id === song.id
                         );
                         
-                        return !isInGigPlaylist; // Only show songs NOT in gig playlist
+                        // Filter by search query
+                        const matchesSearch = !playlistSearchQuery || 
+                          song.title.toLowerCase().includes(playlistSearchQuery.toLowerCase()) ||
+                          song.artist.toLowerCase().includes(playlistSearchQuery.toLowerCase());
+                        
+                        return !isInGigPlaylist && matchesSearch;
                       })
-                      .map(song => (
-                        <div
-                          key={song.id}
-                          onClick={() => setSelectedRequestSong(song)}
-                          className={`p-3 rounded-lg cursor-pointer transition border-2 ${
-                            selectedRequestSong?.id === song.id
-                              ? 'bg-magenta/30 border-magenta'
-                              : 'bg-white/5 border-white/10 hover:border-electric/50'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="text-white font-bold">{song.title}</div>
-                              <div className="text-electric text-sm">{song.artist}</div>
+                      .map(song => {
+                        // Truncate to first 5 words
+                        const truncateTitle = (title) => {
+                          const words = title.split(' ');
+                          if (words.length <= 5) return title;
+                          return words.slice(0, 5).join(' ') + '...';
+                        };
+                        
+                        return (
+                          <div
+                            key={song.id}
+                            onClick={() => setSelectedRequestSong(song)}
+                            className={`p-3 rounded-lg cursor-pointer transition border-2 ${
+                              selectedRequestSong?.id === song.id
+                                ? 'bg-magenta/30 border-magenta'
+                                : 'bg-white/5 border-white/10 hover:border-electric/50'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1 min-w-0">
+                                <div className="text-white font-bold truncate">
+                                  {truncateTitle(song.title)} - {song.artist}
+                                </div>
+                              </div>
+                              {selectedRequestSong?.id === song.id && (
+                                <div className="text-magenta text-2xl flex-shrink-0">✓</div>
+                              )}
                             </div>
-                            {selectedRequestSong?.id === song.id && (
-                              <div className="text-magenta text-2xl">✓</div>
-                            )}
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                   ) : (
                     <div className="text-center py-8 text-gray-light">No songs available for request</div>
                   )}
@@ -6046,7 +6188,7 @@ const sortArtistQueue = (songs) => {
                   💡 Songs already in tonight's setlist can only be voted for, not requested
                 </p>
               </div>
-        
+
               {/* Selected Song Display */}
               {selectedRequestSong && (
                 <div className="mb-6 p-4 bg-magenta/20 border-2 border-magenta rounded-lg">
@@ -6055,10 +6197,10 @@ const sortArtistQueue = (songs) => {
                   <p className="text-electric">{selectedRequestSong.artist}</p>
                 </div>
               )}
-        
+
               {/* Optional Message */}
               <div className="mb-6">
-                <label className="text-white font-bold mb-2 block">Add a Message (Optional)</label>
+                <label className="text-white font-bold mb-2 block">Add A Message (Optional)</label>
                 <textarea
                   value={requestMessage}
                   onChange={(e) => setRequestMessage(e.target.value)}
@@ -6071,7 +6213,7 @@ const sortArtistQueue = (songs) => {
                   {requestMessage.length}/200 characters
                 </div>
               </div>
-        
+
               {/* Action Buttons */}
               <div className="flex flex-col md:flex-row gap-3">
                 <button
@@ -6079,7 +6221,7 @@ const sortArtistQueue = (songs) => {
                   disabled={!selectedRequestSong}
                   className={`flex-1 py-4 rounded-lg font-bold text-lg transition ${
                     selectedRequestSong
-                      ? 'btn btn-neon' // ✅ CHANGED FROM btn-fire to btn-neon
+                      ? 'btn btn-neon'
                       : 'bg-gray-600 text-gray-400 cursor-not-allowed'
                   }`}
                 >
@@ -6096,113 +6238,110 @@ const sortArtistQueue = (songs) => {
                   Cancel
                 </button>
               </div>
-        
-              {/* Info Notice */}
-              <div className="mt-4 p-3 bg-blue-500/20 border border-blue-400/50 rounded-lg">
-                <p className="text-blue-300 text-sm">
-                  Requests are FREE - no payment required!
-                </p>
-              </div>
             </div>
           </div>
         )}
 
-{/* Task 13: Artist Rating Modal */}
-        {showRatingModal && (
-          <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="gig-card max-w-md w-full border-2 border-electric">
-              {/* Header */}
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h2 className="concert-heading text-2xl text-electric">
-                    ⭐ RATE THE ARTIST
-                  </h2>
-                  <p className="text-gray-light text-sm mt-2">
-                    How's the performance? (Optional)
-                  </p>
-                </div>
-                <button
-                  onClick={handleCloseRating}
-                  className="text-white hover:text-neon transition"
-                >
-                  <X size={32} />
-                </button>
-              </div>
+      {/* Task 13: Artist Rating Modal */}
+      {showRatingModal && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="gig-card max-w-md w-full border-2 border-electric relative">
+            {/* Close Button - SEPARATE ROW AT TOP */}
+            <div className="flex justify-end mb-3">
+              <button
+                onClick={handleCloseRating}
+                className="text-white hover:text-neon transition font-bold text-3xl leading-none"
+                style={{ fontWeight: '900' }}
+              >
+                ×
+              </button>
+            </div>
 
-              {hasRatedArtist && (
-                <div className="mb-4 p-3 bg-neon/20 border border-neon rounded-lg">
-                  <p className="text-neon font-bold text-sm text-center">
-                    ✅ You rated this artist {currentGigRating}★ - Update your rating below
-                  </p>
-                </div>
-              )}
-        
-              <div className="space-y-6">
-                {/* Artist Name */}
-                <div className="text-center">
-                  <p className="text-white text-lg font-bold mb-4">
-                    {liveGig?.artistName || 'Artist'}
-                  </p>
-                </div>
-        
-                {/* Star Rating */}
-                <div>
-                  <div className="flex gap-2 justify-center mb-2">
-                    {[1, 2, 3, 4, 5].map(star => (
-                      <button
-                        key={star}
-                        onClick={() => setArtistRating(star)}
-                        className={`text-5xl transition transform ${
-                          artistRating >= star 
-                            ? 'text-yellow-400 scale-110' 
-                            : 'text-gray-600 hover:text-yellow-300 hover:scale-105'
-                        }`}
-                      >
-                        {artistRating >= star ? '⭐' : '☆'}
-                      </button>
-                    ))}
-                  </div>
-                  
-                  {/* Rating Label */}
-                  {artistRating > 0 && (
-                    <p className="text-center text-electric font-bold text-lg">
-                      {artistRating === 1 && 'Needs Improvement'}
-                      {artistRating === 2 && 'Fair'}
-                      {artistRating === 3 && 'Good'}
-                      {artistRating === 4 && 'Great'}
-                      {artistRating === 5 && 'Amazing! 🔥'}
-                    </p>
-                  )}
-                </div>
-        
-                {/* Action Buttons */}
-                <div className="flex gap-3 pt-4">
-                  <button
-                    onClick={handleSubmitRating}
-                    disabled={artistRating === 0}
-                    className={`flex-1 btn text-lg ${
-                      artistRating === 0
-                        ? 'btn-ghost opacity-50 cursor-not-allowed'
-                        : 'btn-neon'
-                    }`}
-                  >
-                    <span>✓</span>
-                    <span>Submit Rating</span>
-                  </button>
-                  <button
-                    onClick={handleCloseRating}
-                    className="btn btn-ghost"
-                  >
-                    Close
-                  </button>
-                </div>        
-                <p className="text-center text-gray-light text-sm">
-                  Your rating helps the artist improve!
+            {/* Header - MOBILE OPTIMIZED, ONE LINE */}
+            <div className="mb-6">
+              <h2 className="concert-heading text-base sm:text-xl text-electric text-center whitespace-nowrap flex items-center justify-center gap-2">
+                <span className="text-2xl sm:text-3xl">⭐</span>
+                <span>Rate The Artist</span>
+              </h2>
+              <p className="text-gray-light text-xs sm:text-sm mt-2 text-center">
+                How's the performance? (Optional)
+              </p>
+            </div>
+
+            {hasRatedArtist && (
+              <div className="mb-4 p-3 bg-neon/20 border border-neon rounded-lg">
+                <p className="text-neon font-bold text-xs sm:text-sm text-center">
+                  ✅ You rated this artist {currentGigRating}★ - Update your rating below
                 </p>
               </div>
+            )}
+
+            <div className="space-y-6">
+              {/* Artist Name */}
+              <div className="text-center">
+                <p className="text-white text-base sm:text-lg font-bold mb-4">
+                  {liveGig?.artistName || 'Artist'}
+                </p>
+              </div>
+
+              {/* Star Rating - MOBILE OPTIMIZED */}
+              <div>
+                <div className="flex gap-2 sm:gap-3 justify-center mb-2 px-2">
+                  {[1, 2, 3, 4, 5].map(star => (
+                    <button
+                      key={star}
+                      onClick={() => setArtistRating(star)}
+                      className={`text-3xl sm:text-4xl transition transform ${
+                        artistRating >= star 
+                          ? 'text-yellow-400 scale-110' 
+                          : 'text-gray-600 hover:text-yellow-300 hover:scale-105'
+                      }`}
+                    >
+                      {artistRating >= star ? '⭐' : '☆'}
+                    </button>
+                  ))}
+                </div>
+                
+                {/* Rating Label */}
+                {artistRating > 0 && (
+                  <p className="text-center text-electric font-bold text-base sm:text-lg">
+                    {artistRating === 1 && 'Poor'}
+                    {artistRating === 2 && 'Fair'}
+                    {artistRating === 3 && 'Good'}
+                    {artistRating === 4 && 'Great'}
+                    {artistRating === 5 && 'Excellent'}
+                  </p>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={handleSubmitRating}
+                  disabled={artistRating === 0}
+                  className={`flex-1 btn text-base sm:text-lg ${
+                    artistRating === 0
+                      ? 'btn-ghost opacity-50 cursor-not-allowed'
+                      : 'btn-neon'
+                  }`}
+                >
+                  <span>✓</span>
+                  <span>Submit Rating</span>
+                </button>
+                <button
+                  onClick={handleCloseRating}
+                  className="btn btn-ghost text-base sm:text-lg"
+                >
+                  Close
+                </button>
+              </div>        
+              <p className="text-center text-gray-light text-xs sm:text-sm">
+                Your rating helps the artist improve!
+              </p>
             </div>
           </div>
-        )}      
+        </div>
+      )}     
     </div>
   );
 }
