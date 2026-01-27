@@ -261,8 +261,10 @@ export const createLiveGig = async (gigData, artistId) => {
     
     console.log('🗺️ Generated geohash:', geohash);
     
-    const now = new Date();
-    const endTime = new Date(now.getTime() + (5 * 60 * 60 * 1000)); // 5 hours from NOW
+    // ✅ FIX: Use milliseconds timestamp instead of Date object
+    const nowMs = Date.now();
+    const fiveHoursMs = 5 * 60 * 60 * 1000;
+    const endTimeMs = nowMs + fiveHoursMs;
     
     const gigDocument = {
       ...gigData,
@@ -270,8 +272,16 @@ export const createLiveGig = async (gigData, artistId) => {
       geohash,
       location: new GeoPoint(gigData.location.lat, gigData.location.lng),
       status: gigData.status || 'live',
-      startTime: now,
-      scheduledEndTime: endTime,
+      
+      // ✅ FIXED: Store as milliseconds timestamp (number)
+      actualStartTimeMs: nowMs,          // When "Go Live" was clicked
+      scheduledEndTimeMs: endTimeMs,     // When gig will auto-end (5 hours from now)
+      
+      // Keep old fields for backwards compatibility
+      actualStartTime: new Date(nowMs),
+      startTime: new Date(nowMs),
+      scheduledEndTime: new Date(endTimeMs),
+      
       votes: {},
       voteTimestamps: {},
       comments: [],
@@ -280,7 +290,8 @@ export const createLiveGig = async (gigData, artistId) => {
     };
     
     console.log('💾 Saving gig to Firebase:', gigDocument);
-    console.log('⏰ Scheduled end time:', endTime);
+    console.log('⏰ Actual start time (ms):', nowMs, '→', new Date(nowMs).toISOString());
+    console.log('⏰ Scheduled end time (ms):', endTimeMs, '→', new Date(endTimeMs).toISOString());
     
     await setDoc(gigRef, gigDocument);
     
@@ -421,13 +432,27 @@ export const updateGigToLive = async (gigId, queuedSongs, masterPlaylist) => {
     console.log('🔄 Updating gig to live:', gigId);
     
     const gigRef = doc(db, 'liveGigs', gigId);
-    const now = new Date();
-    const endTime = new Date(now.getTime() + (5 * 60 * 60 * 1000)); // 5 hours from NOW
+    
+    // ✅ FIX: Use milliseconds timestamp instead of Date object
+    const nowMs = Date.now();
+    const fiveHoursMs = 5 * 60 * 60 * 1000;
+    const endTimeMs = nowMs + fiveHoursMs;
+    
+    console.log('⏰ Current time (ms):', nowMs, '→', new Date(nowMs).toISOString());
+    console.log('⏰ Calculated end time (ms):', endTimeMs, '→', new Date(endTimeMs).toISOString());
     
     await updateDoc(gigRef, {
       status: 'live',
-      startTime: now,
-      scheduledEndTime: endTime,
+      
+      // ✅ FIXED: Store as milliseconds timestamp (number)
+      actualStartTimeMs: nowMs,          // When "Go Live" was clicked
+      scheduledEndTimeMs: endTimeMs,     // ALWAYS 5 hours from NOW
+      
+      // Keep old fields for backwards compatibility
+      actualStartTime: new Date(nowMs),
+      startTime: new Date(nowMs),
+      scheduledEndTime: new Date(endTimeMs),
+      
       queuedSongs: queuedSongs,
       masterPlaylist: masterPlaylist,
       votes: {},
@@ -438,7 +463,8 @@ export const updateGigToLive = async (gigId, queuedSongs, masterPlaylist) => {
     });
     
     console.log('✅ Gig updated to live');
-    console.log('⏰ Scheduled end time:', endTime);
+    console.log('⏰ New end time (ms):', endTimeMs);
+    
     return gigId;
   } catch (error) {
     console.error('❌ Error updating gig:', error);
@@ -446,27 +472,50 @@ export const updateGigToLive = async (gigId, queuedSongs, masterPlaylist) => {
   }
 };
 
-// Extend gig time by specified hours
-export const extendGigTime = async (gigId, hoursToAdd = 1) => {
+/**
+ * Extend the scheduled end time of a live gig
+ * @param {string} gigId - The gig ID
+ * @param {number} additionalMinutes - Minutes to add (default: 60)
+ */
+export const extendGigTime = async (gigId, additionalMinutes = 60) => {
   try {
-    console.log(`⏱️ Extending gig time by ${hoursToAdd} hour(s)`);
+    console.log(`⏰ Extending gig time by ${additionalMinutes} minutes...`);
     
     const gigRef = doc(db, 'liveGigs', gigId);
-    const gigDoc = await getDoc(gigRef);
+    const gigSnap = await getDoc(gigRef);
     
-    if (!gigDoc.exists()) {
+    if (!gigSnap.exists()) {
       throw new Error('Gig not found');
     }
     
-    const currentEndTime = gigDoc.data().scheduledEndTime?.toDate() || new Date(Date.now() + (5 * 60 * 60 * 1000));
-    const newEndTime = new Date(currentEndTime.getTime() + (hoursToAdd * 60 * 60 * 1000));
+    const gigData = gigSnap.data();
+    
+    // ✅ PRIORITY: Use milliseconds timestamp
+    let newEndTimeMs;
+    
+    if (gigData.scheduledEndTimeMs) {
+      // Extend from current scheduled end time
+      newEndTimeMs = gigData.scheduledEndTimeMs + (additionalMinutes * 60 * 1000);
+    } else if (gigData.scheduledEndTime) {
+      // Fallback: Convert old timestamp and extend
+      const oldEndTime = gigData.scheduledEndTime?.toDate?.() || new Date(gigData.scheduledEndTime);
+      newEndTimeMs = oldEndTime.getTime() + (additionalMinutes * 60 * 1000);
+    } else {
+      // Last resort: Extend from now
+      newEndTimeMs = Date.now() + (additionalMinutes * 60 * 1000);
+    }
+    
+    console.log('⏰ New end time (ms):', newEndTimeMs, '→', new Date(newEndTimeMs).toISOString());
     
     await updateDoc(gigRef, {
-      scheduledEndTime: newEndTime
+      scheduledEndTimeMs: newEndTimeMs,
+      scheduledEndTime: new Date(newEndTimeMs) // For backwards compatibility
     });
     
-    console.log('✅ Gig time extended to:', newEndTime);
-    return newEndTime;
+    console.log(`✅ Gig time extended by ${additionalMinutes} minutes`);
+    console.log('⏰ New end time:', new Date(newEndTimeMs).toISOString());
+    
+    return newEndTimeMs;
   } catch (error) {
     console.error('❌ Error extending gig time:', error);
     throw error;

@@ -517,65 +517,103 @@ useEffect(() => {
 }, [liveGig?.id, currentUser]);
 
   // Auto-end timer check
-useEffect(() => {
-  if (!liveGig?.id || mode !== 'live' || isEndingGig) return; // ← ADD isEndingGig check
-  
-  const checkTimer = async () => {
-    if (!liveGigData.scheduledEndTime) return;
+  useEffect(() => {
+    if (!liveGig?.id || mode !== 'live' || isEndingGig) return;
     
-    // ✅ ROBUST conversion from Firebase Timestamp to JS Date
-    const endTime = (() => {
-      const st = liveGigData.scheduledEndTime;
-      
-      // Already a Date object
-      if (st instanceof Date) return st;
-      
-      // Firebase Timestamp with toDate() method
-      if (st?.toDate && typeof st.toDate === 'function') return st.toDate();
-      
-      // Timestamp with seconds property
-      if (st?.seconds) return new Date(st.seconds * 1000);
-      
-      // Unix timestamp (number)
-      if (typeof st === 'number') return new Date(st);
-      
-      // ISO string
-      if (typeof st === 'string') return new Date(st);
-      
-      // Failed conversion
-      console.error('❌ Could not convert scheduledEndTime:', st);
-      return null;
-    })();
-    
-    if (!endTime) return;
-    
-    const now = new Date();
-    const remaining = endTime - now;
-    const remainingMinutes = Math.floor(remaining / 60000);
-    
-    setTimeRemaining(remainingMinutes);
-    
-    // Show warning at 10 minutes
-    if (remainingMinutes <= 10 && remainingMinutes > 0 && !showTimeWarning) {
-      setShowTimeWarning(true);
-      alert(`⚠️ Your gig will auto-end in ${remainingMinutes} minutes!\n\nClick "Add 1 Hour" to extend.`);
-    }
-    
-    // Auto-end at 0
-    if (remainingMinutes <= 0 && mode === 'live' && !isEndingGig) {
-      try {
-        await handleEndGig('⏰ Time limit reached! Your gig has been automatically ended.', true);
-      } catch (error) {
-        console.error('Error auto-ending gig:', error);
+    const checkTimer = async () => {
+      // ✅ PRIORITY 1: Use milliseconds timestamp (most reliable)
+      if (liveGigData.scheduledEndTimeMs) {
+        const nowMs = Date.now();
+        const endTimeMs = liveGigData.scheduledEndTimeMs;
+        const remainingMs = endTimeMs - nowMs;
+        const remainingMinutes = Math.floor(remainingMs / 60000);
+        
+        console.log('⏰ Timer check (using MS):', {
+          nowMs,
+          endTimeMs,
+          remainingMs,
+          remainingMinutes,
+          nowTime: new Date(nowMs).toISOString(),
+          endTime: new Date(endTimeMs).toISOString()
+        });
+        
+        setTimeRemaining(remainingMinutes);
+        
+        // Show warning at 10 minutes
+        if (remainingMinutes <= 10 && remainingMinutes > 0 && !showTimeWarning) {
+          setShowTimeWarning(true);
+          alert(`⚠️ Your gig will auto-end in ${remainingMinutes} minutes!\n\nClick "Add 1 Hour" to extend.`);
+        }
+        
+        // Auto-end at 0
+        if (remainingMinutes <= 0 && mode === 'live' && !isEndingGig) {
+          console.log('⏰ AUTO-ENDING GIG - Time expired');
+          try {
+            await handleEndGig('⏰ Time limit reached! Your gig has been automatically ended.', true);
+          } catch (error) {
+            console.error('Error auto-ending gig:', error);
+          }
+        }
+        
+        return; // Exit early if we used milliseconds
       }
-    }
-  };
-  
-  checkTimer();
-  const interval = setInterval(checkTimer, 60000);
-  
-  return () => clearInterval(interval);
-}, [liveGig?.id, liveGigData.scheduledEndTime, mode, showTimeWarning, isEndingGig]); // ← ADD isEndingGig to dependencies
+      
+      // ✅ FALLBACK: Try to parse scheduledEndTime (backwards compatibility)
+      if (!liveGigData.scheduledEndTime) {
+        console.log('⚠️ No scheduledEndTime found');
+        return;
+      }
+      
+      const endTime = (() => {
+        const st = liveGigData.scheduledEndTime;
+        
+        if (st instanceof Date) return st;
+        if (st?.toDate && typeof st.toDate === 'function') return st.toDate();
+        if (st?.seconds) return new Date(st.seconds * 1000);
+        if (typeof st === 'number') return new Date(st);
+        if (typeof st === 'string') return new Date(st);
+        
+        console.error('❌ Invalid scheduledEndTime:', st);
+        return null;
+      })();
+      
+      if (!endTime) {
+        console.error('❌ Could not parse scheduledEndTime');
+        return;
+      }
+      
+      const now = new Date();
+      const remaining = endTime - now;
+      const remainingMinutes = Math.floor(remaining / 60000);
+      
+      console.log('⏰ Timer check (using Date fallback):', {
+        now: now.toISOString(),
+        endTime: endTime.toISOString(),
+        remainingMinutes
+      });
+      
+      setTimeRemaining(remainingMinutes);
+      
+      if (remainingMinutes <= 10 && remainingMinutes > 0 && !showTimeWarning) {
+        setShowTimeWarning(true);
+        alert(`⚠️ Your gig will auto-end in ${remainingMinutes} minutes!\n\nClick "Add 1 Hour" to extend.`);
+      }
+      
+      if (remainingMinutes <= 0 && mode === 'live' && !isEndingGig) {
+        console.log('⏰ AUTO-ENDING GIG - Time expired');
+        try {
+          await handleEndGig('⏰ Time limit reached! Your gig has been automatically ended.', true);
+        } catch (error) {
+          console.error('Error auto-ending gig:', error);
+        }
+      }
+    };
+    
+    checkTimer();
+    const interval = setInterval(checkTimer, 60000);
+    
+    return () => clearInterval(interval);
+  }, [liveGig?.id, liveGigData.scheduledEndTimeMs, liveGigData.scheduledEndTime, mode, showTimeWarning, isEndingGig]); // ← ADD isEndingGig to dependencies
 
   // Get user location on mount
   useEffect(() => {
@@ -6423,74 +6461,86 @@ const sortArtistQueue = (songs) => {
         </div>
       )} 
 
-      {/* MODAL: View Gig Playlist (Audience) */}
+      {/* MODAL: View Gig Playlist (Audience) - SORTED BY VOTES */}
       {showGigPlaylistModal && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="gig-card max-w-2xl w-full border-2 border-electric max-h-[85vh] flex flex-col">
+          <div className="gig-card max-w-md w-full border-2 border-electric max-h-[85vh] flex flex-col">
             
-            {/* Close Button - TOP RIGHT */}
+            {/* Close Button - ABSOLUTE TOP RIGHT */}
             <button
               onClick={() => setShowGigPlaylistModal(false)}
-              className="absolute top-4 right-4 text-white hover:text-neon transition font-bold text-3xl leading-none z-20"
+              className="absolute top-0 right-0 text-white hover:text-neon transition font-bold text-3xl leading-none z-20 p-2"
               style={{ fontWeight: '900' }}
             >
               ×
             </button>
 
-            {/* Header */}
-            <div className="px-6 pt-6 pb-4 border-b border-white/10">
-              <h2 className="concert-heading text-2xl md:text-3xl text-electric text-center flex items-center justify-center gap-2">
-                <span className="text-3xl">🎵</span>
-                <span>Tonight's Playlist</span>
+            {/* Header - ULTRA-COMPACT INLINE */}
+            <div className="px-3 pt-4 pb-1">
+              <h2 className="text-[11px] sm:text-sm font-bold text-electric text-center flex items-center justify-center gap-1">
+                <span className="text-sm sm:text-lg">🎵</span>
+                <span className="whitespace-nowrap">Tonight's Playlist</span>
               </h2>
-              <p className="text-gray-light text-sm text-center mt-2">
-                {liveGig?.artistName} at {liveGig?.venueName}
+              <p className="text-gray-light text-[8px] sm:text-[10px] mt-0.5 text-center truncate">
+                {liveGig?.artistName} • {liveGig?.venueName}
               </p>
             </div>
 
             {/* Playlist Content - SCROLLABLE */}
             <div className="flex-1 overflow-y-auto px-6 py-4">
               
-              {/* Songs in Tonight's Setlist */}
+              {/* Songs in Tonight's Setlist - SORTED BY VOTES */}
               {liveGigData.queuedSongs && liveGigData.queuedSongs.length > 0 ? (
-                <div className="space-y-3">
+                <div className="space-y-2">
                   {liveGigData.queuedSongs
                     .filter(song => !liveGigData.playedSongs?.includes(song.id))
+                    .map((song) => ({
+                      ...song,
+                      voteCount: liveGigData.votes[Math.floor(song.id)] || 0
+                    }))
+                    .sort((a, b) => b.voteCount - a.voteCount) // ✅ SORT BY VOTES DESC
                     .map((song, index) => {
-                      const voteCount = liveGigData.votes[Math.floor(song.id)] || 0;
+                      // Truncate song name to 5 words
+                      const songWords = song.title.split(' ');
+                      const truncatedSong = songWords.length > 5 
+                        ? songWords.slice(0, 5).join(' ') + '...'
+                        : song.title;
+                      
+                      // Truncate artist name to 2 words
+                      const artistWords = song.artist.split(' ');
+                      const truncatedArtist = artistWords.length > 2
+                        ? artistWords.slice(0, 2).join(' ') + '...'
+                        : song.artist;
                       
                       return (
                         <div 
                           key={song.id} 
-                          className="bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition"
+                          className="bg-white/5 border border-white/10 rounded-lg p-2 hover:bg-white/10 transition"
                         >
-                          <div className="flex items-center gap-4">
-                            {/* Number */}
-                            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-electric/30 flex items-center justify-center">
-                              <span className="font-bold text-electric text-lg">
-                                {index + 1}
-                              </span>
+                          {/* Single Row with ALL elements */}
+                          <div className="flex items-center gap-2 w-full">
+                            {/* Number Badge - Position in Queue */}
+                            <div className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center font-bold text-[10px] bg-electric/30 text-electric">
+                              {index + 1}
                             </div>
 
-                            {/* Song Info */}
-                            <div className="flex-1 min-w-0">
-                              <h4 className="text-white font-bold text-lg truncate">
-                                {song.title}
-                              </h4>
-                              <p className="text-gray-light text-sm">
-                                {song.artist}
+                            {/* Song Info Column - Left Aligned, Takes Available Space */}
+                            <div className="flex-1 min-w-0 text-left">
+                              <p className="font-bold text-[11px] leading-tight text-white">
+                                {truncatedSong}
+                              </p>
+                              <p className="text-gray-400 text-[9px] leading-tight">
+                                {truncatedArtist}
                               </p>
                             </div>
 
-                            {/* Vote Count */}
-                            {voteCount > 0 && (
-                              <div className="flex-shrink-0 flex items-center gap-1 bg-magenta/20 px-3 py-2 rounded-full border border-magenta">
-                                <span className="text-magenta text-lg">⚡</span>
-                                <span className="font-bold text-magenta text-lg">
-                                  {voteCount}
-                                </span>
-                              </div>
-                            )}
+                            {/* Vote Count - Far Right (ALWAYS SHOW) */}
+                            <div className="flex-shrink-0 flex items-center gap-0.5 pl-4">
+                              <span className="text-magenta text-[10px]">⚡</span>
+                              <span className="font-bold text-[10px] text-magenta">
+                                {song.voteCount}
+                              </span>
+                            </div>
                           </div>
                         </div>
                       );
@@ -6498,38 +6548,60 @@ const sortArtistQueue = (songs) => {
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <p className="text-gray-light text-lg">No songs in the playlist yet</p>
+                  <p className="text-gray-light text-sm">No songs in the playlist yet</p>
                 </div>
               )}
 
               {/* Played Songs Section */}
               {liveGigData.playedSongs && liveGigData.playedSongs.length > 0 && (
-                <div className="mt-8 pt-6 border-t border-white/20">
-                  <h3 className="text-gray-400 font-bold text-lg mb-4 flex items-center gap-2">
+                <div className="mt-6 pt-4 border-t border-white/20">
+                  <h3 className="text-gray-400 font-bold text-sm mb-3 flex items-center gap-2">
                     <span>✅</span>
                     <span>Already Played ({liveGigData.playedSongs.length})</span>
                   </h3>
                   <div className="space-y-2 opacity-60">
                     {liveGigData.queuedSongs
                       .filter(song => liveGigData.playedSongs.includes(song.id))
-                      .map((song, index) => (
-                        <div 
-                          key={song.id} 
-                          className="bg-gray-500/20 border border-gray-600 rounded-lg p-3"
-                        >
-                          <div className="flex items-center gap-3">
-                            <span className="text-gray-500 text-sm">✓</span>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-gray-400 font-semibold text-sm line-through truncate">
-                                {song.title}
-                              </p>
-                              <p className="text-gray-500 text-xs truncate">
-                                {song.artist}
-                              </p>
+                      .map((song) => {
+                        const voteCount = liveGigData.votes[Math.floor(song.id)] || 0;
+                        
+                        // Truncate song name to 5 words
+                        const songWords = song.title.split(' ');
+                        const truncatedSong = songWords.length > 5 
+                          ? songWords.slice(0, 5).join(' ') + '...'
+                          : song.title;
+                        
+                        // Truncate artist name to 2 words
+                        const artistWords = song.artist.split(' ');
+                        const truncatedArtist = artistWords.length > 2
+                          ? artistWords.slice(0, 2).join(' ') + '...'
+                          : song.artist;
+                        
+                        return (
+                          <div 
+                            key={song.id} 
+                            className="bg-gray-500/20 border border-gray-600 rounded-lg p-2"
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-500 text-[10px]">✓</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-gray-400 font-semibold text-[10px] line-through leading-tight">
+                                  {truncatedSong}
+                                </p>
+                                <p className="text-gray-500 text-[9px] leading-tight">
+                                  {truncatedArtist}
+                                </p>
+                              </div>
+                              {voteCount > 0 && (
+                                <div className="flex-shrink-0 flex items-center gap-0.5">
+                                  <span className="text-gray-600 text-[9px]">⚡</span>
+                                  <span className="text-gray-600 text-[9px]">{voteCount}</span>
+                                </div>
+                              )}
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                   </div>
                 </div>
               )}
@@ -6539,7 +6611,7 @@ const sortArtistQueue = (songs) => {
             <div className="px-6 py-4 border-t border-white/10">
               <button
                 onClick={() => setShowGigPlaylistModal(false)}
-                className="w-full btn btn-electric text-lg"
+                className="w-full btn btn-electric text-sm sm:text-base"
               >
                 Close
               </button>
