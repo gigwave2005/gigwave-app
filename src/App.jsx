@@ -1430,7 +1430,7 @@ useEffect(() => {
       
       // Check if within range (10km for testing)
       const distance = calculateDistance(location, venueLocation);
-      const maxDistance = 10000; // 10km in meters (change to 1000 for 1km in production)
+      const maxDistance = 1000; // 10km in meters (change to 1000 for 1km in production)
       
       console.log('📏 Distance calculated:', distance, 'meters');
       console.log('📏 Max allowed distance:', maxDistance, 'meters');
@@ -1438,7 +1438,7 @@ useEffect(() => {
       if (distance > maxDistance) {
         const distanceKm = (distance / 1000).toFixed(1);
         console.log('❌ Too far away:', distanceKm, 'km');
-        alert(`⚠️ You're too far away!\n\nYou must be within 10km of the venue to join.\n\nYou are currently ${distanceKm}km away from ${gig.venueName}.\n\n📍 Venue: ${gig.venueAddress || gig.venueName}`);
+        alert(`⚠️ You're too far away!\n\nYou must be within 1km of the venue to join.\n\nYou are currently ${distanceKm}km away from ${gig.venueName}.\n\n📍 Venue: ${gig.venueAddress || gig.venueName}`);
         return;
       }
       
@@ -2385,6 +2385,20 @@ const handleCheckVerification = async () => {
   if (!currentUser) {
     alert('Please log in to request a song');
     setShowAuthModal(true);
+    return;
+  }
+
+  // ✅ NEW: Check if user already has a pending request
+  const hasPendingRequest = (liveGigData.songRequests || []).some(
+    request => request.requesterId === currentUser.uid && request.status === 'pending'
+  );
+
+  if (hasPendingRequest) {
+    alert(
+      '⚠️ You already have a pending request!\n\n' +
+      'Please wait for the artist to accept or reject your current request before submitting another one.\n\n' +
+      '💡 Tip: You can vote for songs while you wait!'
+    );
     return;
   }
 
