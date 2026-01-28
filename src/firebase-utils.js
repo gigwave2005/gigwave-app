@@ -433,25 +433,61 @@ export const updateGigToLive = async (gigId, queuedSongs, masterPlaylist) => {
     
     const gigRef = doc(db, 'liveGigs', gigId);
     
-    // ✅ FIX: Use milliseconds timestamp instead of Date object
+    // ✅ STEP 1: Get the existing gig data
+    const gigSnap = await getDoc(gigRef);
+    if (!gigSnap.exists()) {
+      throw new Error('Gig not found');
+    }
+    
+    const gigData = gigSnap.data();
     const nowMs = Date.now();
-    const fiveHoursMs = 5 * 60 * 60 * 1000;
-    const endTimeMs = nowMs + fiveHoursMs;
     
-    console.log('⏰ Current time (ms):', nowMs, '→', new Date(nowMs).toISOString());
-    console.log('⏰ Calculated end time (ms):', endTimeMs, '→', new Date(endTimeMs).toISOString());
+    // ✅ STEP 2: Calculate scheduled end time from ORIGINAL scheduled start
+    let scheduledEndTimeMs;
     
+    // Try to get the original scheduled time
+    if (gigData.gigDate && gigData.gigTime) {
+      // Parse the scheduled start time
+      const scheduledStartDateTime = new Date(`${gigData.gigDate}T${gigData.gigTime}`);
+      const scheduledStartMs = scheduledStartDateTime.getTime();
+      
+      // Default duration is 5 hours
+      const durationMs = 5 * 60 * 60 * 1000;
+      
+      // END TIME = ORIGINAL SCHEDULED START + DURATION
+      scheduledEndTimeMs = scheduledStartMs + durationMs;
+      
+      console.log('✅ Using original scheduled times:');
+      console.log('   Scheduled start:', new Date(scheduledStartMs).toISOString());
+      console.log('   Scheduled end:', new Date(scheduledEndTimeMs).toISOString());
+      console.log('   Actual start (now):', new Date(nowMs).toISOString());
+      
+      // Calculate how early/late the start is
+      const startDiffMinutes = (scheduledStartMs - nowMs) / (60 * 1000);
+      if (startDiffMinutes > 0) {
+        console.log(`🟡 Starting ${Math.round(startDiffMinutes)} minutes EARLY`);
+      } else {
+        console.log(`🟢 Starting ${Math.abs(Math.round(startDiffMinutes))} minutes LATE`);
+      }
+      
+    } else {
+      // Fallback: If no scheduled time, use NOW + 5 hours
+      console.log('⚠️ No scheduled time found, using NOW + 5 hours');
+      scheduledEndTimeMs = nowMs + (5 * 60 * 60 * 1000);
+    }
+    
+    // ✅ STEP 3: Update the gig with correct times
     await updateDoc(gigRef, {
       status: 'live',
       
-      // ✅ FIXED: Store as milliseconds timestamp (number)
-      actualStartTimeMs: nowMs,          // When "Go Live" was clicked
-      scheduledEndTimeMs: endTimeMs,     // ALWAYS 5 hours from NOW
+      // Store as milliseconds timestamp (number)
+      actualStartTimeMs: nowMs,              // When "Go Live" was clicked
+      scheduledEndTimeMs: scheduledEndTimeMs, // When gig SHOULD end (original schedule)
       
       // Keep old fields for backwards compatibility
       actualStartTime: new Date(nowMs),
       startTime: new Date(nowMs),
-      scheduledEndTime: new Date(endTimeMs),
+      scheduledEndTime: new Date(scheduledEndTimeMs),
       
       queuedSongs: queuedSongs,
       masterPlaylist: masterPlaylist,
@@ -463,7 +499,7 @@ export const updateGigToLive = async (gigId, queuedSongs, masterPlaylist) => {
     });
     
     console.log('✅ Gig updated to live');
-    console.log('⏰ New end time (ms):', endTimeMs);
+    console.log('⏰ Will auto-end at:', new Date(scheduledEndTimeMs).toISOString());
     
     return gigId;
   } catch (error) {
