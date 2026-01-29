@@ -3,7 +3,6 @@ import { initializeApp } from 'firebase/app';
 import { 
   getFirestore, 
   collection, 
-  addDoc,
   doc,
   updateDoc,
   deleteDoc,
