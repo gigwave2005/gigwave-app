@@ -3397,7 +3397,7 @@ const handleArtistSearch = async (searchTerm) => {
     );
   }
 
-  // Playlist Editor Modal - Setlist Builder
+  // Playlist Editor Modal - REDESIGNED Setlist Builder (Single Column)
   if (showPlaylistModal && editingPlaylist) {
     
     const filteredMasterSongs = masterSongs.filter(song => 
@@ -3419,109 +3419,157 @@ const handleArtistSearch = async (searchTerm) => {
       [newSongs[index], newSongs[index + 1]] = [newSongs[index + 1], newSongs[index]];
       setEditingPlaylist({...editingPlaylist, songs: newSongs});
     };
+
+    const addAllSongs = () => {
+      const allSongIds = masterSongs.map(s => s.id);
+      setEditingPlaylist({...editingPlaylist, songs: allSongIds});
+    };
+
+    const clearAllSongs = () => {
+      if (window.confirm('Remove all songs from this setlist?')) {
+        setEditingPlaylist({...editingPlaylist, songs: []});
+      }
+    };
+
+    const addRandomSongs = (count = 20) => {
+      const availableSongs = masterSongs.filter(s => !editingPlaylist.songs.includes(s.id));
+      const shuffled = [...availableSongs].sort(() => Math.random() - 0.5);
+      const randomSongs = shuffled.slice(0, Math.min(count, availableSongs.length));
+      const newSongs = [...editingPlaylist.songs, ...randomSongs.map(s => s.id)];
+      setEditingPlaylist({...editingPlaylist, songs: newSongs});
+    };
     
     return (
-      <div className="fixed inset-0 bg-black/90 flex items-center justify-center p-4 z-50">
-        <div className="rock-background gig-card border-2 border-magenta max-w-4xl w-full h-[90vh] flex flex-col">
+      <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-2 z-50">
+        <div className="bg-gradient-to-br from-gray-900 to-black border-2 border-electric rounded-2xl max-w-3xl w-full max-h-[90vh] flex flex-col relative overflow-hidden">
           
+          {/* Close Button */}
+          <button
+            onClick={() => {
+              setShowPlaylistModal(false);
+              setEditingPlaylist(null);
+              setPlaylistSearchQuery('');
+            }}
+            className="absolute top-2 right-2 text-white hover:text-electric text-2xl font-bold z-10 w-8 h-8 flex items-center justify-center"
+          >
+            ×
+          </button>
+
           {/* HEADER - Fixed */}
-          <div className="flex justify-between items-center p-6 pb-4 border-b border-white/10 flex-shrink-0">
-            <h2 className="concert-heading text-3xl md:text-4xl text-magenta">
+          <div className="pt-3 pb-2 px-3 border-b border-white/20 flex-shrink-0">
+            <h2 className="text-center text-electric font-black text-lg tracking-wider mb-2">
               🎸 SETLIST BUILDER
             </h2>
-            <button 
-              onClick={() => {                
-                setShowPlaylistModal(false);
-                setEditingPlaylist(null);
-                setPlaylistSearchQuery('');
-              }}
-              className="text-white hover:text-red-400 p-2 touch-target"
-            >
-              <X size={32}/>
-            </button>
-          </div>
-  
-          {/* BODY - Scrollable */}
-          <div className="flex-1 overflow-y-auto p-6">
-            {/* Playlist Info */}
-            <div className="space-y-4 mb-6">
-              <div>
-                <label className="text-electric font-bold mb-2 block text-sm uppercase tracking-wider">
-                  Playlist Name *
-                </label>
-                <input
-                  type="text"
-                  value={editingPlaylist.name}
-                  onChange={(e) => setEditingPlaylist({...editingPlaylist, name: e.target.value})}
-                  className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
-                  placeholder="e.g., Friday Night Rock"
-                />
-              </div>
-              
-              <div>
-                <label className="text-electric font-bold mb-2 block text-sm uppercase tracking-wider">
-                  Description
-                </label>
-                <textarea
-                  value={editingPlaylist.description}
-                  onChange={(e) => setEditingPlaylist({...editingPlaylist, description: e.target.value})}
-                  className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
-                  rows={2}
-                  placeholder="Optional description..."
-                />
-              </div>
+            
+            {/* Playlist Name & Description */}
+            <div className="space-y-2 mb-2">
+              <input
+                type="text"
+                value={editingPlaylist.name}
+                onChange={(e) => setEditingPlaylist({...editingPlaylist, name: e.target.value})}
+                className="w-full px-3 py-2 text-sm rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
+                placeholder="Playlist name..."
+              />
+              <textarea
+                value={editingPlaylist.description}
+                onChange={(e) => setEditingPlaylist({...editingPlaylist, description: e.target.value})}
+                className="w-full px-3 py-2 text-xs rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none resize-none"
+                rows={1}
+                placeholder="Description (optional)..."
+              />
             </div>
-    
-            {/* Songs in Playlist */}
-            <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
-              <h3 className="concert-heading text-2xl text-neon mb-4">
-                🎵 SONGS IN SETLIST ({editingPlaylist.songs.length})
-              </h3>
-              
+
+            {/* Search Bar */}
+            <input
+              type="text"
+              value={playlistSearchQuery}
+              onChange={(e) => setPlaylistSearchQuery(e.target.value)}
+              placeholder="🔍 Search songs in master playlist..."
+              className="w-full px-3 py-2 text-sm rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
+            />
+          </div>
+
+          {/* BODY - Scrollable */}
+          <div className="flex-1 overflow-y-auto p-2">
+            
+            {/* SECTION 1: Current Setlist */}
+            <div className="mb-3">
+              <div className="flex items-center justify-between mb-2 px-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-purple-300 font-bold text-sm uppercase tracking-wider">
+                    🎵 Current Setlist
+                  </h3>
+                  <span className="bg-purple-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    {editingPlaylist.songs.length}
+                  </span>
+                </div>
+                
+                {/* Quick Actions */}
+                {editingPlaylist.songs.length > 0 && (
+                  <button
+                    onClick={clearAllSongs}
+                    className="bg-red-500/20 hover:bg-red-500/30 text-red-300 text-xs font-bold py-1 px-2 rounded transition-all"
+                  >
+                    🗑️ Clear All
+                  </button>
+                )}
+              </div>
+
               {editingPlaylist.songs.length === 0 ? (
-                <div className="bg-white/5 rounded-lg p-8 text-center border border-electric/30">
-                  <p className="text-gray-light">No songs yet. Add from master playlist below. 🎸</p>
+                <div className="bg-purple-500/5 border border-purple-400/30 rounded-lg p-6 text-center">
+                  <p className="text-white/40 text-sm mb-1">📭</p>
+                  <p className="text-white/60 text-xs">No songs in setlist yet</p>
+                  <p className="text-white/40 text-xs mt-1">Add songs from master playlist below ↓</p>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-1">
                   {editingPlaylist.songs.map((songId, index) => {
                     const song = masterSongs.find(s => s.id === songId);
                     return song ? (
                       <div 
                         key={songId} 
-                        className="bg-white/5 p-3 rounded-lg flex items-center gap-3 border border-white/10 hover:border-electric/50 transition"
+                        className="bg-purple-500/10 border border-purple-400/30 rounded-lg p-2"
                       >
-                        <span className="concert-heading text-electric text-xl min-w-[40px]">
-                          {index + 1}
-                        </span>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-white font-bold truncate">{song.title}</div>
-                          <div className="text-gray-light text-sm truncate">{song.artist}</div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => moveSongUp(index)}
-                            disabled={index === 0}
-                            className="text-neon hover:text-electric p-2 disabled:opacity-30 disabled:cursor-not-allowed"
-                            title="Move up"
-                          >
-                            ▲
-                          </button>
-                          <button
-                            onClick={() => moveSongDown(index)}
-                            disabled={index === editingPlaylist.songs.length - 1}
-                            className="text-neon hover:text-electric p-2 disabled:opacity-30 disabled:cursor-not-allowed"
-                            title="Move down"
-                          >
-                            ▼
-                          </button>
+                        {/* Top Row */}
+                        <div className="flex items-start gap-2 mb-1">
+                          <span className="text-purple-300 font-bold text-xs flex-shrink-0 w-6">
+                            {index + 1}
+                          </span>
+                          <div className="text-white font-semibold text-xs leading-tight flex-1 min-w-0 truncate">
+                            {song.title}
+                          </div>
                           <button
                             onClick={() => removeSongFromGigPlaylist(songId)}
-                            className="text-red-400 hover:text-red-300 p-2"
+                            className="text-red-400 hover:text-red-300 flex-shrink-0"
                             title="Remove"
                           >
-                            <Trash2 size={20}/>
+                            <Trash2 size={14}/>
                           </button>
+                        </div>
+
+                        {/* Bottom Row */}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="text-purple-200 text-xs truncate flex-1 pl-8">
+                            {song.artist}
+                          </div>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => moveSongUp(index)}
+                              disabled={index === 0}
+                              className="text-purple-300 hover:text-purple-100 disabled:opacity-20 text-base leading-none w-6 h-6 flex items-center justify-center"
+                              title="Move up"
+                            >
+                              ▲
+                            </button>
+                            <button
+                              onClick={() => moveSongDown(index)}
+                              disabled={index === editingPlaylist.songs.length - 1}
+                              className="text-purple-300 hover:text-purple-100 disabled:opacity-20 text-base leading-none w-6 h-6 flex items-center justify-center"
+                              title="Move down"
+                            >
+                              ▼
+                            </button>
+                          </div>
                         </div>
                       </div>
                     ) : null;
@@ -3529,69 +3577,94 @@ const handleArtistSearch = async (searchTerm) => {
                 </div>
               )}
             </div>
-    
-            {/* Add Songs Section */}
-            <div className="bg-white/5 border border-white/10 rounded-xl p-6 mb-6">
-              <h3 className="concert-heading text-2xl text-electric mb-4">
-                📚 ADD FROM MASTER PLAYLIST
-              </h3>
-              
-              {/* Search Bar */}
-              <div className="mb-4">
-                <input
-                  type="text"
-                  value={playlistSearchQuery}
-                  onChange={(e) => setPlaylistSearchQuery(e.target.value)}
-                  placeholder="🔍 Search by song or artist name..."
-                  className="w-full px-4 py-3 rounded-lg bg-white/10 text-white placeholder-white/40 border border-electric/30 focus:border-electric focus:outline-none"
-                />
+
+            {/* SECTION 2: Master Playlist */}
+            <div>
+              <div className="flex items-center justify-between mb-2 px-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-green-300 font-bold text-sm uppercase tracking-wider">
+                    📚 Add From Master
+                  </h3>
+                  <span className="bg-green-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    {filteredMasterSongs.length}
+                  </span>
+                </div>
+
+                {/* Quick Actions */}
+                {filteredMasterSongs.length > 0 && (
+                  <div className="flex gap-1">
+                    <button
+                      onClick={addAllSongs}
+                      className="bg-green-500/20 hover:bg-green-500/30 text-green-300 text-xs font-bold py-1 px-2 rounded transition-all"
+                    >
+                      ➕ Add All
+                    </button>
+                    {filteredMasterSongs.length >= 20 && (
+                      <button
+                        onClick={() => addRandomSongs(20)}
+                        className="bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 text-xs font-bold py-1 px-2 rounded transition-all"
+                      >
+                        🎲 20
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
-              
+
               {masterSongs.length === 0 ? (
-                <div className="bg-white/5 rounded-lg p-8 text-center border border-electric/30">
-                  <p className="text-gray-light">
-                    No songs in master playlist. Add songs in the Master Playlist tab first! 🎵
-                  </p>
+                <div className="bg-green-500/5 border border-green-400/30 rounded-lg p-6 text-center">
+                  <p className="text-white/40 text-sm mb-1">📭</p>
+                  <p className="text-white/60 text-xs">No songs in master playlist</p>
+                  <p className="text-white/40 text-xs mt-1">Add songs in Master Playlist tab first</p>
                 </div>
               ) : filteredMasterSongs.length === 0 ? (
-                <div className="bg-white/5 rounded-lg p-6 text-center border border-neon/30">
-                  <p className="text-neon font-bold">
-                  {playlistSearchQuery ? `No songs found for "${playlistSearchQuery}"` : '✅ All master songs added to setlist!'}
+                <div className="bg-green-500/5 border border-green-400/30 rounded-lg p-6 text-center">
+                  <p className="text-green-300 text-sm mb-1">✅</p>
+                  <p className="text-green-300 text-xs font-bold">
+                    {playlistSearchQuery 
+                      ? `No songs found for "${playlistSearchQuery}"` 
+                      : 'All master songs added to setlist!'}
                   </p>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-1">
                   {filteredMasterSongs.map(song => (
                     <div 
                       key={song.id} 
-                      className="bg-white/5 p-3 rounded-lg flex items-center gap-3 border border-white/10 hover:bg-white/10 transition"
+                      className="bg-green-500/10 border border-green-400/30 rounded-lg p-2 hover:bg-green-500/20 transition-all"
                     >
-                      <div className="flex-1 min-w-0">
-                        <div className="text-white font-bold truncate">{song.title}</div>
-                        <div className="text-gray-light text-sm truncate">{song.artist}</div>
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-white font-semibold text-xs truncate mb-0.5">
+                            {song.title}
+                          </div>
+                          <div className="text-green-200 text-xs truncate">
+                            {song.artist}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => addSongToGigPlaylist(song.id)}
+                          className="bg-green-500 hover:bg-green-600 text-white text-xs font-bold px-3 py-1.5 rounded flex-shrink-0 transition-all shadow-lg"
+                        >
+                          + Add
+                        </button>
                       </div>
-                      <button
-                        onClick={() => addSongToGigPlaylist(song.id)}
-                        className="btn btn-neon text-sm"
-                      >
-                        <Plus size={18}/>
-                        <span>Add</span>
-                      </button>
                     </div>
                   ))}
                 </div>
               )}
             </div>
           </div>
-          
+
           {/* FOOTER - Fixed */}
-          <div className="p-6 pt-4 border-t border-white/10 flex-shrink-0">
-            <div className="flex flex-col md:flex-row gap-3">
+          <div className="p-2 border-t border-white/20 flex-shrink-0">
+            <div className="flex gap-2">
               <button
                 onClick={saveGigPlaylist}
-                className="flex-1 btn btn-neon text-lg"
+                disabled={!editingPlaylist.name.trim() || editingPlaylist.songs.length === 0}
+                className="flex-1 bg-green-500 hover:bg-green-600 disabled:bg-gray-600 disabled:opacity-50 text-white font-bold text-sm py-2.5 px-4 rounded-lg transition-all flex items-center justify-center gap-2 shadow-lg"
               >
-                <Check size={20}/>
+                <Check size={16}/>
                 <span>Save Setlist</span>
               </button>
               <button
@@ -3600,7 +3673,7 @@ const handleArtistSearch = async (searchTerm) => {
                   setEditingPlaylist(null);
                   setPlaylistSearchQuery('');
                 }}
-                className="btn btn-ghost"
+                className="bg-gray-600 hover:bg-gray-700 text-white font-bold text-sm py-2.5 px-4 rounded-lg transition-all"
               >
                 Cancel
               </button>
