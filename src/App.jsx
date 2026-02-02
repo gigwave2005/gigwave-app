@@ -237,6 +237,8 @@ export default function App() {
   const [savingGig, setSavingGig] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [hasShownLiveAlert, setHasShownLiveAlert] = useState(false);
+  const [liveTab, setLiveTab] = useState('queue'); // 'queue', 'requests', 'master'
+  const [liveMasterSearch, setLiveMasterSearch] = useState(''); // ✅ ADD THIS LINE
 
   // Add with other state declarations
   const [showJukeboxSettings, setShowJukeboxSettings] = useState(false);
@@ -355,96 +357,62 @@ const calculateGigStatus = (gig) => {
     };
   }, []);
 
-  // Listen to auth changes and check profile
-  useEffect(() => {
-    console.log('🔄 useEffect RUNNING - mode:', mode);
+// Listen to auth changes and check profile
+useEffect(() => {
+  console.log('🔄 useEffect RUNNING - mode:', mode);
+  
+  const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    console.log('👤 Auth state changed:', user ? user.email : 'No user');
+    setCurrentUser(user);
     
-    // Load saved mode from localStorage on mount
-    const savedMode = localStorage.getItem('GigWave_mode');
-    if (savedMode && !mode) {
-      console.log('📥 Restoring saved mode:', savedMode);
-      setMode(savedMode);
+    if (user) {
+      // Check email verification
+      setEmailVerified(user.emailVerified);
+      console.log('📧 Email verified:', user.emailVerified);
+      
+      // Load artist profile
+      try {
+        console.log('📥 Loading profile for UID:', user.uid);
+        const profile = await getArtistProfile(user.uid);
+        console.log('📦 Profile loaded:', profile);
+        setArtistProfile(profile);
+        
+        // ✅ REMOVED: Live gig detection (now handled by polling useEffect)
+        // The polling useEffect will handle setting mode to 'live'
+        
+        // Check if profile is complete for artist mode
+        if (mode === 'artist') {
+          console.log('🔍 Checking if profile is complete...');
+          const complete = await isProfileComplete(user.uid);
+          console.log('✅ Profile complete?', complete);
+          
+          if (!complete) {
+            console.log('🎸 ✅ SHOWING PROFILE SETUP MODAL');
+            setShowProfileSetup(true);
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error loading profile:', error);
+      }
+    } else {
+      console.log('👤 No user - clearing profile');
+      setArtistProfile(null);
+      
+      // Only force discover if in artist mode
+      if (mode === 'artist') {
+        setMode('discover');
+      }
     }
     
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      console.log('👤 Auth state changed:', user ? user.email : 'No user');
-      setCurrentUser(user);
-      
-      if (user) {
-        // Check email verification
-        setEmailVerified(user.emailVerified);
-        console.log('📧 Email verified:', user.emailVerified);
-        
-        // Load artist profile
-        try {
-          console.log('📥 Loading profile for UID:', user.uid);
-          const profile = await getArtistProfile(user.uid);
-          console.log('📦 Profile loaded:', profile);
-          setArtistProfile(profile);
-          
-          // ✅ NEW: Check for active live gig FIRST
-          console.log('🔍 Checking for active live gig...');
-          const activeLiveGig = await getActiveLiveGigForArtist(user.uid);
-          
-          if (activeLiveGig) {
-            console.log('🎸 ACTIVE LIVE GIG FOUND:', activeLiveGig.venueName);
-            
-            // Load the live gig data
-            setLiveGig(activeLiveGig);
-            setMode('live');
-            
-            // Save to localStorage
-            localStorage.setItem(`GigWave_live_${user.uid}`, JSON.stringify(activeLiveGig));
-            localStorage.setItem('GigWave_mode', 'live');
-            
-            console.log('✅ Artist locked into live mode');
-            
-          } else {
-            console.log('✅ No active live gig found');
-            
-            // Check if profile is complete
-            console.log('🔍 Checking if profile is complete...');
-            const complete = await isProfileComplete(user.uid);
-            console.log('✅ Profile complete?', complete);
-            
-            // Debug the condition
-            console.log('🎯 Condition check:');
-            console.log('   - !complete:', !complete);
-            console.log('   - mode === "artist":', mode === 'artist');
-            console.log('   - Result:', !complete && mode === 'artist');
-            
-            // If profile incomplete and in artist mode, force profile setup
-            if (!complete && mode === 'artist') {
-              console.log('🎸 ✅ SHOWING PROFILE SETUP MODAL');
-              setShowProfileSetup(true);
-            } else {
-              console.log('❌ NOT showing profile setup modal');
-            }
-          }
-        } catch (error) {
-          console.error('❌ Error loading profile:', error);
-        }
-      } else {
-        console.log('👤 No user - clearing profile');
-        setArtistProfile(null);
-        // ✅ DON'T clear liveGig or force mode change
-        // Audience can view without authentication!
-        
-        // Only force discover if in artist mode
-        if (mode === 'artist') {
-          setMode('discover');
-        }
-      }
-      
-      setAuthLoading(false);
-      console.log('✅ Auth loading complete');
-    });
-    
-    return () => {
-      console.log('🧹 Cleaning up auth listener');
-      unsubscribe();
-    };
-  }, [mode]);
+    setAuthLoading(false);
+    console.log('✅ Auth loading complete');
+  });
+  
+  return () => {
+    console.log('🧹 Cleaning up auth listener');
+    unsubscribe();
+  };
+}, [mode]); // Keep mode dependency
 
   // Auto-check email verification status when profile setup is open
 useEffect(() => {
@@ -466,9 +434,6 @@ useEffect(() => {
   }
 }, [showProfileSetup, currentUser, emailVerified]);
 
-
-// ✅ ADD THIS NEW useEffect RIGHT HERE ↓↓↓
-
 // Save mode to localStorage whenever it changes
 useEffect(() => {
   if (mode) {
@@ -477,16 +442,13 @@ useEffect(() => {
   }
 }, [mode]);
 
-  // Listen to live gig updates
+// Listen to live gig updates
 useEffect(() => {
   if (!liveGig?.id) return;
   
   const unsubscribe = listenToLiveGig(liveGig.id, async (gigData) => {
     console.log('🎵 Live gig update received');
-    console.log('👤 Current User:', currentUser?.uid);
-    console.log('🎸 Artist ID:', gigData.artistId);
     
-    // ✅ FIXED: Added songRequests and other missing fields
     setLiveGigData({
       votes: gigData.votes || {},
       comments: gigData.comments || [],
@@ -496,13 +458,14 @@ useEffect(() => {
       currentSong: gigData.currentSong || null,
       playedSongs: gigData.playedSongs || [],
       scheduledEndTime: gigData.scheduledEndTime || null,
+      scheduledEndTimeMs: gigData.scheduledEndTimeMs || null,  // ✅ ADD THIS LINE
       songRequests: gigData.songRequests || [],
       requestsEnabled: gigData.requestsEnabled !== false,
       jukeboxMode: gigData.jukeboxMode || false,
       jukeboxPrice: gigData.jukeboxPrice || 0,
       maxQueueSize: gigData.maxQueueSize || 20,
       lastVoteTime: gigData.lastVoteTime || {},
-      audienceTracking: gigData.audienceTracking || {  // ✅ ADD THIS
+      audienceTracking: gigData.audienceTracking || {
         totalJoins: 0,
         currentlyActive: 0,
         joinedUsers: {}
@@ -770,47 +733,61 @@ useEffect(() => {
     };
   }, [currentUser]);
 
-  // Load live gig from localStorage
-  useEffect(() => {
-    if (currentUser) {
-      const savedLiveGig = localStorage.getItem(`GigWave_live_${currentUser.uid}`);
-      if (savedLiveGig) {
-        const liveGigData = JSON.parse(savedLiveGig);
-        
-        // Convert any timestamp strings back to Date objects or remove them
-        const cleanGigData = {
-          ...liveGigData,
-          startTime: liveGigData.startTime ? new Date(liveGigData.startTime) : null,
-          endTime: liveGigData.endTime ? new Date(liveGigData.endTime) : null,
-          // Remove any problematic nested timestamp objects
-          voteTimestamps: undefined,
-          comments: (liveGigData.comments || []).map(c => ({
-            ...c,
-            timestamp: c.timestamp ? new Date(c.timestamp) : null
-          })),
-          donations: (liveGigData.donations || []).map(d => ({
-            ...d,
-            timestamp: d.timestamp ? new Date(d.timestamp) : null
-          }))
-        };
-        
-        setLiveGig(cleanGigData);
-        setMode('live'); // Lock into live mode
-        console.log('🔴 Resumed live gig from localStorage (cleaned)');
-      }
+// Load live gig from localStorage
+useEffect(() => {
+  if (currentUser) {
+    const savedLiveGig = localStorage.getItem(`GigWave_live_${currentUser.uid}`);
+    if (savedLiveGig) {
+      const liveGigData = JSON.parse(savedLiveGig);
+      
+      // Convert any timestamp strings back to Date objects or remove them
+      const cleanGigData = {
+        ...liveGigData,
+        startTime: liveGigData.startTime ? new Date(liveGigData.startTime) : null,
+        endTime: liveGigData.endTime ? new Date(liveGigData.endTime) : null,
+        voteTimestamps: undefined,
+        comments: (liveGigData.comments || []).map(c => ({
+          ...c,
+          timestamp: c.timestamp ? new Date(c.timestamp) : null
+        })),
+        donations: (liveGigData.donations || []).map(d => ({
+          ...d,
+          timestamp: d.timestamp ? new Date(d.timestamp) : null
+        }))
+      };
+      
+      setLiveGig(cleanGigData);
+      setMode('live');
+      
+      // ✅ CRITICAL: Initialize liveGigData immediately
+      setLiveGigData({
+        votes: cleanGigData.votes || {},
+        comments: cleanGigData.comments || [],
+        donations: cleanGigData.donations || [],
+        queuedSongs: cleanGigData.queuedSongs || [],
+        masterPlaylist: cleanGigData.masterPlaylist || [],
+        currentSong: cleanGigData.currentSong || null,
+        playedSongs: cleanGigData.playedSongs || [],
+        scheduledEndTime: cleanGigData.scheduledEndTime || null,
+        scheduledEndTimeMs: cleanGigData.scheduledEndTimeMs || null,
+        songRequests: cleanGigData.songRequests || [],
+        requestsEnabled: cleanGigData.requestsEnabled !== false,
+        jukeboxMode: cleanGigData.jukeboxMode || false,
+        jukeboxPrice: cleanGigData.jukeboxPrice || 0,
+        maxQueueSize: cleanGigData.maxQueueSize || 20,
+        lastVoteTime: cleanGigData.lastVoteTime || {},
+        audienceTracking: cleanGigData.audienceTracking || {
+          totalJoins: 0,
+          currentlyActive: 0,
+          joinedUsers: {}
+        }
+      });
+      
+      console.log('🔴 Resumed live gig from localStorage (cleaned)');
+      console.log('✅ liveGigData initialized with', Object.keys(cleanGigData.queuedSongs || {}).length, 'queued songs');
     }
-  }, [currentUser]);
-
-  // Load interested gigs from localStorage
-  useEffect(() => {
-    if (currentUser) {
-      const saved = localStorage.getItem(`GigWave_interested_${currentUser.uid}`);
-      if (saved) {
-        setInterestedGigs(JSON.parse(saved));
-        console.log('✅ Loaded interested gigs from localStorage');
-      }
-    }
-  }, [currentUser]);
+  }
+}, [currentUser]);
 
   // ✅ NEW: Load artist profile when in audience mode
 useEffect(() => {
@@ -5278,545 +5255,602 @@ const sortArtistQueue = (songs) => {
   return [...acceptedRequests, ...votedSongs, ...unvotedSongs];
 };
   
-  // Live Mode - REDESIGNED WITH ICON-BASED UI
-  if (mode === 'live' && liveGig) {
-    return (
-      <div className="rock-background min-h-screen p-4 pb-24 md:pb-4">
-        <div className="max-w-4xl mx-auto pt-6">
-          
-          {/* Header */}
-          <div className="gig-card border-2 border-neon mb-6">
-            <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
-              <div className="flex-1">
-                <div className="flex items-center gap-3 mb-2">
-                  <span className="concert-heading text-xl tracking-wider" style={{color: '#39FF14'}}>
-                    <span className="inline-block animate-pulse" style={{
-                      filter: 'drop-shadow(0 0 8px #39FF14) drop-shadow(0 0 16px #39FF14)',
-                      textShadow: '0 0 10px #39FF14, 0 0 20px #39FF14'
-                    }}>🟢</span> LIVE NOW
-                  </span>
-                </div>
-                <h1 className="concert-heading text-3xl md:text-4xl text-white mb-2">
-                  {liveGig.venueName}
-                </h1>
-                <p className="text-electric text-lg font-bold">🎸 {liveGig.artistName}</p>
-                
-                {/* Timer */}
-                {timeRemaining !== null && (
-                  <div className="mt-3">
-                    <p className={`text-lg font-bold ${
-                      timeRemaining <= 10 ? 'text-red-300 animate-pulse' : 'text-neon'
-                    }`}>
-                      ⏰ Time Remaining: {Math.floor(timeRemaining / 60)}h {timeRemaining % 60}m
-                    </p>
-                  </div>
-                )}
-              </div>
-              
-              {/* Action Buttons */}
-              <div className="flex gap-3">
-                <button
-                  onClick={handleExtendTime}
-                  className="btn btn-electric"
-                >
-                  ⏱️ Add 1 Hour
-                </button>
-                <button
-                  onClick={handleEndGig}
-                  className="btn btn-fire"
-                >
-                  ⏹️ End Gig
-                </button>
-              </div>
+// ============================================
+//    ARTIST LIVE MODE - TABBED REDESIGN
+// ============================================
+if (mode === 'live' && liveGig && liveGigData) {
+  return (
+    <div className="rock-background min-h-screen pb-24 md:pb-4">
+      <div className="max-w-4xl mx-auto px-4 pt-4">
+        
+        {/* LIVE STATUS HEADER - COMPACT */}
+        <div className="artist-section-card mb-3 p-3">
+          {/* Top Row: Live Now + Time Remaining */}
+          <div className="flex items-center justify-between mb-2">
+            {/* Live Now Badge - Left */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold tracking-wider" style={{color: '#39FF14'}}>
+                <span className="inline-block animate-pulse" style={{
+                  filter: 'drop-shadow(0 0 8px #39FF14)',
+                  textShadow: '0 0 10px #39FF14'
+                }}>🟢</span> LIVE NOW
+              </span>
+            </div>
+
+            {/* Time Remaining - Right */}
+            <div className="text-right">
+              <p className="text-gray-light text-[9px] mb-0.5">⏰ Time Left</p>
+              <p className="text-white font-bold text-sm leading-none">
+                {Math.floor(timeRemaining / 3600000)}h {Math.floor((timeRemaining % 3600000) / 60000)}m
+              </p>
             </div>
           </div>
 
-          {/* Stats Grid */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-            <div className="bg-pink-500/20 border-2 border-pink-400 rounded-xl p-4 text-center">
-              <div className="text-3xl font-bold text-white mb-1">
-                {liveGigData.audienceTracking?.currentlyActive || 0}
-              </div>
-              <div className="text-pink-200 font-semibold text-xs">👀 Live Now</div>
-            </div>
-            <div className="bg-magenta/20 border-2 border-magenta rounded-xl p-4 text-center">
-              <div className="text-3xl font-bold text-white mb-1">
-                {liveGigData.audienceTracking?.totalJoins || 0}
-              </div>
-              <div className="text-magenta font-semibold text-xs">🎫 Total Joins</div>
-            </div>
-            <div className="bg-green-500/20 border-2 border-green-400 rounded-xl p-4 text-center">
-              <div className="text-3xl font-bold text-white mb-1">
-                {Object.values(liveGigData.votes).reduce((sum, count) => sum + count, 0)}
-              </div>
-              <div className="text-green-200 font-semibold text-xs">⚡ Total Votes</div>
-            </div>
-            <div className="bg-orange-500/20 border-2 border-orange-400 rounded-xl p-4 text-center">
-              <div className="text-3xl font-bold text-white mb-1">
-                {(liveGigData.songRequests || []).filter(r => r.status === 'pending').length}
-              </div>
-              <div className="text-orange-200 font-semibold text-xs">🎤 Pending</div>
-            </div>
-          </div>
+          {/* Artist Name - Centered Below */}
+          <h2 className="concert-heading text-xl text-electric text-center mb-3">
+            {liveGig.artistName}
+          </h2>
 
-          {/* ROW 1: Song Queue | Song Requests */}
-          <div className="grid grid-cols-2 gap-4 mb-4">
-            {/* Song Queue Icon (MOVED HERE) */}
-            <button
-              onClick={() => setShowGigPlaylistModal(true)}
-              className="aspect-square rounded-2xl flex flex-col items-center justify-center gap-3 transition-all duration-300 hover:scale-105 border-2"
-              style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                borderColor: '#9f7aea',
-                boxShadow: '0 0 20px rgba(159, 122, 234, 0.4)'
-              }}
-            >
-              <span className="text-6xl">🎵</span>
-              <span className="text-white font-bold text-sm text-center">Song Queue</span>
-              <span className="text-white/80 text-xs">
-                {(liveGigData.queuedSongs || []).filter(s => !liveGigData.playedSongs?.includes(s.id)).length} songs
-              </span>
-            </button>
+          {/* Time Warning */}
+          {showTimeWarning && (
+            <div className="bg-orange-500/20 border border-orange-400 rounded-lg p-2 mb-2">
+              <p className="text-orange-300 font-bold text-center text-xs">
+                ⚠️ Only {Math.floor(timeRemaining / 60000)} minutes left!
+              </p>
+            </div>
+          )}
 
-            {/* Song Requests Icon */}
-            <button
-              onClick={() => setShowRequestModal(true)}
-              className="aspect-square rounded-2xl flex flex-col items-center justify-center gap-3 transition-all duration-300 hover:scale-105 border-2"
-              style={{
-                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                borderColor: '#f5576c',
-                boxShadow: '0 0 20px rgba(245, 87, 108, 0.4)'
-              }}
-            >
-              <span className="text-6xl">🎤</span>
-              <span className="text-white font-bold text-sm text-center">Requests</span>
-              <span className="text-white/80 text-xs">
-                {(liveGigData.songRequests || []).filter(r => r.status === 'pending').length} pending
-              </span>
-            </button>
-          </div>
-
-          {/* ROW 2: Master Playlist | Requests Toggle */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
-            {/* Master Playlist Icon (MOVED HERE) */}
-            <button
-              onClick={() => setShowVoteModal(true)}
-              className="aspect-square rounded-2xl flex flex-col items-center justify-center gap-3 transition-all duration-300 hover:scale-105 border-2"
-              style={{
-                background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
-                borderColor: '#38f9d7',
-                boxShadow: '0 0 20px rgba(56, 249, 215, 0.4)'
-              }}
-            >
-              <span className="text-6xl">📚</span>
-              <span className="text-white font-bold text-sm text-center">Master Playlist</span>
-              <span className="text-white/80 text-xs">
-                {(liveGigData.masterPlaylist || []).length} songs
-              </span>
-            </button>
-
-            {/* Requests Toggle Icon */}
+          {/* Action Buttons - WITH NEON GLOW */}
+          <div className="flex gap-2">
             <button
               onClick={async () => {
-                const currentStatus = liveGigData?.requestsEnabled !== false;
-                const newStatus = !currentStatus;
-                
                 try {
-                  await updateJukeboxSettings(liveGig.id, {
-                    requestsEnabled: newStatus,
-                    jukeboxMode: false,
-                    jukeboxPrice: 0
-                  });
-                  
-                  setLiveGigData(prev => ({
-                    ...prev,
-                    requestsEnabled: newStatus
-                  }));
-                  
-                  const gigRef = doc(db, 'liveGigs', String(liveGig.id));
-                  const gigSnap = await getDoc(gigRef);
-                  
-                  if (gigSnap.exists()) {
-                    const freshData = gigSnap.data();
-                    setLiveGigData(prev => ({
-                      ...prev,
-                      requestsEnabled: freshData.requestsEnabled
-                    }));
-                  }
-                  
-                  alert(newStatus 
-                    ? '✅ Song requests are now ENABLED' 
-                    : '❌ Song requests are now DISABLED'
-                  );
+                  await extendGigTime(liveGig.id, 60);
+                  setShowTimeWarning(false);
+                  alert('✅ Added 1 hour to your gig!');
                 } catch (error) {
-                  console.error('❌ Toggle error:', error);
-                  alert('Error: ' + error.message);
+                  alert('Error extending time: ' + error.message);
                 }
               }}
-              className="aspect-square rounded-2xl flex flex-col items-center justify-center gap-3 transition-all duration-300 hover:scale-105 border-2"
-              style={{
-                background: liveGigData?.requestsEnabled !== false
-                  ? 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
-                  : 'linear-gradient(135deg, #6c757d 0%, #495057 100%)',
-                borderColor: liveGigData?.requestsEnabled !== false ? '#00f2fe' : '#6c757d',
-                boxShadow: liveGigData?.requestsEnabled !== false 
-                  ? '0 0 20px rgba(0, 242, 254, 0.4)' 
-                  : 'none'
+              className="flex-1 font-bold py-2 px-2 rounded-lg transition-all text-xs"
+              style={{ 
+                background: 'linear-gradient(135deg, #00d9ff 0%, #00ffc8 100%)',
+                color: '#000',
+                textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+                border: '2px solid rgba(0,217,255,0.8)',
+                boxShadow: '0 0 15px rgba(0,217,255,0.6), 0 0 30px rgba(0,255,200,0.4), inset 0 0 10px rgba(255,255,255,0.3)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.boxShadow = '0 0 25px rgba(0,217,255,0.8), 0 0 50px rgba(0,255,200,0.6), inset 0 0 15px rgba(255,255,255,0.5)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.boxShadow = '0 0 15px rgba(0,217,255,0.6), 0 0 30px rgba(0,255,200,0.4), inset 0 0 10px rgba(255,255,255,0.3)';
               }}
             >
-              <span className="text-6xl">{liveGigData?.requestsEnabled !== false ? '🟢' : '⚫'}</span>
-              <span className="text-white font-bold text-sm text-center">Requests</span>
-              <span className="text-white/80 text-xs font-bold">
-                {liveGigData?.requestsEnabled !== false ? 'ON' : 'OFF'}
-              </span>
+              ⏱️ Add 1 Hour
+            </button>
+            <button
+              onClick={handleEndGig}
+              className="flex-1 font-bold py-2 px-2 rounded-lg transition-all text-xs"
+              style={{ 
+                background: 'linear-gradient(135deg, #ff006b 0%, #ff4444 100%)',
+                color: '#fff',
+                textShadow: '0 1px 2px rgba(0,0,0,0.8)',
+                border: '2px solid rgba(255,0,107,0.8)',
+                boxShadow: '0 0 15px rgba(255,0,107,0.6), 0 0 30px rgba(255,68,68,0.4), inset 0 0 10px rgba(255,255,255,0.2)'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.boxShadow = '0 0 25px rgba(255,0,107,0.8), 0 0 50px rgba(255,68,68,0.6), inset 0 0 15px rgba(255,255,255,0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.boxShadow = '0 0 15px rgba(255,0,107,0.6), 0 0 30px rgba(255,68,68,0.4), inset 0 0 10px rgba(255,255,255,0.2)';
+              }}
+            >
+              🛑 End Gig
             </button>
           </div>
         </div>
 
-        {/* MODAL: Song Queue (Artist View) - REDESIGNED */}
-        {showGigPlaylistModal && (
-          <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="bg-gradient-to-br from-gray-900 to-black border-2 border-electric rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col relative overflow-hidden">
-              
-              {/* Close Button - Top Right Corner, No Padding */}
-              <button
-                onClick={() => setShowGigPlaylistModal(false)}
-                className="absolute top-2 right-2 text-white hover:text-electric transition-colors text-2xl font-bold z-10 w-8 h-8 flex items-center justify-center"
-              >
-                ×
-              </button>
-
-              {/* Header - Centered, Minimal Padding */}
-              <div className="pt-3 pb-2 border-b border-white/20">
-                <h2 className="text-center text-electric font-black text-lg tracking-wider">
-                  🎵 SONG QUEUE
-                </h2>
+        {/* STATS - RESPONSIVE HORIZONTAL ROW (4 on desktop, 2x2 on mobile) */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 mb-3">
+          {/* Live Now */}
+          <div className="bg-black/40 backdrop-blur-sm border border-neon/30 rounded-lg px-3 py-2 flex items-center gap-2">
+            <span className="text-neon text-lg">🟢</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-neon font-bold text-base leading-none">
+                {liveGigData.audienceTracking?.currentlyActive || 0}
               </div>
-
-              {/* Queue Content */}
-              <div className="flex-1 overflow-y-auto p-3">
-                
-                {/* Ready to Play Section */}
-                <div className="mb-4">
-                  <div className="flex items-center gap-2 mb-2 px-1">
-                    <span className="text-neon text-sm">▶️</span>
-                    <span className="text-neon font-bold text-sm">
-                      Ready to Play ({(liveGigData.queuedSongs || []).filter(s => !liveGigData.playedSongs?.includes(s.id)).length})
-                    </span>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    {sortArtistQueue(
-                      (liveGigData.queuedSongs || []).filter(song => !liveGigData.playedSongs?.includes(song.id))
-                    ).map((song, index) => {
-                      const voteCount = liveGigData.votes[Math.floor(song.id)] || 0;
-                      const truncatedTitle = song.title.split(' ').slice(0, 5).join(' ') + (song.title.split(' ').length > 5 ? '...' : '');
-                      
-                      return (
-                        <div key={song.id} className="bg-green-500/10 border border-green-400/50 rounded-lg p-2">
-                          {/* Top Row: Number + Song Name + Mark Played Button */}
-                          <div className="flex justify-between items-start gap-2 mb-1">
-                            <div className="flex items-start gap-2 flex-1 min-w-0">
-                              <span className="text-green-300 font-bold text-sm flex-shrink-0">{index + 1}</span>
-                              <div className="text-white font-semibold text-sm leading-tight truncate">
-                                {truncatedTitle}
-                              </div>
-                            </div>
-                            <button
-                              onClick={async () => {
-                                if (window.confirm(`Mark "${song.title}" as played?`)) {
-                                  try {
-                                    const gigRef = doc(db, 'liveGigs', String(liveGig.id));
-                                    await updateDoc(gigRef, {
-                                      playedSongs: arrayUnion(song.id)
-                                    });
-                                    alert('✅ Song marked as played!');
-                                  } catch (error) {
-                                    alert('Error: ' + error.message);
-                                  }
-                                }
-                              }}
-                              className="bg-cyan-400 hover:bg-cyan-500 text-black font-black text-xs px-3 py-1.5 rounded shadow-lg flex-shrink-0"
-                            >
-                              Mark Played
-                            </button>
-                          </div>
-                          
-                          {/* Bottom Row: Artist Name + Vote Count */}
-                          <div className="flex justify-between items-center gap-2">
-                            <div className="text-green-200 text-xs truncate flex-1 pl-6">
-                              {song.artist}
-                            </div>
-                            <div className="text-pink-300 font-bold text-xs flex-shrink-0">
-                              ⚡ {voteCount}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {(liveGigData.queuedSongs || []).filter(s => !liveGigData.playedSongs?.includes(s.id)).length === 0 && (
-                    <p className="text-gray-400 text-center py-6 text-sm">All songs have been played!</p>
-                  )}
-                </div>
-
-                {/* Already Played Section */}
-                {liveGigData.playedSongs && liveGigData.playedSongs.length > 0 && (
-                  <div>
-                    <div className="flex items-center gap-2 mb-2 px-1">
-                      <span className="text-gray-400 text-sm">✅</span>
-                      <span className="text-gray-400 font-bold text-sm">
-                        Already Played ({liveGigData.playedSongs.length})
-                      </span>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      {(liveGigData.queuedSongs || [])
-                        .filter(song => liveGigData.playedSongs.includes(song.id))
-                        .map((song, index) => {
-                          const voteCount = liveGigData.votes[Math.floor(song.id)] || 0;
-                          const truncatedTitle = song.title.split(' ').slice(0, 5).join(' ') + (song.title.split(' ').length > 5 ? '...' : '');
-                          
-                          return (
-                            <div key={song.id} className="bg-gray-500/10 border border-gray-600/50 rounded-lg p-2 opacity-60">
-                              <div className="flex justify-between items-start gap-2 mb-1">
-                                <div className="flex items-start gap-2 flex-1 min-w-0">
-                                  <span className="text-gray-400 text-sm flex-shrink-0">✅</span>
-                                  <div className="text-gray-300 font-semibold text-sm leading-tight truncate line-through">
-                                    {truncatedTitle}
-                                  </div>
-                                </div>
-                                <div className="text-gray-400 text-xs flex-shrink-0 px-2">
-                                  Played
-                                </div>
-                              </div>
-                              <div className="flex justify-between items-center gap-2">
-                                <div className="text-gray-400 text-xs truncate flex-1 pl-6">
-                                  {song.artist}
-                                </div>
-                                <div className="text-gray-500 text-xs flex-shrink-0">
-                                  ⚡ {voteCount}
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="p-3 border-t border-white/20">
-                <button
-                  onClick={() => setShowGigPlaylistModal(false)}
-                  className="w-full bg-electric hover:bg-electric/80 text-black font-bold py-2 rounded-lg text-sm"
-                >
-                  CLOSE
-                </button>
-              </div>
+              <div className="text-gray-light text-[9px] leading-tight">Live Now</div>
             </div>
           </div>
-        )}
 
-        {/* MODAL: Song Requests (Artist View) - REDESIGNED */}
-        {showRequestModal && (
-          <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-2 z-50">
-            <div className="bg-gradient-to-br from-gray-900 to-black border-2 border-electric rounded-2xl max-w-2xl w-full max-h-[85vh] flex flex-col relative overflow-hidden">
-              
-              {/* Close Button */}
-              <button
-                onClick={() => setShowRequestModal(false)}
-                className="absolute top-2 right-2 text-white hover:text-electric text-2xl font-bold z-10 w-8 h-8 flex items-center justify-center"
-              >
-                ×
-              </button>
-
-              {/* Header */}
-              <div className="pt-3 pb-2 border-b border-white/20">
-                <h2 className="text-center text-electric font-black text-lg tracking-wider">
-                  🎤 SONG REQUESTS
-                </h2>
-                <p className="text-center text-white/60 text-xs mt-1">
-                  {(liveGigData?.songRequests || []).length} total request{(liveGigData?.songRequests || []).length !== 1 ? 's' : ''}
-                </p>
+          {/* Total Joins */}
+          <div className="bg-black/40 backdrop-blur-sm border border-electric/30 rounded-lg px-3 py-2 flex items-center gap-2">
+            <span className="text-electric text-lg">👥</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-electric font-bold text-base leading-none">
+                {liveGigData.audienceTracking?.totalJoins || 0}
               </div>
+              <div className="text-gray-light text-[9px] leading-tight">Total Joins</div>
+            </div>
+          </div>
 
-              {/* Requests Content */}
-              <div className="flex-1 overflow-y-auto p-2">
-                {(!liveGigData?.songRequests || liveGigData.songRequests.length === 0) ? (
-                  <div className="text-center text-white/60 py-8">
-                    <p className="text-4xl mb-2">📭</p>
-                    <p className="text-sm">No song requests yet</p>
-                    <p className="text-xs mt-2 text-white/40">
-                      {liveGigData?.requestsEnabled !== false
-                        ? 'Song requests are enabled'
-                        : 'Song requests are currently disabled'
-                      }
-                    </p>
+          {/* Total Votes */}
+          <div className="bg-black/40 backdrop-blur-sm border border-magenta/30 rounded-lg px-3 py-2 flex items-center gap-2">
+            <span className="text-magenta text-lg">⚡</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-magenta font-bold text-base leading-none">
+                {Object.values(liveGigData.votes || {}).reduce((sum, v) => sum + v, 0)}
+              </div>
+              <div className="text-gray-light text-[9px] leading-tight">Total Votes</div>
+            </div>
+          </div>
+
+          {/* Requests Pending */}
+          <div className="bg-black/40 backdrop-blur-sm border border-fire/30 rounded-lg px-3 py-2 flex items-center gap-2">
+            <span className="text-fire text-lg">📋</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-fire font-bold text-base leading-none">
+                {(liveGigData.songRequests || []).filter(r => r.status === 'pending').length}
+              </div>
+              <div className="text-gray-light text-[9px] leading-tight">Requests</div>
+            </div>
+          </div>
+        </div>
+
+        {/* TAB NAVIGATION - WITH NEON BORDERS */}
+        <div className="artist-section-card mb-3 p-2">
+          <div className="flex gap-1 overflow-x-auto">
+            <button
+              onClick={() => setLiveTab('queue')}
+              className={`flex-1 min-w-[90px] py-2 px-3 rounded-lg font-bold text-[10px] transition-all ${
+                liveTab === 'queue'
+                  ? 'bg-gradient-to-r from-electric/20 to-electric/10 text-electric'
+                  : 'bg-white/5 text-gray-light hover:bg-white/10'
+              }`}
+              style={liveTab === 'queue' ? {
+                border: '2px solid #00d9ff',
+                boxShadow: '0 0 20px rgba(0, 217, 255, 0.5), inset 0 0 10px rgba(0, 217, 255, 0.2)',
+                textShadow: '0 0 10px rgba(0, 217, 255, 0.8)'
+              } : {
+                border: '2px solid transparent'
+              }}
+            >
+              Song Queue
+            </button>
+            <button
+              onClick={() => setLiveTab('requests')}
+              className={`flex-1 min-w-[90px] py-2 px-3 rounded-lg font-bold text-[10px] transition-all relative ${
+                liveTab === 'requests'
+                  ? 'bg-gradient-to-r from-magenta/20 to-magenta/10 text-magenta'
+                  : 'bg-white/5 text-gray-light hover:bg-white/10'
+              }`}
+              style={liveTab === 'requests' ? {
+                border: '2px solid #ff006b',
+                boxShadow: '0 0 20px rgba(255, 0, 107, 0.5), inset 0 0 10px rgba(255, 0, 107, 0.2)',
+                textShadow: '0 0 10px rgba(255, 0, 107, 0.8)'
+              } : {
+                border: '2px solid transparent'
+              }}
+            >
+              Song Requests
+              {(liveGigData.songRequests || []).filter(r => r.status === 'pending').length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-fire text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center"
+                  style={{
+                    boxShadow: '0 0 10px rgba(255,0,107,0.8)'
+                  }}
+                >
+                  {(liveGigData.songRequests || []).filter(r => r.status === 'pending').length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setLiveTab('master')}
+              className={`flex-1 min-w-[90px] py-2 px-3 rounded-lg font-bold text-[10px] transition-all ${
+                liveTab === 'master'
+                  ? 'bg-gradient-to-r from-neon/20 to-neon/10 text-neon'
+                  : 'bg-white/5 text-gray-light hover:bg-white/10'
+              }`}
+              style={liveTab === 'master' ? {
+                border: '2px solid #39FF14',
+                boxShadow: '0 0 20px rgba(57, 255, 20, 0.5), inset 0 0 10px rgba(57, 255, 20, 0.2)',
+                textShadow: '0 0 10px rgba(57, 255, 20, 0.8)'
+              } : {
+                border: '2px solid transparent'
+              }}
+            >
+              Master Playlist
+            </button>
+          </div>
+        </div>
+
+        {/* TAB CONTENT */}
+        <div className="artist-section-card p-3">
+          
+          {/* ==================== TAB 1: SONG QUEUE ==================== */}
+          {liveTab === 'queue' && (
+            <div>
+              <h3 className="artist-section-header mb-3 text-base">
+                <span className="emoji-icon text-base">🎵</span>
+                <span>SONG QUEUE</span>
+              </h3>
+
+              {/* Ready to Play */}
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-2 px-1">
+                  <span className="text-neon text-xs font-bold">▶️ Ready to Play</span>
+                  <span className="bg-neon text-black text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    {sortArtistQueue(liveGigData.queuedSongs || []).filter(song => !liveGigData.playedSongs?.includes(song.id)).length}
+                  </span>
+                </div>
+
+                {sortArtistQueue(liveGigData.queuedSongs || []).filter(song => !liveGigData.playedSongs?.includes(song.id)).length === 0 ? (
+                  <div className="bg-white/5 border border-white/10 rounded-lg p-6 text-center">
+                    <p className="text-gray-light text-sm">No songs in queue. Add from Master Playlist tab! 🎸</p>
                   </div>
                 ) : (
                   <div className="space-y-2">
-                    {getSortedSongRequests(liveGigData.songRequests).map((request, index) => {
-                      const truncatedTitle = request.songTitle.split(' ').slice(0, 5).join(' ') + 
-                        (request.songTitle.split(' ').length > 5 ? '...' : '');
+                    {sortArtistQueue(liveGigData.queuedSongs || [])
+                      .filter(song => !liveGigData.playedSongs?.includes(song.id))
+                      .map((song, index) => {
+                        const truncatedTitle = song.title.split(' ').slice(0, 5).join(' ') + 
+                          (song.title.split(' ').length > 5 ? '...' : '');
+                        const voteCount = liveGigData.votes?.[Math.floor(song.id)] || 0;
 
-                      return (
-                        <div
-                          key={request.id}
-                          className={`rounded-lg p-2 border ${
-                            request.status === 'pending' 
-                              ? 'bg-purple-500/10 border-purple-400/50' 
-                              : request.status === 'accepted' 
-                                ? 'bg-green-500/10 border-green-400/50' 
-                                : 'bg-gray-500/10 border-gray-600/50'
-                          }`}
-                        >
-                          {/* Top Row: Number + Song Title */}
-                          <div className="flex items-start gap-2 mb-1">
-                            <span className={`font-bold text-sm flex-shrink-0 ${
-                              request.status === 'pending' ? 'text-purple-300' :
-                              request.status === 'accepted' ? 'text-green-300' :
-                              'text-gray-400'
-                            }`}>
-                              {index + 1}
-                            </span>
-                            <div className="text-white font-semibold text-sm leading-tight flex-1 min-w-0">
-                              {truncatedTitle}
+                        return (
+                          <div key={song.id} className="bg-green-500/10 border border-green-400/50 rounded-lg p-2">
+                            {/* Top Row */}
+                            <div className="flex justify-between items-start gap-2 mb-1">
+                              <div className="flex items-start gap-2 flex-1 min-w-0">
+                                <span className="text-green-300 font-bold text-sm flex-shrink-0">
+                                  {index + 1}
+                                </span>
+                                <div className="text-white font-semibold text-sm leading-tight truncate">
+                                  {truncatedTitle}
+                                </div>
+                              </div>
+                              <button
+                                onClick={async () => {
+                                  if (window.confirm(`Mark "${song.title}" as played?`)) {
+                                    try {
+                                      const gigRef = doc(db, 'liveGigs', String(liveGig.id));
+                                      await updateDoc(gigRef, {
+                                        playedSongs: arrayUnion(song.id)
+                                      });
+                                      alert('✅ Song marked as played!');
+                                    } catch (error) {
+                                      alert('Error: ' + error.message);
+                                    }
+                                  }
+                                }}
+                                className="bg-cyan-400 hover:bg-cyan-500 text-black font-black text-xs px-3 py-1.5 rounded shadow-lg flex-shrink-0 transition-all duration-150"
+                              >
+                                Mark Played
+                              </button>
                             </div>
-                          </div>
 
-                          {/* Second Row: Artist Name */}
-                          <div className={`text-xs mb-1 pl-6 ${
-                            request.status === 'pending' ? 'text-purple-200' :
-                            request.status === 'accepted' ? 'text-green-200' :
-                            'text-gray-400'
-                          }`}>
-                            {request.songArtist}
-                          </div>
-
-                          {/* Third Row: Requester */}
-                          <div className={`text-xs mb-2 pl-6 flex items-center gap-1 ${
-                            request.status === 'pending' ? 'text-purple-300/80' :
-                            request.status === 'accepted' ? 'text-green-300/80' :
-                            'text-gray-400/80'
-                          }`}>
-                            <span>👤 {request.requesterName}</span>
-                          </div>
-
-                          {/* Message (if present) */}
-                          {request.message && request.message.trim() && (
-                            <div className="bg-white/5 border border-white/10 rounded px-2 py-1.5 mb-2 ml-6">
-                              <div className="text-cyan-300 text-xs">
-                                💬 <span className="italic">"{request.message}"</span>
+                            {/* Bottom Row */}
+                            <div className="flex justify-between items-center gap-2">
+                              <div className="text-green-200 text-xs truncate flex-1 pl-6">
+                                {song.artist}
+                              </div>
+                              <div className="text-pink-300 font-bold text-xs flex-shrink-0">
+                                ⚡ {voteCount}
                               </div>
                             </div>
-                          )}
-
-                          {/* Buttons Row */}
-                          <div className="flex gap-2 pl-6">
-                            {request.status === 'pending' && (
-                              <>
-                                <button
-                                  onClick={async () => {
-                                    try {
-                                      await acceptSongRequest(liveGig.id, request.id);
-                                      alert('✅ Request accepted!');
-                                    } catch (error) {
-                                      alert('Error: ' + error.message);
-                                    }
-                                  }}
-                                  className="bg-green-500 hover:bg-green-600 text-white font-bold text-xs px-3 py-1.5 rounded shadow-lg transition-all duration-150 flex items-center gap-1"
-                                >
-                                  ✓ ACCEPT
-                                </button>
-                                <button
-                                  onClick={async () => {
-                                    try {
-                                      await rejectSongRequest(liveGig.id, request.id);
-                                      alert('❌ Request rejected');
-                                    } catch (error) {
-                                      alert('Error: ' + error.message);
-                                    }
-                                  }}
-                                  className="bg-red-500 hover:bg-red-600 text-white font-bold text-xs px-3 py-1.5 rounded shadow-lg transition-all duration-150 flex items-center gap-1"
-                                >
-                                  ✗ REJECT
-                                </button>
-                              </>
-                            )}
-                            {request.status === 'accepted' && (
-                              <span className="text-green-400 font-bold text-xs">✓ ACCEPTED</span>
-                            )}
-                            {request.status === 'rejected' && (
-                              <span className="text-red-400 font-bold text-xs">✗ REJECTED</span>
-                            )}
                           </div>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
                   </div>
                 )}
               </div>
+
+              {/* Already Played */}
+              {liveGigData.playedSongs && liveGigData.playedSongs.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2 px-1">
+                    <span className="text-gray-400 text-xs font-bold">✅ Already Played</span>
+                    <span className="bg-gray-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      {liveGigData.playedSongs.length}
+                    </span>
+                  </div>
+
+                  <div className="space-y-2">
+                    {sortArtistQueue(liveGigData.queuedSongs || [])
+                      .filter(song => liveGigData.playedSongs.includes(song.id))
+                      .map((song) => {
+                        const truncatedTitle = song.title.split(' ').slice(0, 5).join(' ') + 
+                          (song.title.split(' ').length > 5 ? '...' : '');
+                        const voteCount = liveGigData.votes?.[Math.floor(song.id)] || 0;
+
+                        return (
+                          <div key={song.id} className="bg-gray-500/10 border border-gray-600/50 rounded-lg p-2 opacity-60">
+                            <div className="flex justify-between items-start gap-2 mb-1">
+                              <div className="flex items-start gap-2 flex-1 min-w-0">
+                                <span className="text-gray-400 font-bold text-sm flex-shrink-0">
+                                  ✓
+                                </span>
+                                <div className="text-white font-semibold text-sm leading-tight truncate line-through">
+                                  {truncatedTitle}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex justify-between items-center gap-2">
+                              <div className="text-gray-400 text-xs truncate flex-1 pl-6">
+                                {song.artist}
+                              </div>
+                              <div className="text-gray-500 font-bold text-xs flex-shrink-0">
+                                ⚡ {voteCount}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
 
-        {/* MODAL: Master Playlist (Add Songs to Queue) */}
-        {showVoteModal && (
-          <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-            <div className="gig-card max-w-2xl w-full border-2 border-neon max-h-[85vh] flex flex-col">
-              
-              {/* Close Button */}
-              <button
-                onClick={() => setShowVoteModal(false)}
-                className="absolute top-4 right-4 text-white hover:text-neon transition font-bold text-3xl z-10"
-              >
-                ×
-              </button>
-
-              {/* Header */}
-              <div className="px-6 pt-6 pb-4 border-b border-white/10">
-                <h2 className="concert-heading text-2xl text-neon text-center">
-                  📚 Master Playlist
-                </h2>
-                <p className="text-gray-light text-sm text-center mt-2">
-                  Add songs from your master playlist to the queue
-                </p>
+          {/* ==================== TAB 2: SONG REQUESTS ==================== */}
+          {liveTab === 'requests' && (
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="artist-section-header text-base mb-0">
+                  <span className="emoji-icon text-base">🎤</span>
+                  <span>SONG REQUESTS</span>
+                </h3>
+                
+                {/* Requests Toggle */}
+                <button
+                  onClick={async () => {
+                    const currentStatus = liveGigData?.requestsEnabled !== false;
+                    const newStatus = !currentStatus;
+                    
+                    try {
+                      await updateJukeboxSettings(liveGig.id, {
+                        requestsEnabled: newStatus,
+                        jukeboxMode: false,
+                        jukeboxPrice: 0
+                      });
+                      
+                      setLiveGigData(prev => ({
+                        ...prev,
+                        requestsEnabled: newStatus
+                      }));
+                      
+                      const gigRef = doc(db, 'liveGigs', String(liveGig.id));
+                      const gigSnap = await getDoc(gigRef);
+                      
+                      if (gigSnap.exists()) {
+                        const freshData = gigSnap.data();
+                        setLiveGigData(prev => ({
+                          ...prev,
+                          requestsEnabled: freshData.requestsEnabled
+                        }));
+                      }
+                      
+                      alert(newStatus 
+                        ? '✅ Song requests are now ENABLED' 
+                        : '❌ Song requests are now DISABLED'
+                      );
+                    } catch (error) {
+                      console.error('❌ Toggle error:', error);
+                      alert('Error: ' + error.message);
+                    }
+                  }}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg font-bold text-xs transition-all ${
+                    liveGigData.requestsEnabled !== false
+                      ? 'bg-neon text-black'
+                      : 'bg-gray-600 text-white'
+                  }`}
+                >
+                  <span className="text-base">{liveGigData.requestsEnabled !== false ? '🟢' : '⚫'}</span>
+                  <span>{liveGigData.requestsEnabled !== false ? 'On' : 'Off'}</span>
+                </button>
               </div>
 
-              {/* Master Playlist Content */}
-              <div className="flex-1 overflow-y-auto px-6 py-4">
-                {liveGigData.masterPlaylist && liveGigData.masterPlaylist.length > 0 ? (
-                  <div className="space-y-2">
-                    {liveGigData.masterPlaylist
-                      .filter(song => !liveGigData.playedSongs?.includes(song.id))
-                      .map(song => {
-                        const isInQueue = (liveGigData.queuedSongs || []).some(q => q.id === song.id);
-                        const voteCount = liveGigData.votes[Math.floor(song.id)] || 0;
-                        
-                        return (
-                          <div 
-                            key={song.id} 
-                            className={`p-4 rounded-lg flex justify-between items-center ${
-                              isInQueue 
-                                ? 'bg-green-500/20 border-2 border-green-400' 
-                                : 'bg-white/5 border-2 border-white/10 hover:border-neon/50'
-                            }`}
-                          >
-                            <div className="flex-1">
-                              <div className="text-white font-semibold text-base">{song.title}</div>
-                              <div className="text-gray-400 text-sm">{song.artist}</div>
-                              {voteCount > 0 && (
-                                <div className="text-pink-300 text-sm mt-1">⚡ {voteCount} votes</div>
-                              )}
+              <p className="text-center text-white/60 text-xs mb-3">
+                {(liveGigData.songRequests || []).length} total request{(liveGigData.songRequests || []).length !== 1 ? 's' : ''}
+              </p>
+
+              {(!liveGigData?.songRequests || liveGigData.songRequests.length === 0) ? (
+                <div className="bg-white/5 border border-white/10 rounded-lg p-6 text-center">
+                  <p className="text-4xl mb-2">📭</p>
+                  <p className="text-gray-light text-sm">No song requests yet</p>
+                  <p className="text-gray-light text-xs mt-2">
+                    {liveGigData?.requestsEnabled !== false
+                      ? 'Song requests are enabled'
+                      : 'Song requests are currently disabled'}
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {getSortedSongRequests(liveGigData.songRequests).map((request, index) => {
+                    const truncatedTitle = request.songTitle.split(' ').slice(0, 5).join(' ') + 
+                      (request.songTitle.split(' ').length > 5 ? '...' : '');
+
+                    return (
+                      <div
+                        key={request.id}
+                        className={`rounded-lg p-2 border ${
+                          request.status === 'pending' 
+                            ? 'bg-purple-500/10 border-purple-400/50' 
+                            : request.status === 'accepted' 
+                              ? 'bg-green-500/10 border-green-400/50' 
+                              : 'bg-gray-500/10 border-gray-600/50'
+                        }`}
+                      >
+                        <div className="flex items-start gap-2 mb-1">
+                          <span className={`font-bold text-sm flex-shrink-0 ${
+                            request.status === 'pending' ? 'text-purple-300' :
+                            request.status === 'accepted' ? 'text-green-300' :
+                            'text-gray-400'
+                          }`}>
+                            {index + 1}
+                          </span>
+                          <div className="text-white font-semibold text-sm leading-tight flex-1 min-w-0 truncate">
+                            {truncatedTitle}
+                          </div>
+                        </div>
+
+                        <div className={`text-xs mb-1 pl-6 ${
+                          request.status === 'pending' ? 'text-purple-200' :
+                          request.status === 'accepted' ? 'text-green-200' :
+                          'text-gray-400'
+                        }`}>
+                          {request.songArtist}
+                        </div>
+
+                        <div className={`text-xs mb-2 pl-6 flex items-center gap-1 ${
+                          request.status === 'pending' ? 'text-purple-300/80' :
+                          request.status === 'accepted' ? 'text-green-300/80' :
+                          'text-gray-400/80'
+                        }`}>
+                          <span>👤 {request.requesterName}</span>
+                        </div>
+
+                        {request.message && request.message.trim() && (
+                          <div className="bg-white/5 border border-white/10 rounded px-2 py-1.5 mb-2 ml-6">
+                            <div className="text-cyan-300 text-xs">
+                              💬 <span className="italic">"{request.message}"</span>
                             </div>
+                          </div>
+                        )}
+
+                        <div className="flex gap-2 pl-6">
+                          {request.status === 'pending' && (
+                            <>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await acceptSongRequest(liveGig.id, request.id);
+                                    alert('✅ Request accepted!');
+                                  } catch (error) {
+                                    alert('Error: ' + error.message);
+                                  }
+                                }}
+                                className="bg-green-500 hover:bg-green-600 text-white font-bold text-xs px-3 py-1.5 rounded shadow-lg transition-all duration-150 flex items-center gap-1"
+                              >
+                                ✓ Accept
+                              </button>
+                              <button
+                                onClick={async () => {
+                                  try {
+                                    await rejectSongRequest(liveGig.id, request.id);
+                                    alert('❌ Request rejected');
+                                  } catch (error) {
+                                    alert('Error: ' + error.message);
+                                  }
+                                }}
+                                className="bg-red-500 hover:bg-red-600 text-white font-bold text-xs px-3 py-1.5 rounded shadow-lg transition-all duration-150 flex items-center gap-1"
+                              >
+                                ✗ Reject
+                              </button>
+                            </>
+                          )}
+                          {request.status === 'accepted' && (
+                            <span className="text-green-400 font-bold text-xs">✓ Accepted</span>
+                          )}
+                          {request.status === 'rejected' && (
+                            <span className="text-red-400 font-bold text-xs">✗ Rejected</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ==================== TAB 3: MASTER PLAYLIST ==================== */}
+          {liveTab === 'master' && (
+            <div>
+              <h3 className="artist-section-header mb-3 text-base">
+                <span className="emoji-icon text-base">📚</span>
+                <span>MASTER PLAYLIST</span>
+              </h3>
+
+              {/* SEARCH BAR */}
+              <div className="mb-3">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+                  <input
+                    type="text"
+                    placeholder="Search songs or artists..."
+                    value={liveMasterSearch}
+                    onChange={(e) => setLiveMasterSearch(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 bg-black/50 border border-neon/30 rounded-lg text-white placeholder-gray-500 focus:border-neon focus:outline-none text-sm"
+                  />
+                  {liveMasterSearch && (
+                    <button
+                      onClick={() => setLiveMasterSearch('')}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* SONGS COUNT */}
+              <p className="text-center text-white/60 text-xs mb-3">
+                {liveGigData.masterPlaylist?.length || 0} total songs
+              </p>
+
+              {/* SONGS LIST */}
+              {(!liveGigData.masterPlaylist || liveGigData.masterPlaylist.length === 0) ? (
+                <div className="bg-white/5 border border-white/10 rounded-lg p-6 text-center">
+                  <p className="text-gray-light text-sm">No songs in master playlist. 🎵</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {liveGigData.masterPlaylist
+                    .filter(song => {
+                      if (!liveMasterSearch) return true;
+                      const search = liveMasterSearch.toLowerCase();
+                      return song.title.toLowerCase().includes(search) || 
+                            song.artist.toLowerCase().includes(search);
+                    })
+                    .map(song => {
+                      const isInQueue = (liveGigData.queuedSongs || []).some(q => q.id === song.id);
+
+                      return (
+                        <div
+                          key={song.id}
+                          className="bg-white/10 border border-white/20 rounded-lg p-3"
+                        >
+                          <div className="flex items-center gap-3">
                             
-                            {isInQueue ? (
-                              <div className="px-6 py-3 bg-green-500/50 text-green-200 rounded-lg font-bold text-sm">
-                                ✓ In Queue
+                            {/* Song Info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="text-white font-bold text-sm mb-1">
+                                {song.title}
                               </div>
+                              <div className="text-gray-300 text-xs">
+                                {song.artist}
+                              </div>
+                            </div>
+
+                            {/* Button - BRIGHT AND VISIBLE */}
+                            {isInQueue ? (
+                              <button
+                                disabled
+                                style={{
+                                  backgroundColor: '#22c55e',
+                                  color: '#000',
+                                  padding: '8px 16px',
+                                  borderRadius: '6px',
+                                  fontWeight: 'bold',
+                                  fontSize: '12px',
+                                  border: '2px solid #16a34a',
+                                  cursor: 'not-allowed'
+                                }}
+                              >
+                                ✓ Added
+                              </button>
                             ) : (
                               <button
                                 onClick={async () => {
@@ -5835,45 +5869,39 @@ const sortArtistQueue = (songs) => {
                                     await updateDoc(gigRef, {
                                       queuedSongs: updatedQueue
                                     });
-                                    
-                                    alert(`✅ "${song.title}" added to queue!`);
                                   } catch (error) {
                                     alert('Error: ' + error.message);
                                   }
                                 }}
-                                className="btn btn-neon text-sm whitespace-nowrap"
+                                style={{
+                                  backgroundColor: '#3b82f6',
+                                  color: '#fff',
+                                  padding: '8px 16px',
+                                  borderRadius: '6px',
+                                  fontWeight: 'bold',
+                                  fontSize: '12px',
+                                  border: '2px solid #2563eb',
+                                  cursor: 'pointer'
+                                }}
                               >
-                                ➕ Add to Queue
+                                Add to Queue
                               </button>
                             )}
+
                           </div>
-                        );
-                      })}
-                  </div>
-                ) : (
-                  <div className="text-center py-12">
-                    <span className="text-6xl mb-4 block">📚</span>
-                    <p className="text-gray-400 text-lg">No songs in master playlist</p>
-                  </div>
-                )}
-              </div>
-
-              {/* Footer */}
-              <div className="px-6 py-4 border-t border-white/10">
-                <button
-                  onClick={() => setShowVoteModal(false)}
-                  className="w-full btn btn-electric"
-                >
-                  Close
-                </button>
-              </div>
+                        </div>
+                      );
+                    })}
+                </div>
+              )}
             </div>
-          </div>
-        )}
-
+          )}
+          
+        </div>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   // Audience Mode - Live Concert Experience
   if (mode === 'audience' && liveGig) {
