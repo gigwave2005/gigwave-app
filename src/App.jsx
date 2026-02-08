@@ -10,7 +10,7 @@ import supportArtistIcon from './assets/support-artist-icon.png';
 import React, { useState, useEffect } from 'react';
 import AddressAutocomplete from './components/AddressAutocomplete';
 import { Music, Plus, Trash2, Play, Users, Calendar, Heart, Star, Zap, X, Search, Upload, Settings, Edit2, Check, Mail, Lock, ArrowLeft, MapPin, Navigation, DollarSign, Eye } from 'lucide-react';
-
+import AdminDashboard from './AdminDashboard';
 import { FaInstagram, FaFacebook, FaYoutube, FaLinkedin } from 'react-icons/fa';
 
 // Import Firebase utilities
@@ -255,6 +255,7 @@ export default function App() {
   const [showVoteModal, setShowVoteModal] = useState(false);
   const [userVotes, setUserVotes] = useState({});
   const [showArtistProfileModal, setShowArtistProfileModal] = useState(false);
+  const [showAdminDashboard, setShowAdminDashboard] = useState(false);
 
   // Profile state
 const [artistProfile, setArtistProfile] = useState(null);
@@ -279,6 +280,19 @@ const [profileData, setProfileData] = useState({
 });
 const [emailVerified, setEmailVerified] = useState(false);
 const [showEmailVerification, setShowEmailVerification] = useState(false);
+
+// Contact Email Component - Shows on all pages
+const ContactEmail = () => (
+  <div className="mt-12 pt-8 border-t border-white/20 text-center">
+    <p className="text-gray-300 text-sm mb-2">Questions or feedback?</p>
+    <a 
+      href="mailto:gig.wave.2005@gmail.com"
+      className="text-cyan-400 hover:text-cyan-300 transition-colors text-base font-semibold"
+    >
+      📧 gig.wave.2005@gmail.com
+    </a>
+  </div>
+);
 
 // Calculate gig status based on date/time
 const calculateGigStatus = (gig) => {
@@ -414,7 +428,29 @@ useEffect(() => {
   };
 }, [mode]); // Keep mode dependency
 
-  // Auto-check email verification status when profile setup is open
+// ============================================
+//    ADMIN DASHBOARD KEYBOARD SHORTCUT
+// ============================================
+useEffect(() => {
+  const handleKeyPress = (e) => {
+    // Press Ctrl+Shift+A to open admin dashboard
+    if (e.ctrlKey && e.shiftKey && e.key === 'A') {
+      if (currentUser?.email === 'gig.wave.2005@gmail.com') {
+        setShowAdminDashboard(true);
+      }
+    }
+    
+    // Press Escape to close admin dashboard
+    if (e.key === 'Escape' && showAdminDashboard) {
+      setShowAdminDashboard(false);
+    }
+  };
+
+  window.addEventListener('keydown', handleKeyPress);
+  return () => window.removeEventListener('keydown', handleKeyPress);
+}, [currentUser, showAdminDashboard]);
+
+// Auto-check email verification status when profile setup is open
 useEffect(() => {
   if (showProfileSetup && currentUser && !emailVerified) {
     // Check every 5 seconds if email is verified
@@ -789,7 +825,7 @@ useEffect(() => {
   }
 }, [currentUser]);
 
-  // ✅ NEW: Load artist profile when in audience mode
+// ✅ NEW: Load artist profile when in audience mode
 useEffect(() => {
   console.log('🔍 CHECKING AUDIENCE MODE CONDITIONS:');
   console.log('   - mode:', mode);
@@ -817,200 +853,200 @@ useEffect(() => {
   }
 }, [mode, liveGig?.artistId]);
 
-  // Save interested gigs to localStorage
-  useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem(`GigWave_interested_${currentUser.uid}`, JSON.stringify(interestedGigs));
-    }
-  }, [interestedGigs, currentUser]);
+// Save interested gigs to localStorage
+useEffect(() => {
+  if (currentUser) {
+    localStorage.setItem(`GigWave_interested_${currentUser.uid}`, JSON.stringify(interestedGigs));
+  }
+}, [interestedGigs, currentUser]);
 
-  // AUTO-REFRESH for audience mode - every 5 seconds
-  useEffect(() => {
-    if (mode !== 'audience' || !liveGig?.id) return;
+// AUTO-REFRESH for audience mode - every 5 seconds
+useEffect(() => {
+  if (mode !== 'audience' || !liveGig?.id) return;
+  
+  console.log('🔄 Starting audience auto-refresh (every 5 seconds)');
+  
+  const refreshInterval = setInterval(async () => {
+    console.log('🔄 Auto-refreshing audience data...');
     
-    console.log('🔄 Starting audience auto-refresh (every 5 seconds)');
-    
-    const refreshInterval = setInterval(async () => {
-      console.log('🔄 Auto-refreshing audience data...');
+    try {
+      // Force re-fetch live gig data
+      const gigRef = doc(db, 'liveGigs', String(liveGig.id));
+      const gigSnap = await getDoc(gigRef);
       
-      try {
-        // Force re-fetch live gig data
-        const gigRef = doc(db, 'liveGigs', String(liveGig.id));
-        const gigSnap = await getDoc(gigRef);
+      if (gigSnap.exists()) {
+        const freshData = gigSnap.data();
+        console.log('✅ Audience data refreshed');
         
-        if (gigSnap.exists()) {
-          const freshData = gigSnap.data();
-          console.log('✅ Audience data refreshed');
-          
-          setLiveGigData({
-            votes: freshData.votes || {},
-            comments: freshData.comments || [],
-            donations: freshData.donations || [],
-            queuedSongs: freshData.queuedSongs || [],
-            masterPlaylist: freshData.masterPlaylist || [],
-            currentSong: freshData.currentSong || null,
-            playedSongs: freshData.playedSongs || [],
-            scheduledEndTime: freshData.scheduledEndTime || null,
-            songRequests: freshData.songRequests || [],
-            requestsEnabled: freshData.requestsEnabled !== false,
-            jukeboxMode: freshData.jukeboxMode || false,
-            jukeboxPrice: freshData.jukeboxPrice || 0,
-            maxQueueSize: freshData.maxQueueSize || 20
-          });
-        }
-      } catch (error) {
-        console.error('❌ Error refreshing audience data:', error);
+        setLiveGigData({
+          votes: freshData.votes || {},
+          comments: freshData.comments || [],
+          donations: freshData.donations || [],
+          queuedSongs: freshData.queuedSongs || [],
+          masterPlaylist: freshData.masterPlaylist || [],
+          currentSong: freshData.currentSong || null,
+          playedSongs: freshData.playedSongs || [],
+          scheduledEndTime: freshData.scheduledEndTime || null,
+          songRequests: freshData.songRequests || [],
+          requestsEnabled: freshData.requestsEnabled !== false,
+          jukeboxMode: freshData.jukeboxMode || false,
+          jukeboxPrice: freshData.jukeboxPrice || 0,
+          maxQueueSize: freshData.maxQueueSize || 20
+        });
       }
-    }, 5000); // 5 seconds
-    
-    return () => {
-      console.log('⏹️ Stopping audience auto-refresh');
-      clearInterval(refreshInterval);
-    };
-  }, [mode, liveGig?.id]);
+    } catch (error) {
+      console.error('❌ Error refreshing audience data:', error);
+    }
+  }, 5000); // 5 seconds
+  
+  return () => {
+    console.log('⏹️ Stopping audience auto-refresh');
+    clearInterval(refreshInterval);
+  };
+}, [mode, liveGig?.id]);
 
-  // ✅ NEW: Audience heartbeat - update "last active" every 30 seconds
-  useEffect(() => {
-    if (mode !== 'audience' || !liveGig?.id || !currentUser) return;
+// ✅ NEW: Audience heartbeat - update "last active" every 30 seconds
+useEffect(() => {
+  if (mode !== 'audience' || !liveGig?.id || !currentUser) return;
+  
+  console.log('💓 Starting audience heartbeat...');
+  
+  const sendHeartbeat = async () => {
+    try {
+      const gigRef = doc(db, 'liveGigs', String(liveGig.id));
+      const gigSnap = await getDoc(gigRef);
+      
+      if (!gigSnap.exists()) return;
+      
+      const currentTracking = gigSnap.data().audienceTracking || {
+        totalJoins: 0,
+        currentlyActive: 0,
+        joinedUsers: {}
+      };
+      
+      const userId = currentUser.uid;
+      
+      // Update last active time
+      if (currentTracking.joinedUsers[userId]) {
+        currentTracking.joinedUsers[userId].lastActive = new Date().toISOString();
+        currentTracking.joinedUsers[userId].isActive = true;
+        
+        // Count currently active (last active within 60 seconds)
+        const now = new Date();
+        let activeCount = 0;
+        
+        Object.entries(currentTracking.joinedUsers).forEach(([uid, data]) => {
+          const lastActive = new Date(data.lastActive);
+          const secondsSinceActive = (now - lastActive) / 1000;
+          
+          if (secondsSinceActive <= 60) {
+            activeCount++;
+            currentTracking.joinedUsers[uid].isActive = true;
+          } else {
+            currentTracking.joinedUsers[uid].isActive = false;
+          }
+        });
+        
+        currentTracking.currentlyActive = activeCount;
+        
+        await updateDoc(gigRef, {
+          audienceTracking: currentTracking
+        });
+        
+        console.log('💓 Heartbeat sent - Active:', activeCount);
+      }
+    } catch (error) {
+      console.error('❌ Heartbeat error:', error);
+    }
+  };
+  
+  // Send immediately on mount
+  sendHeartbeat();
+  
+  // Then every 30 seconds
+  const interval = setInterval(sendHeartbeat, 30000);
+  
+  return () => {
+    console.log('💔 Stopping heartbeat');
+    clearInterval(interval);
     
-    console.log('💓 Starting audience heartbeat...');
-    
-    const sendHeartbeat = async () => {
+    // Mark as inactive when leaving
+    const markInactive = async () => {
       try {
         const gigRef = doc(db, 'liveGigs', String(liveGig.id));
         const gigSnap = await getDoc(gigRef);
         
         if (!gigSnap.exists()) return;
         
-        const currentTracking = gigSnap.data().audienceTracking || {
-          totalJoins: 0,
-          currentlyActive: 0,
-          joinedUsers: {}
-        };
+        const currentTracking = gigSnap.data().audienceTracking || { joinedUsers: {} };
         
-        const userId = currentUser.uid;
-        
-        // Update last active time
-        if (currentTracking.joinedUsers[userId]) {
-          currentTracking.joinedUsers[userId].lastActive = new Date().toISOString();
-          currentTracking.joinedUsers[userId].isActive = true;
+        if (currentTracking.joinedUsers[currentUser.uid]) {
+          currentTracking.joinedUsers[currentUser.uid].isActive = false;
           
-          // Count currently active (last active within 60 seconds)
-          const now = new Date();
-          let activeCount = 0;
-          
-          Object.entries(currentTracking.joinedUsers).forEach(([uid, data]) => {
-            const lastActive = new Date(data.lastActive);
-            const secondsSinceActive = (now - lastActive) / 1000;
-            
-            if (secondsSinceActive <= 60) {
-              activeCount++;
-              currentTracking.joinedUsers[uid].isActive = true;
-            } else {
-              currentTracking.joinedUsers[uid].isActive = false;
-            }
-          });
-          
-          currentTracking.currentlyActive = activeCount;
+          // Recount active users
+          currentTracking.currentlyActive = Object.values(currentTracking.joinedUsers)
+            .filter(u => u.isActive).length;
           
           await updateDoc(gigRef, {
             audienceTracking: currentTracking
           });
           
-          console.log('💓 Heartbeat sent - Active:', activeCount);
+          console.log('👋 Marked as inactive');
         }
       } catch (error) {
-        console.error('❌ Heartbeat error:', error);
+        console.error('❌ Error marking inactive:', error);
       }
     };
     
-    // Send immediately on mount
-    sendHeartbeat();
-    
-    // Then every 30 seconds
-    const interval = setInterval(sendHeartbeat, 30000);
-    
-    return () => {
-      console.log('💔 Stopping heartbeat');
-      clearInterval(interval);
-      
-      // Mark as inactive when leaving
-      const markInactive = async () => {
-        try {
-          const gigRef = doc(db, 'liveGigs', String(liveGig.id));
-          const gigSnap = await getDoc(gigRef);
-          
-          if (!gigSnap.exists()) return;
-          
-          const currentTracking = gigSnap.data().audienceTracking || { joinedUsers: {} };
-          
-          if (currentTracking.joinedUsers[currentUser.uid]) {
-            currentTracking.joinedUsers[currentUser.uid].isActive = false;
-            
-            // Recount active users
-            currentTracking.currentlyActive = Object.values(currentTracking.joinedUsers)
-              .filter(u => u.isActive).length;
-            
-            await updateDoc(gigRef, {
-              audienceTracking: currentTracking
-            });
-            
-            console.log('👋 Marked as inactive');
-          }
-        } catch (error) {
-          console.error('❌ Error marking inactive:', error);
-        }
-      };
-      
-      markInactive();
-    };
-  }, [mode, liveGig?.id, currentUser]);
+    markInactive();
+  };
+}, [mode, liveGig?.id, currentUser]);
+
+// ✅ SAVE master songs to Firebase (only after loading complete)
+useEffect(() => {
+  if (!currentUser || !playlistsLoaded) return;
+  if (document.hidden) return; // Don't save if tab is hidden
+  if (isSyncing) return; // ⚡ FIX: Skip save if syncing from listener
   
-  // ✅ SAVE master songs to Firebase (only after loading complete)
-  useEffect(() => {
-    if (!currentUser || !playlistsLoaded) return;
-    if (document.hidden) return; // Don't save if tab is hidden
-    if (isSyncing) return; // ⚡ FIX: Skip save if syncing from listener
-    
-    const timeoutId = setTimeout(() => {
-      if (masterSongs.length >= 0) {
-        console.log('💾 Master songs saved to Firebase:', masterSongs.length, 'songs');
-        saveMasterPlaylist(currentUser.uid, masterSongs)
-          .then(() => console.log('✅ Master playlist saved to Firebase:', masterSongs.length, 'songs'))
-          .catch(err => console.error('❌ Error saving songs:', err));
-      }
-    }, 2000);
-    
-    return () => clearTimeout(timeoutId);
-  }, [masterSongs, currentUser, playlistsLoaded, isSyncing]); // ⚡ ADD isSyncing dependency
-
-  // ✅ SAVE gig playlists to Firebase (only after loading complete)
-  useEffect(() => {
-    if (!currentUser || !playlistsLoaded) return;
-    if (document.hidden) return; // Don't save if tab is hidden
-    if (isSyncing) return; // ⚡ FIX: Skip save if syncing from listener
-    
-    const timeoutId = setTimeout(() => {
-      if (gigPlaylists.length >= 0) {
-        console.log('💾 Playlists saved to Firebase:', gigPlaylists.length, 'playlists');
-        saveGigPlaylists(currentUser.uid, gigPlaylists)
-          .then(() => console.log('✅ Gig playlists saved to Firebase:', gigPlaylists.length, 'playlists'))
-          .catch(err => console.error('❌ Error saving playlists:', err));
-      }
-    }, 2000);
-    
-    return () => clearTimeout(timeoutId);
-  }, [gigPlaylists, currentUser, playlistsLoaded, isSyncing]); // ⚡ ADD isSyncing dependency
-
-  // Save gigs to localStorage
-  useEffect(() => {
-    if (currentUser && gigs.length >= 0) {
-      localStorage.setItem(`GigWave_gigs_${currentUser.uid}`, JSON.stringify(gigs));
-      console.log('💾 Gigs saved:', gigs.length);
+  const timeoutId = setTimeout(() => {
+    if (masterSongs.length >= 0) {
+      console.log('💾 Master songs saved to Firebase:', masterSongs.length, 'songs');
+      saveMasterPlaylist(currentUser.uid, masterSongs)
+        .then(() => console.log('✅ Master playlist saved to Firebase:', masterSongs.length, 'songs'))
+        .catch(err => console.error('❌ Error saving songs:', err));
     }
-  }, [gigs, currentUser]);
+  }, 2000);
+  
+  return () => clearTimeout(timeoutId);
+}, [masterSongs, currentUser, playlistsLoaded, isSyncing]); // ⚡ ADD isSyncing dependency
 
-  // Check and cancel expired gigs when viewing "My Gigs" tab
+// ✅ SAVE gig playlists to Firebase (only after loading complete)
+useEffect(() => {
+  if (!currentUser || !playlistsLoaded) return;
+  if (document.hidden) return; // Don't save if tab is hidden
+  if (isSyncing) return; // ⚡ FIX: Skip save if syncing from listener
+  
+  const timeoutId = setTimeout(() => {
+    if (gigPlaylists.length >= 0) {
+      console.log('💾 Playlists saved to Firebase:', gigPlaylists.length, 'playlists');
+      saveGigPlaylists(currentUser.uid, gigPlaylists)
+        .then(() => console.log('✅ Gig playlists saved to Firebase:', gigPlaylists.length, 'playlists'))
+        .catch(err => console.error('❌ Error saving playlists:', err));
+    }
+  }, 2000);
+  
+  return () => clearTimeout(timeoutId);
+}, [gigPlaylists, currentUser, playlistsLoaded, isSyncing]); // ⚡ ADD isSyncing dependency
+
+// Save gigs to localStorage
+useEffect(() => {
+  if (currentUser && gigs.length >= 0) {
+    localStorage.setItem(`GigWave_gigs_${currentUser.uid}`, JSON.stringify(gigs));
+    console.log('💾 Gigs saved:', gigs.length);
+  }
+}, [gigs, currentUser]);
+
+// Check and cancel expired gigs when viewing "My Gigs" tab
 useEffect(() => {
   if (tab === 'gigs' && currentUser) {
     checkAndCancelExpiredGigs(currentUser.uid)
@@ -4097,6 +4133,18 @@ const handleArtistSearch = async (searchTerm) => {
     );
   }
 
+// ============================================
+//    ADMIN DASHBOARD CHECK - MUST BE FIRST
+// ============================================
+if (showAdminDashboard) {
+  return (
+    <AdminDashboard 
+      currentUser={currentUser}
+      onClose={() => setShowAdminDashboard(false)}
+    />
+  );
+}
+
 // Discovery Page
 if (mode === 'discover') {
   return (
@@ -4732,6 +4780,17 @@ if (mode === 'discover') {
             )}
           </div>
         )}
+
+        <div className="mt-6 pt-4 border-t border-white/20 text-center">
+          <p className="text-gray-300 text-sm mb-1">Questions or feedback?</p>
+          <a 
+            href="mailto:gig.wave.2005@gmail.com"
+            className="text-cyan-400 hover:text-cyan-300 transition-colors text-base font-semibold"
+          >
+            📧 gig.wave.2005@gmail.com
+          </a>
+        </div>
+
       </div>
     </div>
   );
@@ -4791,6 +4850,16 @@ if (mode === 'artist') {
                 >
                   ← Back
                 </button>
+
+                {/* ADMIN DASHBOARD BUTTON - ONLY VISIBLE TO ADMIN */}
+                {currentUser?.email === 'gig.wave.2005@gmail.com' && (
+                  <button
+                    onClick={() => setShowAdminDashboard(true)}
+                    className="px-4 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white rounded-lg font-bold transition-all w-full sm:w-auto"
+                  >
+                    🔐 Admin Dashboard
+                  </button>
+                )}
                 
                 <button
                   onClick={async () => {
@@ -5198,6 +5267,17 @@ if (mode === 'artist') {
             </div>
           </div>
         )}
+
+        <div className="mt-6 pt-4 border-t border-white/20 text-center">
+          <p className="text-gray-300 text-sm mb-1">Questions or feedback?</p>
+          <a 
+            href="mailto:gig.wave.2005@gmail.com"
+            className="text-cyan-400 hover:text-cyan-300 transition-colors text-base font-semibold"
+          >
+            📧 gig.wave.2005@gmail.com
+          </a>
+        </div>
+
       </div>
     </div>
   );
@@ -7160,6 +7240,18 @@ if (mode === 'live' && liveGig && liveGigData) {
         >
           Get Started
         </button>
+
+        {/* CONTACT EMAIL */}
+        <div className="mt-12 pt-8 border-t border-white/20">
+          <p className="text-gray-300 text-sm mb-2">Questions or feedback?</p>
+          <a 
+            href="mailto:gig.wave.2005@gmail.com"
+            className="text-cyan-400 hover:text-cyan-300 transition-colors text-base font-semibold"
+          >
+            📧 gig.wave.2005@gmail.com
+          </a>
+        </div>
+
       </div>
     </div>
   );
