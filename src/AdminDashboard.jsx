@@ -6,7 +6,7 @@ import { BarChart3, Users, Music, Calendar, TrendingUp, Activity, Clock, DollarS
 // Admin email - ONLY THIS EMAIL CAN ACCESS
 const ADMIN_EMAIL = 'gig.wave.2005@gmail.com';
 
-const AdminDashboard = ({ currentUser, onClose }) => {
+const AdminDashboard = ({ currentUser, visitorCount, onClose }) => {
   const [stats, setStats] = useState({
     totalArtists: 0,
     totalGigs: 0,
@@ -171,6 +171,22 @@ const AdminDashboard = ({ currentUser, onClose }) => {
           >
             ✕ Close
           </button>
+        </div>
+
+        {/* ✅ ADD VISITOR COUNTER HERE */}
+        <div className="bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border-2 border-cyan-400 rounded-xl p-6 mb-6">
+          <div className="flex items-center gap-6">
+            <div className="text-6xl">📊</div>
+            <div className="flex-1">
+              <h2 className="text-xl font-bold text-gray-300 mb-1">Website Visitors</h2>
+              <div className="flex items-baseline gap-3">
+                <div className="text-5xl font-bold text-cyan-400">
+                  {visitorCount?.toLocaleString() || '0'}
+                </div>
+                <div className="text-gray-400 text-sm">all-time visits</div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Time Range Filter */}

@@ -12,6 +12,7 @@ import AddressAutocomplete from './components/AddressAutocomplete';
 import { Music, Plus, Trash2, Play, Users, Calendar, Heart, Star, Zap, X, Search, Upload, Settings, Edit2, Check, Mail, Lock, ArrowLeft, MapPin, Navigation, DollarSign, Eye } from 'lucide-react';
 import AdminDashboard from './AdminDashboard';
 import { FaInstagram, FaFacebook, FaYoutube, FaLinkedin } from 'react-icons/fa';
+import { increment, setDoc } from 'firebase/firestore';
 
 // Import Firebase utilities
 import {
@@ -82,6 +83,47 @@ import {
 window.db = db;
 window.auth = auth;
 
+// Visitor Counter Function
+const incrementVisitorCount = async () => {
+  try {
+    const counterRef = doc(db, 'siteStats', 'visitorCount');
+    
+    // Check if document exists
+    const counterSnap = await getDoc(counterRef);
+    
+    if (counterSnap.exists()) {
+      // Increment existing count
+      await updateDoc(counterRef, {
+        count: increment(1),
+        lastVisit: serverTimestamp()
+      });
+    } else {
+      // Create new counter
+      await setDoc(counterRef, {
+        count: 1,
+        lastVisit: serverTimestamp()
+      });
+    }
+  } catch (error) {
+    console.error('Error updating visitor count:', error);
+  }
+};
+
+// Fetch current visitor count
+const fetchVisitorCount = async () => {
+  try {
+    const counterRef = doc(db, 'siteStats', 'visitorCount');
+    const counterSnap = await getDoc(counterRef);
+    
+    if (counterSnap.exists()) {
+      return counterSnap.data().count;
+    }
+    return 0;
+  } catch (error) {
+    console.error('Error fetching visitor count:', error);
+    return 0;
+  }
+};
 
 // Social Media Follow Buttons Component
 const SocialFollowButtons = ({ socialMedia, artistName }) => {
@@ -212,6 +254,7 @@ export default function App() {
   const [loadingArtists, setLoadingArtists] = useState(false);
   const [showArtistSuggestions, setShowArtistSuggestions] = useState(false);
   const [showingArtistResults, setShowingArtistResults] = useState(false);
+  const [visitorCount, setVisitorCount] = useState(0);
   
   // Venue location state
   const [searchingAddress, setSearchingAddress] = useState(false);
@@ -427,6 +470,26 @@ useEffect(() => {
     unsubscribe();
   };
 }, [mode]); // Keep mode dependency
+
+// Track visitor count on page load
+useEffect(() => {
+  const trackVisit = async () => {
+    // Check if this is a new session (using sessionStorage)
+    const hasVisited = sessionStorage.getItem('GigWave_visited');
+    
+    if (!hasVisited) {
+      // New session - increment counter
+      await incrementVisitorCount();
+      sessionStorage.setItem('GigWave_visited', 'true');
+    }
+    
+    // Fetch and display current count
+    const count = await fetchVisitorCount();
+    setVisitorCount(count);
+  };
+  
+  trackVisit();
+}, []);
 
 // ============================================
 //    ADMIN DASHBOARD KEYBOARD SHORTCUT
@@ -4789,6 +4852,7 @@ if (mode === 'discover') {
           >
             📧 gig.wave.2005@gmail.com
           </a>
+                    
         </div>
 
       </div>
