@@ -5,8 +5,12 @@ import { BarChart3, Users, Music, Calendar, TrendingUp, Activity, Clock, DollarS
 
 // Admin email - ONLY THIS EMAIL CAN ACCESS
 const ADMIN_EMAIL = 'gig.wave.2005@gmail.com';
+  
 
 const AdminDashboard = ({ currentUser, visitorCount, onClose }) => {
+    console.log('📊 AdminDashboard received visitorCount:', visitorCount); 
+    console.log('📊 AdminDashboard visitorCount type:', typeof visitorCount);
+    
   const [stats, setStats] = useState({
     totalArtists: 0,
     totalGigs: 0,

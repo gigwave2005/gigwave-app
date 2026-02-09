@@ -86,10 +86,12 @@ window.auth = auth;
 // Visitor Counter Function
 const incrementVisitorCount = async () => {
   try {
+    console.log('📈 incrementVisitorCount called');
     const counterRef = doc(db, 'siteStats', 'visitorCount');
     
     // Check if document exists
     const counterSnap = await getDoc(counterRef);
+    console.log('📄 Counter doc exists?', counterSnap.exists());
     
     if (counterSnap.exists()) {
       // Increment existing count
@@ -97,30 +99,36 @@ const incrementVisitorCount = async () => {
         count: increment(1),
         lastVisit: serverTimestamp()
       });
+      console.log('✅ Counter incremented');
     } else {
       // Create new counter
       await setDoc(counterRef, {
         count: 1,
         lastVisit: serverTimestamp()
       });
+      console.log('✅ Counter created with count: 1');
     }
   } catch (error) {
-    console.error('Error updating visitor count:', error);
+    console.error('❌ Error updating visitor count:', error);
   }
 };
 
 // Fetch current visitor count
 const fetchVisitorCount = async () => {
   try {
+    console.log('📥 fetchVisitorCount called');
     const counterRef = doc(db, 'siteStats', 'visitorCount');
     const counterSnap = await getDoc(counterRef);
     
     if (counterSnap.exists()) {
-      return counterSnap.data().count;
+      const count = counterSnap.data().count;
+      console.log('✅ Count found:', count);
+      return count;
     }
+    console.log('⚠️ No count document found, returning 0');
     return 0;
   } catch (error) {
-    console.error('Error fetching visitor count:', error);
+    console.error('❌ Error fetching visitor count:', error);
     return 0;
   }
 };
@@ -473,18 +481,28 @@ useEffect(() => {
 
 // Track visitor count on page load
 useEffect(() => {
+  console.log('🎯 VISITOR TRACKING USEEFFECT RUNNING');
+  
   const trackVisit = async () => {
+    console.log('🔍 trackVisit function called');
+    
     // Check if this is a new session (using sessionStorage)
     const hasVisited = sessionStorage.getItem('GigWave_visited');
+    console.log('📊 Has visited before?', hasVisited);
     
     if (!hasVisited) {
+      console.log('🆕 NEW VISITOR - Incrementing count...');
       // New session - increment counter
       await incrementVisitorCount();
       sessionStorage.setItem('GigWave_visited', 'true');
+    } else {
+      console.log('⏭️ Returning visitor - skipping increment');
     }
     
     // Fetch and display current count
+    console.log('📥 Fetching current visitor count...');
     const count = await fetchVisitorCount();
+    console.log('✅ Visitor count fetched:', count);
     setVisitorCount(count);
   };
   
@@ -4203,6 +4221,7 @@ if (showAdminDashboard) {
   return (
     <AdminDashboard 
       currentUser={currentUser}
+      visitorCount={visitorCount}  // ← ADD THIS LINE
       onClose={() => setShowAdminDashboard(false)}
     />
   );
@@ -4851,8 +4870,7 @@ if (mode === 'discover') {
             className="text-cyan-400 hover:text-cyan-300 transition-colors text-base font-semibold"
           >
             📧 gig.wave.2005@gmail.com
-          </a>
-                    
+          </a>                    
         </div>
 
       </div>
